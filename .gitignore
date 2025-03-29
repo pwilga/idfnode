@@ -1,0 +1,22 @@
+# ESP-IDF build artifacts
+/build/
+/*.elf
+/*.bin
+/*.map
+*.log
+
+# SDK config
+/sdkconfig
+/sdkconfig.old
+
+# IDE and tools
+.vscode/
+*.code-workspace
+CMakeFiles/
+CMakeCache.txt
+Makefile
+
+# Python
+__pycache__/
+*.pyc
+.env/
