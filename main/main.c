@@ -19,6 +19,7 @@
 #include "wifi.h"
 #include "helpers.h"
 #include "ota.h"
+#include "udp_monitor.h"
 
 static const char *TAG = "MEM_INFO";
 
@@ -81,7 +82,6 @@ void printSysInfoTask(void *args)
                  (chip_info.features & CHIP_FEATURE_EMB_FLASH) ? "embedded" : "external");
 
         vTaskDelay(10000 / portTICK_PERIOD_MS);
-        print_hello();
     }
 }
 
@@ -123,7 +123,7 @@ void app_main(void)
     xTaskCreate(
         heartbeatTask,
         "heartbeatTask",
-        2048,
+        4096,
         NULL,
         0,
         &heartbeatTaskHandle);
@@ -133,9 +133,11 @@ void app_main(void)
     full_nvs_flash_init();
     wifi_sta_init();
 
-    xTaskCreate(tcp_server_task, "tcp_server", 4096, NULL, 0, NULL);
+    xTaskCreate(tcp_server_task, "tcp_server", 8192, NULL, 0, NULL);
     xTaskCreate(ledBlinkTask, "ledBlinkTask", 2048, NULL, 0, &ledBlinkTaskHandle);
     xTaskCreate(memory_info_task, "memory_info_task", 4096, NULL, 0, NULL);
+
+    udp_monitor_start();
 
     uint32_t index = 0;
     for (;;)

@@ -14,6 +14,5 @@ extern EventGroupHandle_t wifi_event_group;
 #define WIFI_FAIL_BIT BIT1
 
 void wifi_sta_init();
-void print_hello();
 
 #endif // WIFI_H

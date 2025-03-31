@@ -5,13 +5,8 @@ EventGroupHandle_t wifi_event_group;
 esp_event_handler_instance_t instance_any_id;
 esp_event_handler_instance_t instance_got_ip;
 
-static const char *TAG = "wifi_sta";
+static const char *TAG = "wifi-sta";
 static uint8_t retry_counter = 0;
-
-void print_hello()
-{
-    ESP_LOGW(TAG, "HEEELO");
-}
 
 static void wifi_event_handler(void *arg, esp_event_base_t event_base,
                                int32_t event_id, void *event_data)
