@@ -9,10 +9,12 @@
  * where the flash partition has run out of free pages or a newer NVS version
  * is detected (e.g. after firmware upgrade or flash format).
  *
- * It should be called once during system startup (before using any NVS or Wi-Fi functionality).
+ * It should be called once during system startup (before using any NVS or Wi-Fi
+ * functionality).
  *
- * **Required for Wi-Fi to function**: The ESP-IDF Wi-Fi stack stores configuration
- * and calibration data in NVS. Skipping this initialization will result in Wi-Fi startup failure.
+ * **Required for Wi-Fi to function**: The ESP-IDF Wi-Fi stack stores
+ * configuration and calibration data in NVS. Skipping this initialization will
+ * result in Wi-Fi startup failure.
  */
 
 void full_nvs_flash_init();

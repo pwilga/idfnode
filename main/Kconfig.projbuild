@@ -22,4 +22,10 @@ menu "IDF-node Application Configuration"
         default 5555
         help
             TCP port on which the ESP32 listens to receive firmware updates over the network.
+
+    config UDP_MONITOR_PORT
+        int "UDP Monitor Port"
+        default 5005
+        help
+            UDP port number. The ESP32 will start sending ESP_LOGx messages to the sender of the first UDP packet received on this port.
 endmenu
