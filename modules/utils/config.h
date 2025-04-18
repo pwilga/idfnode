@@ -5,9 +5,9 @@
 extern "C" {
 #endif
 
+#include "esp_event_base.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/event_groups.h"
-#include <esp_event_base.h>
 
 /* Bits definition that we can wait for.
  * - we are connected to the AP with an IP
@@ -16,7 +16,6 @@ extern "C" {
 #define NETWORK_FAIL_BIT BIT1
 
 /* FreeRTOS event group to signal application state */
-// extern EventGroupHandle_t wifi_event_group;
 extern EventGroupHandle_t app_event_group;
 
 extern esp_event_handler_instance_t instance_any_id;

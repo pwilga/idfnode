@@ -1,8 +1,14 @@
 #ifndef WIFI_H
 #define WIFI_H
 
-#include "esp_wifi.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 void wifi_sta_init();
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // WIFI_H

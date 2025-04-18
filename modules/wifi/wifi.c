@@ -1,6 +1,6 @@
-#include "wifi.h"
 #include "config.h"
 #include "esp_log.h"
+#include "esp_wifi.h"
 
 static const char *TAG = "wifi-sta";
 static uint8_t retry_counter = 0;

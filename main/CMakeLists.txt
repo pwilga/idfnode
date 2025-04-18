@@ -1,8 +1,9 @@
 idf_component_register(SRCS 
                        "../modules/wifi/wifi.c"
                        "../modules/utils/helpers.c"
-                       "../modules/monitor/udp_monitor.c"
+                       "../modules/utils/debug.c"
                        "../modules/utils/config.c"
+                       "../modules/monitor/udp_monitor.c"
                        "../modules/ota/ota.c"
                        "main.c"
                        REQUIRES driver esp_wifi nvs_flash lwip app_update mbedtls esp_timer
