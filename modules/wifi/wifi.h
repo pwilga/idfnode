@@ -5,7 +5,7 @@
 extern "C" {
 #endif
 
-void wifi_sta_init();
+esp_err_t wifi_sta_init();
 
 #ifdef __cplusplus
 }

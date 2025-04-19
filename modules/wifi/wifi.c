@@ -29,7 +29,12 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base,
   }
 }
 
-void wifi_sta_init() {
+/**
+ * Initializes Wi-Fi in station mode and waits until the device is connected to
+ * a network. This function must be called before starting any task that relies
+ * on network connectivity.
+ */
+esp_err_t wifi_sta_init() {
 
   ESP_ERROR_CHECK(esp_netif_init());
 
@@ -79,9 +84,11 @@ void wifi_sta_init() {
    * can test which event actually happened. */
   if (bits & NETWORK_CONNECTED_BIT) {
     ESP_LOGI(TAG, "Connected to AP SSID: %s", CONFIG_WIFI_SSID);
+    return ESP_OK;
   } else if (bits & NETWORK_FAIL_BIT) {
     ESP_LOGI(TAG, "Failed to connect to SSID: %s", CONFIG_WIFI_SSID);
   } else {
     ESP_LOGE(TAG, "UNEXPECTED EVENT");
   }
+  return ESP_FAIL;
 }

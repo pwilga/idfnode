@@ -17,7 +17,8 @@
  * result in Wi-Fi startup failure.
  */
 
-void full_nvs_flash_init();
-void initialise_mdns();
+esp_err_t full_nvs_flash_init();
+esp_err_t full_mdns_init();
+// void initialise_mdns();
 
 #endif // HELPERS_H
