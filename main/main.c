@@ -36,6 +36,8 @@ void app_main(void) {
   xTaskCreate(memory_info_task, "memory_info_task", 4096, NULL, 0, NULL);
   xTaskCreate(udp_monitor_task, "udp_monitor", 4096, NULL, 5, NULL);
 
+  initialise_mdns();
+
   uint32_t index = 0;
 
   for (;;) {

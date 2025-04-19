@@ -28,4 +28,22 @@ menu "IDF-node Application Configuration"
         default 5005
         help
             UDP port number. The ESP32 will start sending ESP_LOGx messages to the sender of the first UDP packet received on this port.
+
+    config MDNS_HOSTNAME
+        string "mDNS Hostname"
+        default "cikonesp"
+        help
+            Hostname used for mDNS service.
+            This name will be used to resolve the device in the network,
+            for example as esp32.local.
+
+    config MDNS_INSTANCE_NAME
+        string "mDNS Instance Name"
+        default "Cikon Systems ESP32 device template"
+        help
+            Instance name for the mDNS service.
+            This is a human-readable description of the device or service,
+            shown in mDNS/Bonjour/Avahi browsers.
+
+
 endmenu

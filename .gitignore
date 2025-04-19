@@ -1,4 +1,5 @@
 # ESP-IDF build artifacts
+/managed_components/
 /build/
 /*.elf
 /*.bin

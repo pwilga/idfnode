@@ -18,5 +18,6 @@
  */
 
 void full_nvs_flash_init();
+void initialise_mdns();
 
 #endif // HELPERS_H

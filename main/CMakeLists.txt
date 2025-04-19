@@ -6,7 +6,7 @@ idf_component_register(SRCS
                        "../modules/monitor/udp_monitor.c"
                        "../modules/ota/ota.c"
                        "main.c"
-                       REQUIRES driver esp_wifi nvs_flash lwip app_update mbedtls esp_timer
+                       REQUIRES driver esp_wifi nvs_flash lwip app_update mbedtls esp_timer mdns
                        PRIV_REQUIRES spi_flash
                        INCLUDE_DIRS ""
                        "../modules/wifi"
