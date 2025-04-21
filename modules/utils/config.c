@@ -5,8 +5,11 @@
 #include "esp_netif.h"
 #include "esp_wifi.h"
 #include "mdns.h"
+#if CONFIG_MQTT_ENABLE
+#include "mqtt.h"
+#endif
 
-EventGroupHandle_t app_event_group = NULL;
+EventGroupHandle_t app_event_group;
 
 esp_event_handler_instance_t instance_any_id;
 esp_event_handler_instance_t instance_got_ip;
@@ -46,6 +49,10 @@ void full_esp_restart() {
 
   ESP_ERROR_CHECK(esp_event_handler_instance_unregister(
       WIFI_EVENT, ESP_EVENT_ANY_ID, instance_any_id));
+
+#if CONFIG_MQTT_ENABLE
+  mqtt_shutdown();
+#endif
 
   mdns_free();
   esp_restart();

@@ -29,9 +29,6 @@ int udp_monitor_vprintf(const char *fmt, va_list args) {
 
 void udp_monitor_task(void *arg) {
 
-  xEventGroupWaitBits(app_event_group, NETWORK_CONNECTED_BIT, pdFALSE, pdFALSE,
-                      portMAX_DELAY);
-
   const uint8_t timeout_sec = 30;
 
   struct sockaddr_in recv_addr;

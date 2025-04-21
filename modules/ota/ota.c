@@ -1,5 +1,3 @@
-#include "ota.h"
-
 #include "config.h"
 #include "esp_err.h"
 #include "esp_log.h"
@@ -179,9 +177,6 @@ static void handle_ota(const int client_sock) {
 }
 
 void tcp_ota_task(void *args) {
-
-  xEventGroupWaitBits(app_event_group, NETWORK_CONNECTED_BIT, pdFALSE, pdFALSE,
-                      portMAX_DELAY);
 
   struct sockaddr_storage dest_addr;
 

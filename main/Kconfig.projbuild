@@ -45,5 +45,41 @@ menu "IDF-node Application Configuration"
             This is a human-readable description of the device or service,
             shown in mDNS/Bonjour/Avahi browsers.
 
+    menuconfig MQTT_ENABLE
+        bool "Enable MQTT"
+        default y
+        help
+            Enable or disable MQTT functionality in the application.
+            When disabled, MQTT will not be initialized or used.
 
-endmenu
+    if MQTT_ENABLE
+
+        menu "MQTT Configuration"
+
+        config MQTT_BROKER_URI
+            string "MQTT Broker URI"
+            default "mqtt://your-broker-url:1883"
+            help
+                URI of the MQTT broker to connect to.
+                Example: mqtt://broker.example.com:1883
+                Use mqtts:// for a secure TLS connection.
+
+        config MQTT_USERNAME
+            string "MQTT Username"
+            default "your-username"
+            help
+                Username for authenticating with the MQTT broker.
+                Leave empty if authentication is not required.
+
+        config MQTT_PASSWORD
+            string "MQTT Password"
+            default "your-password"
+            help
+                Password for authenticating with the MQTT broker.
+                WARNING: Do not commit real credentials to version control systems.
+
+        endmenu  # MQTT Configuration
+
+    endif  # MQTT_ENABLE
+    
+endmenu  # IDF-node Application Configuration
