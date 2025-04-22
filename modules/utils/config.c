@@ -1,4 +1,5 @@
 #include "config.h"
+#include "driver/gpio.h"
 #include "esp_err.h"
 #include "esp_event.h"
 #include "esp_log.h"
@@ -27,10 +28,14 @@ esp_event_handler_instance_t instance_got_ip;
 esp_err_t app_event_init(void) {
 
   app_event_group = xEventGroupCreate();
-  if (app_event_group == NULL) {
+  if (!app_event_group) {
     ESP_LOGE("cikon-systems", "Failed to create event group!");
     return ESP_FAIL;
   }
+
+  // onbard_led
+  ESP_ERROR_CHECK(gpio_reset_pin(GPIO_NUM_2));
+  ESP_ERROR_CHECK(gpio_set_direction(GPIO_NUM_2, GPIO_MODE_OUTPUT));
 
   return ESP_OK;
 }

@@ -8,6 +8,7 @@ extern "C" {
 #include "esp_event_base.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/event_groups.h"
+#include "strings.h"
 
 /* Bits definition that we can wait for.
  * - we are connected to the AP with an IP

@@ -2,15 +2,15 @@
 
 #if CONFIG_MQTT_ENABLE
 
+#include "cJSON.h"
 #include "config.h"
 #include "esp_log.h"
-#include "freertos/queue.h"
-#include "mqtt.h"
-
-#include "cJSON.h"
 #include "esp_mac.h"
 #include "esp_random.h"
 #include "esp_system.h"
+#include "freertos/queue.h"
+#include "helpers.h"
+#include "mqtt.h"
 
 #define TAG "mqtt-simple"
 
@@ -111,16 +111,16 @@ void mqtt_init() {
                           pdFALSE, pdFALSE, portMAX_DELAY);
 
   if (bits & MQTT_CONNECTED_BIT) {
-    ESP_LOGI(TAG, "Connected to MQTT Broker: %s", "jasns");
-    // return ESP_OK;
+    ESP_LOGI(TAG, "Connected to MQTT Broker: %s", CONFIG_MQTT_BROKER_URI);
   } else if (bits & MQTT_FAIL_BIT) {
-    ESP_LOGI(TAG, "Failed to connect to MQTT Broker: %s", "jasns");
+    ESP_LOGW(TAG, "Failed to connect to MQTT Broker: %s",
+             CONFIG_MQTT_BROKER_URI);
   } else {
     ESP_LOGE(TAG, "UNEXPECTED EVENT");
   }
 
   int msg_id = esp_mqtt_client_subscribe(mqtt_client, MQTT_COMMAND_TOPIC, 1);
-  ESP_LOGI(TAG, "sent subscribe successful, msg_id=%d", msg_id);
+  // ESP_LOGW(TAG, "sent subscribe successful, msg_id=%d", msg_id);
 
   xTaskCreate(command_task, "mqtt_task", 4096, NULL, 10,
               &mqtt_command_task_handle);
@@ -198,19 +198,40 @@ uint8_t parse_payload(const char *payload) {
     return 0;
   }
 
-  cJSON *led_status = cJSON_GetObjectItem(json_root, "led_status");
+  cJSON *json_item = json_root->child;
 
-  if (!cJSON_IsString(led_status)) {
-    ESP_LOGW(TAG, "Missing or invalid 'led_status' field in JSON");
-    cJSON_Delete(json_root);
-    return 0;
-    // return LED_UNKNOWN;
+  while (json_item) {
+    if (json_item->string) {
+
+      char *value_str = cJSON_PrintUnformatted(json_item);
+
+      if (value_str) {
+        ESP_LOGI(TAG, "Key: %s, Value: %s", json_item->string, value_str);
+        dispatch_command(json_item->string, value_str);
+        free(value_str);
+      }
+    }
+    json_item = json_item->next;
   }
+
+  cJSON_Delete(json_root);
+
   return 1;
+
+  // cJSON *led_status = cJSON_GetObjectItem(json_root, "led_status");
+
+  // if (!cJSON_IsString(led_status)) {
+  //   ESP_LOGW(TAG, "Missing or invalid 'led_status' field in JSON");
+  //   cJSON_Delete(json_root);
+  //   return 0;
+  //   // return LED_UNKNOWN;
+  // }
+  // return 1;
 }
 
 void command_task(void *args) {
-  char *msg;
+
+  char *msg = NULL; // ensure safe free() even if xQueueReceive fails
 
   while (1) {
 

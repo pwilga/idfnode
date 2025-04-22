@@ -69,13 +69,14 @@ void print_sys_info_task(void *args) {
 }
 
 void led_blink_task(void *args) {
-  gpio_reset_pin(GPIO_NUM_2);
-  gpio_set_direction(GPIO_NUM_2, GPIO_MODE_OUTPUT);
+
+  // gpio_reset_pin(GPIO_NUM_2);
+  // gpio_set_direction(GPIO_NUM_2, GPIO_MODE_OUTPUT);
 
   bool state = false;
 
   while (1) {
-    gpio_set_level(GPIO_NUM_2, state);
+    ESP_ERROR_CHECK(gpio_set_level(GPIO_NUM_2, state));
     vTaskDelay(1500 / portTICK_PERIOD_MS);
     state = !state;
   }
