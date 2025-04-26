@@ -6,6 +6,7 @@ idf_component_register(SRCS
                        "../modules/monitor/udp_monitor.c"
                        "../modules/ota/ota.c"
                        "../modules/mqtt/mqtt.c"
+                       "../modules/mqtt/ha.c"
                        "main.c"
                        REQUIRES driver esp_wifi nvs_flash lwip app_update mbedtls esp_timer mdns mqtt json
                        PRIV_REQUIRES spi_flash

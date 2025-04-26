@@ -12,6 +12,7 @@
 #include "helpers.h"
 #include "mqtt.h"
 
+#define MAX_TASKS 20
 #define TAG "mqtt-simple"
 
 TaskHandle_t mqtt_command_task_handle, mqtt_telemetry_task_handle;
@@ -118,39 +119,82 @@ void mqtt_init() {
   } else {
     ESP_LOGE(TAG, "UNEXPECTED EVENT");
   }
+  char command_topic[40];
+  MQTT_COMMAND_TOPIC(command_topic);
 
-  int msg_id = esp_mqtt_client_subscribe(mqtt_client, MQTT_COMMAND_TOPIC, 1);
+  int msg_id = esp_mqtt_client_subscribe(mqtt_client, command_topic, 1);
+
   // ESP_LOGW(TAG, "sent subscribe successful, msg_id=%d", msg_id);
 
-  xTaskCreate(command_task, "mqtt_task", 4096, NULL, 10,
+  xTaskCreate(command_task, "mqtt_command", 4096, NULL, 10,
               &mqtt_command_task_handle);
-  xTaskCreate(telemetry_task, "telemetry_task", 4096, NULL, 5,
+  xTaskCreate(telemetry_task, "mqtt_telemetry", 4096, NULL, 5,
               &mqtt_telemetry_task_handle);
 }
 
 void mqtt_shutdown() {
 
   vTaskDelete(mqtt_command_task_handle);
-  vTaskDelete(mqtt_telemetry_task_handle);
-  vQueueDelete(mqtt_queue);
-
   mqtt_command_task_handle = NULL;
+
+  vTaskDelete(mqtt_telemetry_task_handle);
   mqtt_telemetry_task_handle = NULL;
+
+  vQueueDelete(mqtt_queue);
   mqtt_queue = NULL;
 
   ESP_ERROR_CHECK(esp_mqtt_client_stop(mqtt_client));
   ESP_ERROR_CHECK(esp_mqtt_client_destroy(mqtt_client));
-
   mqtt_client = NULL;
 
   vTaskDelay(pdMS_TO_TICKS(100));
+}
+
+/**
+ * @brief Builds a JSON array of all current FreeRTOS tasks.
+ *
+ * Each element in the array contains:
+ * - name: task name
+ * - prio: task priority
+ * - stack: remaining stack space (high water mark)
+ *
+ * @return cJSON* Pointer to a JSON array. Must be freed using cJSON_Delete()
+ *         or attached to another cJSON object via cJSON_AddItemToObject().
+ *         Returns NULL on error.
+ */
+cJSON *create_task_array_json(void) {
+
+  TaskStatus_t task_status_array[MAX_TASKS];
+  UBaseType_t num_tasks =
+      uxTaskGetSystemState(task_status_array, MAX_TASKS, NULL);
+
+  cJSON *task_array = cJSON_CreateArray();
+  if (!task_array)
+    return NULL;
+
+  for (int i = 0; i < num_tasks; i++) {
+    cJSON *json_array_item = cJSON_CreateObject();
+    if (!json_array_item)
+      continue;
+
+    cJSON_AddStringToObject(json_array_item, "name",
+                            task_status_array[i].pcTaskName);
+    cJSON_AddNumberToObject(json_array_item, "prio",
+                            task_status_array[i].uxCurrentPriority);
+    cJSON_AddNumberToObject(json_array_item, "stack",
+                            task_status_array[i].usStackHighWaterMark);
+
+    cJSON_AddItemToArray(task_array, json_array_item);
+  }
+
+  return task_array;
 }
 
 float random_float(float min, float max) {
   return min + ((float)esp_random() / UINT32_MAX) * (max - min);
 }
 
-static char *build_telemetry_json(void) {
+char *build_telemetry_json(void) {
 
   cJSON *json_root = cJSON_CreateObject();
 
@@ -160,31 +204,41 @@ static char *build_telemetry_json(void) {
   float t1 = random_float(20.5f, 25.9f);
   float t2 = random_float(50.5f, 80.9f);
 
-  cJSON_AddNumberToObject(json_root, "t1", t1);
+  cJSON *tasks = create_task_array_json();
+
+  cJSON_AddNumberToObject(json_root, "tempreture", t1);
   cJSON_AddNumberToObject(json_root, "t2", t2);
 
+  cJSON_AddItemToObject(json_root, "task_list", tasks);
+
   char *json_str = cJSON_PrintUnformatted(json_root);
+
+  // cJSON_Delete(tasks);
   cJSON_Delete(json_root);
 
   return json_str;
 }
 
-void publish_telemetry_and_status(void) {
+void publish_telemetry(void) {
 
   char *payload = build_telemetry_json();
   if (!payload)
     return;
 
-  esp_mqtt_client_publish(mqtt_client, MQTT_TELEMETRY_TOPIC, payload, 0, 1, 0);
-  esp_mqtt_client_publish(mqtt_client, MQTT_AVAILABILITY_TOPIC, "online", 0, 1,
-                          0);
+  char topic[40];
+
+  MQTT_TELEMETRY_TOPIC(topic);
+  esp_mqtt_client_publish(mqtt_client, topic, payload, 0, 1, 0);
+
+  MQTT_AVAILABILITY_TOPIC(topic);
+  esp_mqtt_client_publish(mqtt_client, topic, "online", 0, 1, 0);
 
   free(payload);
 }
 
 void telemetry_task(void *args) {
   while (1) {
-    publish_telemetry_and_status();
+    publish_telemetry();
     vTaskDelay(pdMS_TO_TICKS(TELEMETRY_INTERVAL_MS));
   }
 }
@@ -194,7 +248,8 @@ uint8_t parse_payload(const char *payload) {
   cJSON *json_root = cJSON_Parse(payload);
 
   if (!json_root) {
-    ESP_LOGW(TAG, "Invalid JSON – rejecting message");
+    ESP_LOGW(TAG, "Invalid JSON: Rejecting message.");
+    cJSON_Delete(json_root);
     return 0;
   }
 
@@ -217,16 +272,6 @@ uint8_t parse_payload(const char *payload) {
   cJSON_Delete(json_root);
 
   return 1;
-
-  // cJSON *led_status = cJSON_GetObjectItem(json_root, "led_status");
-
-  // if (!cJSON_IsString(led_status)) {
-  //   ESP_LOGW(TAG, "Missing or invalid 'led_status' field in JSON");
-  //   cJSON_Delete(json_root);
-  //   return 0;
-  //   // return LED_UNKNOWN;
-  // }
-  // return 1;
 }
 
 void command_task(void *args) {
@@ -241,10 +286,13 @@ void command_task(void *args) {
     char *topic = msg;
     char *payload = msg + strlen(topic) + 1;
 
-    if (strcmp(topic, MQTT_COMMAND_TOPIC))
+    char commmand_topic[40];
+    MQTT_COMMAND_TOPIC(commmand_topic);
+
+    if (strcmp(topic, commmand_topic))
       goto cleanup;
 
-    ESP_LOGI(TAG, "Matched topic: %s", topic);
+    // ESP_LOGI(TAG, "Matched topic: %s", topic);
 
     if (!parse_payload(payload))
       goto cleanup;
@@ -252,74 +300,6 @@ void command_task(void *args) {
   cleanup:
     free(msg);
   }
-}
-
-/* Homeassistant MQTT Discovery */
-
-static void get_mac_string(char *out, size_t len) {
-  uint8_t mac[6];
-  esp_read_mac(mac, ESP_MAC_WIFI_STA); // ESP_MAC_BT, ESP_MAC_ETH
-  snprintf(out, len, "%02X%02X%02X%02X%02X%02X", mac[0], mac[1], mac[2], mac[3],
-           mac[4], mac[5]);
-}
-
-static cJSON *build_ha_device_info(const char *mac_str) {
-  cJSON *device = cJSON_CreateObject();
-  if (!device)
-    return NULL;
-
-  cJSON_AddStringToObject(device, "name", "Cikon ESP32 Node");
-
-  cJSON *ids = cJSON_CreateArray();
-  cJSON_AddItemToArray(ids, cJSON_CreateString(mac_str));
-  cJSON_AddItemToObject(device, "ids", ids);
-
-  cJSON_AddStringToObject(device, "mf", "Cikon Systems");
-  cJSON_AddStringToObject(device, "mdl", "ESP32");
-  cJSON_AddStringToObject(device, "sw", "1.0.0");
-
-  return device;
-}
-
-void publish_ha_discovery_sensor(esp_mqtt_client_handle_t client) {
-
-  char mac_str[13];
-  get_mac_string(mac_str, sizeof(mac_str));
-
-  // Stwórz discovery topic: np.
-  // homeassistant/sensor/esp32_xxxxxx_temp/config
-  char topic[128];
-  snprintf(topic, sizeof(topic), "homeassistant/sensor/%s/temperature/config",
-           mac_str);
-
-  // Tworzymy JSON
-  cJSON *root = cJSON_CreateObject();
-  cJSON_AddStringToObject(root, "name", "Temperature");
-
-  char uniq_id[64];
-  // snprintf(uniq_id, sizeof(uniq_id), "%s", mac_str);
-  strlcpy(uniq_id, mac_str, sizeof(uniq_id));
-
-  cJSON_AddStringToObject(root, "uniq_id", uniq_id);
-
-  cJSON_AddStringToObject(root, "stat_t", "esp32/sensors/temp");
-  cJSON_AddStringToObject(root, "unit_of_meas", "°C");
-  cJSON_AddStringToObject(root, "dev_cla", "temperature");
-  cJSON_AddStringToObject(root, "val_tpl", "{{ value | float }}");
-
-  cJSON *device = build_ha_device_info(mac_str);
-  if (device) {
-    cJSON_AddItemToObject(root, "device", device);
-  }
-
-  char *json_str = cJSON_PrintUnformatted(root);
-  if (json_str) {
-    esp_mqtt_client_publish(client, topic, json_str, 0, 1, true);
-    ESP_LOGI(TAG, "Discovery sent: %s", topic);
-    cJSON_free(json_str);
-  }
-
-  cJSON_Delete(root);
 }
 
 #endif // CONFIG_MQTT_ENABLE

@@ -9,6 +9,7 @@ void memory_info_task(void *pvParameter);
 void led_blink_task(void *args);
 void heartbeat_task(void *args);
 void print_sys_info_task(void *args);
+void show_task_info(void *args);
 
 #ifdef __cplusplus
 }

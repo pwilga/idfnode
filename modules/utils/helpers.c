@@ -3,7 +3,11 @@
 #include "driver/gpio.h"
 #include "esp_err.h"
 #include "esp_log.h"
+#include "esp_mac.h"
+#include "esp_system.h"
+#include "ha.h"
 #include "mdns.h"
+#include "mqtt5_client.h"
 #include "nvs_flash.h"
 
 esp_err_t full_nvs_flash_init() {
@@ -49,6 +53,7 @@ void onboard_led(void *args) {
 
 const command_entry_t command_table[] = {{"onboard_led", onboard_led},
                                          {"restart", test},
+                                         {"ha", publish_ha_mqtt_discovery},
                                          {NULL, NULL}};
 
 void dispatch_command(const char *cmd, void *args) {
@@ -69,4 +74,37 @@ void dispatch_command(const char *cmd, void *args) {
 bool parse_bool_string(const char *input) {
   return input && (!strcasecmp(input, "true") || !strcasecmp(input, "1") ||
                    !strcasecmp(input, "on") || !strcasecmp(input, "up"));
+}
+
+/**
+ * @brief Returns the Wi-Fi MAC address as a 12-character uppercase string (no
+ * colons).
+ *
+ * This function reads the MAC address once (on first call) and caches it in a
+ * static buffer. Subsequent calls return the same pointer without re-reading
+ * the hardware.
+ *
+ * Example return value: "A1B2C3D4E5F6"
+ *
+ * @return const char* Pointer to a static null-terminated string, or NULL on
+ * error.
+ */
+const char *get_client_id(void) {
+
+  static char buf[13];
+  static bool initialized = false;
+
+  if (initialized)
+    return buf;
+
+  uint8_t mac[6];
+  esp_err_t err = esp_read_mac(mac, ESP_MAC_WIFI_STA);
+  if (err != ESP_OK)
+    return NULL;
+
+  snprintf(buf, sizeof(buf), "%02X%02X%02X%02X%02X%02X", mac[0], mac[1], mac[2],
+           mac[3], mac[4], mac[5]);
+
+  initialized = true;
+  return buf;
 }
