@@ -2,9 +2,9 @@
 #ifndef HELPERS_H
 #define HELPERS_H
 
+#include "cJSON.h"
 #include "esp_err.h"
 #include "stdbool.h"
-
 /**
  * @brief Fully initializes the NVS (Non-Volatile Storage) flash partition.
  *
@@ -34,8 +34,10 @@ esp_err_t full_mdns_init();
  */
 const char *get_client_id();
 
-bool parse_bool_string(const char *input);
+// bool parse_bool_string(const char *input);
+bool parse_bool_json(cJSON *cmnd_param);
 void dispatch_command(const char *cmd, void *args);
+bool get_onboard_led_state(void);
 
 typedef void (*command_handler_t)(void *args);
 typedef struct {

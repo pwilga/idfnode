@@ -4,6 +4,7 @@
 
 #include "cJSON.h"
 #include "config.h"
+#include "driver/gpio.h"
 #include "esp_log.h"
 #include "esp_mac.h"
 #include "esp_random.h"
@@ -16,6 +17,7 @@
 #define TAG "mqtt-simple"
 
 TaskHandle_t mqtt_command_task_handle, mqtt_telemetry_task_handle;
+
 esp_mqtt_client_handle_t mqtt_client;
 QueueHandle_t mqtt_queue;
 
@@ -86,6 +88,9 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base,
 
 void mqtt_init() {
 
+  char avail_topic_buf[128];
+  MQTT_AVAILABILITY_TOPIC(avail_topic_buf);
+
   esp_mqtt_client_config_t mqtt_cfg = {
       .broker =
           {
@@ -97,6 +102,13 @@ void mqtt_init() {
               .authentication.password = CONFIG_MQTT_PASSWORD,
           },
       .buffer.size = MQTT_RX_BUFFER_SIZE,
+      .session.last_will =
+          {
+              .topic = avail_topic_buf,
+              .msg = "offline",
+              .qos = 0,
+              .retain = false,
+          },
   };
 
   mqtt_queue = xQueueCreate(8, sizeof(void *));
@@ -132,6 +144,7 @@ void mqtt_init() {
               &mqtt_telemetry_task_handle);
 }
 
+// Do we need this function. Neeeds to be debuged if so
 void mqtt_shutdown() {
 
   vTaskDelete(mqtt_command_task_handle);
@@ -207,8 +220,8 @@ char *build_telemetry_json(void) {
   cJSON *tasks = create_task_array_json();
 
   cJSON_AddNumberToObject(json_root, "tempreture", t1);
-  cJSON_AddNumberToObject(json_root, "t2", t2);
-
+  cJSON_AddNumberToObject(json_root, "onboard_led", get_onboard_led_state());
+  cJSON_AddNumberToObject(json_root, "uptime", esp_timer_get_time() / 1000000);
   cJSON_AddItemToObject(json_root, "task_list", tasks);
 
   char *json_str = cJSON_PrintUnformatted(json_root);
@@ -249,7 +262,6 @@ uint8_t parse_payload(const char *payload) {
 
   if (!json_root) {
     ESP_LOGW(TAG, "Invalid JSON: Rejecting message.");
-    cJSON_Delete(json_root);
     return 0;
   }
 
@@ -257,20 +269,14 @@ uint8_t parse_payload(const char *payload) {
 
   while (json_item) {
     if (json_item->string) {
-
-      char *value_str = cJSON_PrintUnformatted(json_item);
-
-      if (value_str) {
-        ESP_LOGI(TAG, "Key: %s, Value: %s", json_item->string, value_str);
-        dispatch_command(json_item->string, value_str);
-        free(value_str);
-      }
+      ESP_LOGI(TAG, "Dispatching key: %s", json_item->string);
+      dispatch_command(json_item->string, (void *)json_item);
+      publish_telemetry();
     }
     json_item = json_item->next;
   }
 
   cJSON_Delete(json_root);
-
   return 1;
 }
 

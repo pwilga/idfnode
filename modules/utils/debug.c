@@ -93,29 +93,23 @@ void heartbeat_task(void *args) {
 
 void show_task_info(void *args) {
 
-  // static char task_list_buf[2048];
-  // static char runtime_buf[2048];
+  static char task_list_buf[2048];
+  static char runtime_buf[2048];
 
   while (1) {
     // // Wypisz info o stanie tasków (nazwa, stan, priorytet, stos, ID)
-    // vTaskList(task_list_buf);
+    vTaskList(task_list_buf);
 
-    // printf("\033[2J"); // Wyczyść ekran
-    // printf("\033[H");  // Kursor na górę
-    // printf("ESP32 Task Monitor (live)\n");
-    // printf("--------------------------\n");
-    // printf("Name          State Prio Stack Num\n");
-    // printf("%s\n", task_list_buf);
+    printf("\033[2J"); // Wyczyść ekran
+    printf("\033[H");  // Kursor na górę
+    printf("ESP32 Task Monitor (live)\n");
+    printf("--------------------------\n");
+    printf("Name          State Prio Stack Num\n");
+    printf("%s\n", task_list_buf);
 
-    // // ESP_LOGI("TASKS", "Task List:\nName          State Prio Stack
-    // Num\n%s",
-    // //  task_list_buf);
+    ESP_LOGI("TASKS", "Task List:\nName          State Prio Stack Num\n %s ",
+             task_list_buf);
 
-    // // vTaskGetRunTimeStats(runtime_buf);
-    // // ESP_LOGI("TASKS", "Run Time Stats:\nTask Name     Time     %%
-    // CPU\n%s",
-    // //          runtime_buf);
-
-        vTaskDelay(pdMS_TO_TICKS(5000)); // print every 5 seconds
+    vTaskDelay(pdMS_TO_TICKS(5000)); // print every 5 seconds
   }
 }

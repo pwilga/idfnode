@@ -173,7 +173,7 @@ static void handle_ota(const int client_sock) {
   }
 
   OTA_LOG_STEP(5); // Reboot
-  full_esp_restart();
+  esp_safe_restart(NULL);
 }
 
 void tcp_ota_task(void *args) {

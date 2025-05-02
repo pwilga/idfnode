@@ -25,7 +25,7 @@ extern esp_event_handler_instance_t instance_any_id;
 extern esp_event_handler_instance_t instance_got_ip;
 
 esp_err_t app_event_init(void);
-void full_esp_restart();
+void esp_safe_restart(void *args);
 
 #ifdef __cplusplus
 }

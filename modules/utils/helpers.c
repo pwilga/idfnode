@@ -23,14 +23,6 @@ esp_err_t full_nvs_flash_init() {
 
 esp_err_t full_mdns_init() {
 
-  // xEventGroupWaitBits(app_event_group, NETWORK_CONNECTED_BIT, pdFALSE,
-  // pdFALSE,
-  //                     portMAX_DELAY);
-
-  // ESP_ERROR_CHECK(mdns_init());
-  // ESP_ERROR_CHECK(mdns_hostname_set(CONFIG_MDNS_HOSTNAME));
-  // ESP_ERROR_CHECK(mdns_instance_name_set(CONFIG_MDNS_INSTANCE_NAME));
-
   esp_err_t ret = (mdns_init() != ESP_OK ||
                    mdns_hostname_set(CONFIG_MDNS_HOSTNAME) != ESP_OK ||
                    mdns_instance_name_set(CONFIG_MDNS_INSTANCE_NAME) != ESP_OK)
@@ -38,21 +30,33 @@ esp_err_t full_mdns_init() {
                       : ESP_OK;
 
   if (ret == ESP_OK)
-    ESP_LOGE("mdns", "mDNS started with hostname: %s.local",
+    ESP_LOGI("mdns", "mDNS started with hostname: %s.local",
              CONFIG_MDNS_HOSTNAME);
 
   return ret;
 }
 
-void test(void *args) { ESP_LOGE("TEST", "TEST"); }
+void restart(void *args) {
+  xTaskCreate(esp_safe_restart, "restart", 2048, NULL, configMAX_PRIORITIES - 1,
+              NULL);
+}
+
+static bool onboard_led_state = false;
+
+bool get_onboard_led_state(void) { return onboard_led_state; }
 
 void onboard_led(void *args) {
-  ESP_LOGI("LED", "toggle led: %s", (char *)args);
-  ESP_ERROR_CHECK(gpio_set_level(GPIO_NUM_2, parse_bool_string((char *)args)));
+
+  bool new_state = parse_bool_json((cJSON *)args);
+
+  if (onboard_led_state != new_state) {
+    ESP_ERROR_CHECK(gpio_set_level(GPIO_NUM_2, !new_state));
+    onboard_led_state = new_state;
+  }
 }
 
 const command_entry_t command_table[] = {{"onboard_led", onboard_led},
-                                         {"restart", test},
+                                         {"restart", restart},
                                          {"ha", publish_ha_mqtt_discovery},
                                          {NULL, NULL}};
 
@@ -71,9 +75,39 @@ void dispatch_command(const char *cmd, void *args) {
   ESP_LOGW(TAG, "Unknown command: %s", cmd);
 }
 
+bool valid_bool_param(cJSON *cmnd_param) {
+  return cJSON_IsString(cmnd_param) || cJSON_IsNumber(cmnd_param) ||
+         cJSON_IsBool(cmnd_param) || cJSON_IsNull(cmnd_param);
+}
+
 bool parse_bool_string(const char *input) {
   return input && (!strcasecmp(input, "true") || !strcasecmp(input, "1") ||
                    !strcasecmp(input, "on") || !strcasecmp(input, "up"));
+}
+
+bool parse_bool_json(cJSON *cmnd_param) {
+
+  const char *TAG = "parse-json-bool";
+
+  // cJSON *cmnd_param = cJSON_Parse(input);
+  if (!valid_bool_param(cmnd_param)) {
+    ESP_LOGE(TAG, "Invalid command parameter: expected a JSON string, number, "
+                  "boolean or null.");
+    // cJSON_Delete(cmnd_param);
+    return false;
+  }
+
+  bool state = false;
+  if (cJSON_IsString(cmnd_param)) {
+    state = parse_bool_string(cmnd_param->valuestring);
+  } else if (cJSON_IsNumber(cmnd_param)) {
+    state = cmnd_param->valuedouble;
+  } else if (cJSON_IsBool(cmnd_param)) {
+    state = cJSON_IsTrue(cmnd_param);
+  }
+
+  // cJSON_Delete(cmnd_param);
+  return state;
 }
 
 /**

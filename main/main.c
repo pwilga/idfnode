@@ -40,14 +40,7 @@ void app_main(void) {
   mqtt_init();
 #endif
 
-  uint32_t index = 0;
-
   for (;;) {
-    index++;
-    if (index == 100) {
-      ESP_LOGE(TAG, "Closing Blinking Led Task");
-      vTaskDelete(ledBlinkTaskHandle);
-    }
     vTaskDelay(2000 / portTICK_PERIOD_MS);
   }
 }
