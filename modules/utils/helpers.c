@@ -7,8 +7,10 @@
 #include "esp_system.h"
 #include "ha.h"
 #include "mdns.h"
-#include "mqtt5_client.h"
+// #include "mqtt5_client.h"
 #include "nvs_flash.h"
+#include <ctype.h>
+#include <string.h>
 
 esp_err_t full_nvs_flash_init() {
   // Initialize NVS
@@ -110,19 +112,6 @@ bool parse_bool_json(cJSON *cmnd_param) {
   return state;
 }
 
-/**
- * @brief Returns the Wi-Fi MAC address as a 12-character uppercase string (no
- * colons).
- *
- * This function reads the MAC address once (on first call) and caches it in a
- * static buffer. Subsequent calls return the same pointer without re-reading
- * the hardware.
- *
- * Example return value: "A1B2C3D4E5F6"
- *
- * @return const char* Pointer to a static null-terminated string, or NULL on
- * error.
- */
 const char *get_client_id(void) {
 
   static char buf[13];
@@ -141,4 +130,22 @@ const char *get_client_id(void) {
 
   initialized = true;
   return buf;
+}
+
+char *sanitize(const char *s) {
+  size_t len = strlen(s);
+  char *out = malloc(len + 1);
+  if (!out)
+    return NULL;
+
+  for (size_t i = 0; i < len; i++) {
+    if (s[i] == ' ')
+      out[i] = '_';
+    else if (isupper((unsigned char)s[i]))
+      out[i] = tolower((unsigned char)s[i]);
+    else
+      out[i] = s[i];
+  }
+  out[len] = '\0';
+  return out;
 }

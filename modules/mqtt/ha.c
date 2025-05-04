@@ -14,19 +14,6 @@
 static bool has_sent_full_dev = false;
 static bool empty_payload = false;
 
-/**
- * @brief Builds the Home Assistant MQTT Discovery "device" object.
- *
- * On the first call, returns the full device metadata including name,
- * model, software and hardware version, and configuration URL.
- * On subsequent calls, only the minimal "ids" field is returned.
- *
- * This allows devices to avoid sending duplicate metadata after
- * the initial discovery message, while still including required identifiers.
- *
- * @return A cJSON object representing the "device" field of the ha payload.
- *         Caller is responsible for freeing the object with cJSON_Delete().
- */
 cJSON *build_ha_device(void) {
 
   const char *cliend_id = get_client_id();
@@ -54,33 +41,15 @@ cJSON *build_ha_device(void) {
   return device;
 }
 
-/**
- * @brief Builds a generic Home Assistant (HA) entity configuration for MQTT
- * Discovery.
- *
- * This function prepares a generic HA entity by:
- * - Constructing the appropriate MQTT discovery topic based on the entity name
- * and type.
- * - Creating the JSON payload with required fields for Home Assistant
- * auto-discovery.
- *
- * The entity structure (ha_entity_t) will be populated with the generated topic
- * and payload.
- *
- * @param entity Pointer to the ha_entity_t structure where the generated topic
- * and payload will be stored.
- * @param name Name of the entity (e.g., "living_room_light" or
- * "sensor_temperature").
- * @param entity_type Type of the entity (e.g., "sensor", "switch",
- * "binary_sensor").
- */
 void build_ha_entity(ha_entity_t *entity, const char *entity_type,
                      const char *name) {
 
+  char *sanitized_name = sanitize(name);
   const size_t BUF_LEN = 128;
 
   char unique_id[64];
-  snprintf(unique_id, sizeof(unique_id), "%.6s_%s", get_client_id(), name);
+  snprintf(unique_id, sizeof(unique_id), "%.6s_%s", get_client_id(),
+           sanitized_name);
 
   snprintf(entity->ha_config_topic, sizeof(entity->ha_config_topic),
            "%s/%s/%s/config", MQTT_DISCOVERY_PREFIX, entity_type, unique_id);
@@ -106,18 +75,16 @@ void build_ha_entity(ha_entity_t *entity, const char *entity_type,
   MQTT_AVAILABILITY_TOPIC(buf);
   cJSON_AddStringToObject(json_root, "avty_t", buf);
 
-  snprintf(buf, sizeof(buf), "{{ value_json.%s  }}", name);
+  snprintf(buf, sizeof(buf), "{{ value_json.%s  }}", sanitized_name);
   cJSON_AddStringToObject(json_root, "val_tpl", buf);
 
   cJSON_AddItemToObject(json_root, "dev", build_ha_device());
 
   entity->ha_config_payload = json_root;
+
+  free(sanitized_name);
 }
 
-/**
- * @brief Frees the dynamically allocated Home Assistant entity configuration
- * payload.
- */
 void free_ha_entity(ha_entity_t *entity) {
 
   if (entity->ha_config_payload) {
@@ -129,7 +96,18 @@ void free_ha_entity(ha_entity_t *entity) {
 // only temporary
 extern esp_mqtt_client_handle_t mqtt_client;
 
-void publish_ha_entity(ha_entity_t *entity) {
+/**
+ * @brief Publishes a Home Assistant entity configuration via MQTT and frees its
+ * resources.
+ *
+ * This function serializes the entity's JSON configuration payload (if present)
+ * and publishes it to the associated MQTT topic using QoS 0. After publishing,
+ * it frees the payload string and the internal resources held by the entity.
+ *
+ * @param entity Pointer to the ha_entity_t structure containing topic and
+ * payload data.
+ */
+void submit_ha_entity(ha_entity_t *entity) {
 
   char *payload = NULL;
 
@@ -141,63 +119,89 @@ void publish_ha_entity(ha_entity_t *entity) {
   ESP_LOGI(TAG, "Topic: %s", entity->ha_config_topic);
   ESP_LOGI(TAG, "Payload: %s", payload);
 
-  esp_mqtt_client_publish(mqtt_client, entity->ha_config_topic, payload, 0, 1,
+  esp_mqtt_client_publish(mqtt_client, entity->ha_config_topic, payload, 0, 0,
                           0);
 
   cJSON_free(payload);
+
+  free_ha_entity(entity);
 }
 
-void build_ha_button(ha_entity_t *entity, const char *name) {
+void register_ha_button(const char *name) {
 
-  build_ha_entity(entity, "button", name);
+  ha_entity_t entity;
+  build_ha_entity(&entity, "button", name);
 
-  char payload_command_buf[20];
-  snprintf(payload_command_buf, sizeof(payload_command_buf), "{\"%s\": null}",
-           name);
+  if (entity.ha_config_payload) {
 
-  cJSON_AddStringToObject(entity->ha_config_payload, "command_template",
-                          payload_command_buf);
+    char *sanitized_name = sanitize(name);
+    char payload_command_buf[20];
+
+    snprintf(payload_command_buf, sizeof(payload_command_buf), "{\"%s\": null}",
+             sanitized_name);
+    free(sanitized_name);
+
+    cJSON_AddStringToObject(entity.ha_config_payload, "command_template",
+                            payload_command_buf);
+  }
+  submit_ha_entity(&entity);
 }
 
-void build_ha_switch(ha_entity_t *entity, const char *name) {
+void register_ha_switch(const char *name) {
 
-  build_ha_entity(entity, "switch", name);
+  ha_entity_t entity;
+  build_ha_entity(&entity, "switch", name);
 
-  if (!entity->ha_config_payload)
-    return;
+  if (entity.ha_config_payload) {
 
-  const uint8_t payload_buf_size = 64;
-  char payload_on_buf[payload_buf_size], payload_off_buf[payload_buf_size];
+    char *sanitized_name = sanitize(name);
+    char payload_onoff_buf[64];
 
-  snprintf(payload_on_buf, sizeof(payload_on_buf), "{\"%s\":1}", name);
-  snprintf(payload_off_buf, sizeof(payload_off_buf), "{\"%s\":0}", name);
+    snprintf(payload_onoff_buf, sizeof(payload_onoff_buf), "{\"%s\":1}",
+             sanitized_name);
+    cJSON_AddStringToObject(entity.ha_config_payload, "payload_on",
+                            payload_onoff_buf);
 
-  cJSON_AddStringToObject(entity->ha_config_payload, "payload_on",
-                          payload_on_buf);
-  cJSON_AddStringToObject(entity->ha_config_payload, "payload_off",
-                          payload_off_buf);
-  cJSON_AddNumberToObject(entity->ha_config_payload, "state_on", 1);
-  cJSON_AddNumberToObject(entity->ha_config_payload, "state_off", 0);
+    snprintf(payload_onoff_buf, sizeof(payload_onoff_buf), "{\"%s\":0}",
+             sanitized_name);
+    cJSON_AddStringToObject(entity.ha_config_payload, "payload_off",
+                            payload_onoff_buf);
+    free(sanitized_name);
+
+    cJSON_AddNumberToObject(entity.ha_config_payload, "state_on", 1);
+    cJSON_AddNumberToObject(entity.ha_config_payload, "state_off", 0);
+  }
+  submit_ha_entity(&entity);
 }
 
-// typedef struct {
-//   const char *key;
-//   const char *value;
-// } KeyValue;
+void register_ha_tasks_dict_sensor(const char *name) {
 
-// KeyValue attrs[] = {
-//     {"dev_cla", "temperature"},
-//     {"unit_of_measurement", "°C"},
-//     {"friendly_name", "Living Room Temp"},
-// };
+  ha_entity_t entity;
+  build_ha_entity(&entity, "sensor", name);
 
-// void ha_entity_add_attributes(ha_entity_t *entity, const KeyValue *attrs,
-//                               size_t count) {
-//   for (size_t i = 0; i < count; ++i) {
-//     ESP_LOGW(TAG, "%s: %s", attrs[i].key, attrs[i].value);
-//     // cJSON_AddStringToObject(entity->json, attrs[i].key, attrs[i].value);
-//   }
-// }
+  char *sanitized_name = sanitize(name);
+
+  if (entity.ha_config_payload) {
+
+    char val_buf[64];
+
+    snprintf(val_buf, sizeof(val_buf), "{{ value_json.%s | count }}",
+             sanitized_name);
+    cJSON_ReplaceItemInObject(entity.ha_config_payload, "val_tpl",
+                              cJSON_CreateString(val_buf));
+
+    MQTT_TELEMETRY_TOPIC(val_buf);
+    cJSON_AddStringToObject(entity.ha_config_payload, "json_attributes_topic",
+                            val_buf);
+
+    snprintf(val_buf, sizeof(val_buf), "{{ value_json.%s | tojson }}",
+             sanitized_name);
+    cJSON_AddStringToObject(entity.ha_config_payload,
+                            "json_attributes_template", val_buf);
+    free(sanitized_name);
+  }
+  submit_ha_entity(&entity);
+}
 
 void publish_ha_mqtt_discovery(void *args) {
 
@@ -205,21 +209,82 @@ void publish_ha_mqtt_discovery(void *args) {
 
   ha_entity_t entity;
 
-  build_ha_entity(&entity, "sensor", "tempreture");
+  build_ha_entity(&entity, "sensor", "Tempreture");
   cJSON_AddStringToObject(entity.ha_config_payload, "dev_cla", "temperature");
-  publish_ha_entity(&entity);
-  free_ha_entity(&entity);
+  submit_ha_entity(&entity);
 
-  build_ha_entity(&entity, "sensor", "uptime");
+  build_ha_entity(&entity, "sensor", "Uptime");
   cJSON_AddStringToObject(entity.ha_config_payload, "dev_cla", "duration");
-  publish_ha_entity(&entity);
-  free_ha_entity(&entity);
+  submit_ha_entity(&entity);
 
-  build_ha_switch(&entity, "onboard_led");
-  publish_ha_entity(&entity);
-  free_ha_entity(&entity);
+  register_ha_switch("Onboard Led");
+  register_ha_button("Restart");
+  register_ha_tasks_dict_sensor("Tasks Dict");
+}
 
-  build_ha_button(&entity, "restart");
-  publish_ha_entity(&entity);
-  free_ha_entity(&entity);
+cJSON *create_tasks_dict_json(void) {
+
+  UBaseType_t num_tasks = uxTaskGetNumberOfTasks();
+  TaskStatus_t *task_status_array = calloc(num_tasks, sizeof(TaskStatus_t));
+
+  if (!task_status_array)
+    return NULL;
+
+  cJSON *task_dict = cJSON_CreateObject();
+  if (!task_dict) {
+    free(task_status_array);
+    return NULL;
+  }
+
+  uint32_t total_runtime = 0;
+  UBaseType_t real_task_count =
+      uxTaskGetSystemState(task_status_array, num_tasks, &total_runtime);
+
+  for (UBaseType_t i = 0; i < real_task_count; i++) {
+    cJSON *json_task = cJSON_CreateObject();
+    if (!json_task)
+      continue;
+
+    cJSON_AddNumberToObject(json_task, "prio",
+                            task_status_array[i].uxCurrentPriority);
+    cJSON_AddNumberToObject(json_task, "stack",
+                            task_status_array[i].usStackHighWaterMark);
+    cJSON_AddNumberToObject(json_task, "runtime_ticks",
+                            task_status_array[i].ulRunTimeCounter);
+    cJSON_AddNumberToObject(json_task, "task_number",
+                            task_status_array[i].xTaskNumber);
+
+    // Map eTaskState enum to human-readable string
+    const char *state_str = "unknown";
+    switch (task_status_array[i].eCurrentState) {
+    case eRunning:
+      state_str = "running";
+      break;
+    case eReady:
+      state_str = "ready";
+      break;
+    case eBlocked:
+      state_str = "blocked";
+      break;
+    case eSuspended:
+      state_str = "suspended";
+      break;
+    case eDeleted:
+      state_str = "deleted";
+      break;
+    default:
+      break;
+    }
+    cJSON_AddStringToObject(json_task, "state", state_str);
+
+#if (INCLUDE_xTaskGetAffinity == 1)
+    cJSON_AddNumberToObject(json_task, "core", task_status_array[i].xCoreID);
+#endif
+
+    cJSON_AddItemToObject(task_dict, task_status_array[i].pcTaskName,
+                          json_task);
+  }
+
+  free(task_status_array);
+  return task_dict;
 }

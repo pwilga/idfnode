@@ -18,7 +18,6 @@ void mqtt_shutdown();
 void telemetry_task(void *args);
 void command_task(void *args);
 
-// -=-=-=-=
 static inline void get_mqtt_topic(char *buf, size_t buf_size,
                                   const char *suffix) {
   snprintf(buf, buf_size, "%s/%s/%s", MQTT_NAME, get_client_id(), suffix);

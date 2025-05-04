@@ -6,14 +6,12 @@
 #include "config.h"
 #include "driver/gpio.h"
 #include "esp_log.h"
-#include "esp_mac.h"
 #include "esp_random.h"
-#include "esp_system.h"
 #include "freertos/queue.h"
+#include "ha.h"
 #include "helpers.h"
 #include "mqtt.h"
 
-#define MAX_TASKS 20
 #define TAG "mqtt-simple"
 
 TaskHandle_t mqtt_command_task_handle, mqtt_telemetry_task_handle;
@@ -88,9 +86,9 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base,
 
 void mqtt_init() {
 
-  char avail_topic_buf[128];
-  MQTT_AVAILABILITY_TOPIC(avail_topic_buf);
+  static char avail_topic_buf[128];
 
+  MQTT_AVAILABILITY_TOPIC(avail_topic_buf);
   esp_mqtt_client_config_t mqtt_cfg = {
       .broker =
           {
@@ -98,16 +96,21 @@ void mqtt_init() {
           },
       .credentials =
           {
+              .client_id = get_client_id(),
               .username = CONFIG_MQTT_USERNAME,
               .authentication.password = CONFIG_MQTT_PASSWORD,
           },
       .buffer.size = MQTT_RX_BUFFER_SIZE,
-      .session.last_will =
+      .session =
           {
-              .topic = avail_topic_buf,
-              .msg = "offline",
-              .qos = 0,
-              .retain = false,
+              .keepalive = 15,
+              .last_will =
+                  {
+                      .topic = avail_topic_buf,
+                      .msg = "offline",
+                      .qos = 0,
+                      .retain = false,
+                  },
           },
   };
 
@@ -144,7 +147,6 @@ void mqtt_init() {
               &mqtt_telemetry_task_handle);
 }
 
-// Do we need this function. Neeeds to be debuged if so
 void mqtt_shutdown() {
 
   vTaskDelete(mqtt_command_task_handle);
@@ -156,51 +158,15 @@ void mqtt_shutdown() {
   vQueueDelete(mqtt_queue);
   mqtt_queue = NULL;
 
+  char aval_buf_topic[128];
+  MQTT_AVAILABILITY_TOPIC(aval_buf_topic);
+  esp_mqtt_client_publish(mqtt_client, aval_buf_topic, "offline", 0, 1, 0);
+
   ESP_ERROR_CHECK(esp_mqtt_client_stop(mqtt_client));
   ESP_ERROR_CHECK(esp_mqtt_client_destroy(mqtt_client));
   mqtt_client = NULL;
 
   vTaskDelay(pdMS_TO_TICKS(100));
-}
-
-/**
- * @brief Builds a JSON array of all current FreeRTOS tasks.
- *
- * Each element in the array contains:
- * - name: task name
- * - prio: task priority
- * - stack: remaining stack space (high water mark)
- *
- * @return cJSON* Pointer to a JSON array. Must be freed using cJSON_Delete()
- *         or attached to another cJSON object via cJSON_AddItemToObject().
- *         Returns NULL on error.
- */
-cJSON *create_task_array_json(void) {
-
-  TaskStatus_t task_status_array[MAX_TASKS];
-  UBaseType_t num_tasks =
-      uxTaskGetSystemState(task_status_array, MAX_TASKS, NULL);
-
-  cJSON *task_array = cJSON_CreateArray();
-  if (!task_array)
-    return NULL;
-
-  for (int i = 0; i < num_tasks; i++) {
-    cJSON *json_array_item = cJSON_CreateObject();
-    if (!json_array_item)
-      continue;
-
-    cJSON_AddStringToObject(json_array_item, "name",
-                            task_status_array[i].pcTaskName);
-    cJSON_AddNumberToObject(json_array_item, "prio",
-                            task_status_array[i].uxCurrentPriority);
-    cJSON_AddNumberToObject(json_array_item, "stack",
-                            task_status_array[i].usStackHighWaterMark);
-
-    cJSON_AddItemToArray(task_array, json_array_item);
-  }
-
-  return task_array;
 }
 
 float random_float(float min, float max) {
@@ -217,12 +183,12 @@ char *build_telemetry_json(void) {
   float t1 = random_float(20.5f, 25.9f);
   float t2 = random_float(50.5f, 80.9f);
 
-  cJSON *tasks = create_task_array_json();
+  cJSON *tasks = create_tasks_dict_json();
 
   cJSON_AddNumberToObject(json_root, "tempreture", t1);
   cJSON_AddNumberToObject(json_root, "onboard_led", get_onboard_led_state());
   cJSON_AddNumberToObject(json_root, "uptime", esp_timer_get_time() / 1000000);
-  cJSON_AddItemToObject(json_root, "task_list", tasks);
+  cJSON_AddItemToObject(json_root, "tasks_dict", tasks);
 
   char *json_str = cJSON_PrintUnformatted(json_root);
 

@@ -23,16 +23,29 @@ esp_err_t full_nvs_flash_init();
 esp_err_t full_mdns_init();
 
 /**
- * @brief Generates a client ID based on the device's MAC address.
+ * @brief Returns the Wi-Fi MAC address as a 12-character uppercase string (no
+ * colons).
  *
- * The client ID is written as an uppercase hexadecimal string
- * without colons (e.g., "AABBCCDDEEFF").
+ * This function reads the MAC address once (on first call) and caches it in a
+ * static buffer. Subsequent calls return the same pointer without re-reading
+ * the hardware.
  *
- * @param buf Pointer to the output buffer.
- * @param buf_size Size of the output buffer (must be at least 13).
- * @return true on success, false if the buffer is too small.
+ * Example return value: "A1B2C3D4E5F6"
+ *
+ * @return const char* Pointer to a static null-terminated string, or NULL on
+ * error.
  */
 const char *get_client_id();
+
+/**
+ * @brief Returns a sanitized lowercase copy of the input string.
+ *
+ * Spaces are replaced with underscores, uppercase letters are lowercased.
+ *
+ * @param s Input null-terminated C string.
+ * @return char* Newly allocated sanitized string. Must be freed by caller.
+ */
+char *sanitize(const char *s);
 
 // bool parse_bool_string(const char *input);
 bool parse_bool_json(cJSON *cmnd_param);

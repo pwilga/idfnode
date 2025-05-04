@@ -4,7 +4,7 @@ import sys
 from pathlib import Path
 
 
-ESP_IP = "192.168.5.116"
+ESP_IP = "cikonesp.local"
 ESP_PORT = 5555
 
 magic_bytes = bytes([0xAF, 0xCA, 0xEC, 0x2D, 0xFE, 0x55])
