@@ -5,12 +5,13 @@
 extern "C" {
 #endif
 
-#include "helpers.h"
 #include "mqtt_client.h"
+#include "platform_services.h"
 
 #define TELEMETRY_INTERVAL_MS 5000
 #define MQTT_RX_BUFFER_SIZE 1024
 #define MQTT_NAME "idfnode"
+#define MQTT_QOS 0
 
 void mqtt_init();
 void mqtt_shutdown();
@@ -18,9 +19,8 @@ void mqtt_shutdown();
 void telemetry_task(void *args);
 void command_task(void *args);
 
-static inline void get_mqtt_topic(char *buf, size_t buf_size,
-                                  const char *suffix) {
-  snprintf(buf, buf_size, "%s/%s/%s", MQTT_NAME, get_client_id(), suffix);
+static inline void get_mqtt_topic(char *buf, size_t buf_size, const char *suffix) {
+    snprintf(buf, buf_size, "%s/%s/%s", MQTT_NAME, get_client_id(), suffix);
 }
 
 #define MQTT_COMMAND_TOPIC(buf) get_mqtt_topic((buf), sizeof(buf), "cmnd")

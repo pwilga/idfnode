@@ -52,34 +52,57 @@ menu "IDF-node Application Configuration"
             Enable or disable MQTT functionality in the application.
             When disabled, MQTT will not be initialized or used.
 
-    if MQTT_ENABLE
+    config MQTT_BROKER_URI
+        string "MQTT Broker URI"
+        default "mqtt://your-broker-url:1883"
+        depends on MQTT_ENABLE
+        help
+            URI of the MQTT broker to connect to.
+            Example: mqtt://broker.example.com:1883
+            Use mqtts:// for a secure TLS connection.
 
-        menu "MQTT Configuration"
+    config MQTT_USERNAME
+        string "MQTT Username"
+        default "your-username"
+        depends on MQTT_ENABLE
+        help
+            Username for authenticating with the MQTT broker.
+            Leave empty if authentication is not required.
 
-        config MQTT_BROKER_URI
-            string "MQTT Broker URI"
-            default "mqtt://your-broker-url:1883"
-            help
-                URI of the MQTT broker to connect to.
-                Example: mqtt://broker.example.com:1883
-                Use mqtts:// for a secure TLS connection.
+    config MQTT_PASSWORD
+        string "MQTT Password"
+        default "your-password"
+        depends on MQTT_ENABLE
+        help
+            Password for authenticating with the MQTT broker.
+            WARNING: Do not commit real credentials to version control systems.
 
-        config MQTT_USERNAME
-            string "MQTT Username"
-            default "your-username"
-            help
-                Username for authenticating with the MQTT broker.
-                Leave empty if authentication is not required.
+    config MQTT_NODE_NAME
+        string "MQTT Node Name"
+        default "idfnode"
+        depends on MQTT_ENABLE
+        help
+            Logical name of this node used in MQTT communication.
+            Useful to distinguish multiple devices publishing to the same broker.
 
-        config MQTT_PASSWORD
-            string "MQTT Password"
-            default "your-password"
-            help
-                Password for authenticating with the MQTT broker.
-                WARNING: Do not commit real credentials to version control systems.
+    menuconfig HOME_ASSISTANT_MQTT_DISCOVERY_ENABLE
+        bool "Enable Home Assistant MQTT Discovery"
+        default y
+        depends on MQTT_ENABLE
+        help
+            Enable automatic MQTT discovery for Home Assistant.
 
-        endmenu  # MQTT Configuration
+            Publishes device configuration to discovery topics, allowing
+            Home Assistant to detect and add entities automatically.
 
-    endif  # MQTT_ENABLE
-    
+            Requires a working MQTT connection.
+
+    config MQTT_DISCOVERY_PREFIX
+        string "MQTT discovery topic prefix"
+        default "homeassistant"
+        depends on HOME_ASSISTANT_MQTT_DISCOVERY_ENABLE
+        help
+            Base topic prefix used for Home Assistant MQTT discovery.
+            This value determines the root topic (e.g. homeassistant/sensor/...).
+
 endmenu  # IDF-node Application Configuration

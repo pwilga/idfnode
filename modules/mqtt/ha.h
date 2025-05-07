@@ -1,3 +1,4 @@
+/* Homeassistant MQTT Discovery */
 #ifndef HA_H
 #define HA_H
 
