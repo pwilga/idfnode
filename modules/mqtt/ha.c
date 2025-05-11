@@ -9,8 +9,9 @@
 #include "cJSON.h"
 
 #include "ha.h"
-#include "platform_services.h"
 #include "helpers.h"
+#include "platform_services.h"
+#include "system_commands.h"
 #include "mqtt.h"
 
 #define TAG "home-assistant"
@@ -184,10 +185,10 @@ void register_ha_tasks_dict_sensor(const char *name) {
         cJSON_ReplaceItemInObject(entity.ha_config_payload, "val_tpl", cJSON_CreateString(val_buf));
 
         MQTT_TELEMETRY_TOPIC(val_buf);
-        cJSON_AddStringToObject(entity.ha_config_payload, "json_attributes_topic", val_buf);
+        cJSON_AddStringToObject(entity.ha_config_payload, "json_attr_t", val_buf);
 
         snprintf(val_buf, sizeof(val_buf), "{{ value_json.%s | tojson }}", sanitized_name);
-        cJSON_AddStringToObject(entity.ha_config_payload, "json_attributes_template", val_buf);
+        cJSON_AddStringToObject(entity.ha_config_payload, "json_attr_tpl", val_buf);
         free(sanitized_name);
     }
     submit_ha_entity(&entity);
@@ -205,6 +206,10 @@ void publish_ha_mqtt_discovery(void *args) {
 
     build_ha_entity(&entity, "sensor", "Uptime");
     cJSON_AddStringToObject(entity.ha_config_payload, "dev_cla", "duration");
+    submit_ha_entity(&entity);
+
+    build_ha_entity(&entity, "sensor", "Startup");
+    cJSON_AddStringToObject(entity.ha_config_payload, "dev_cla", "timestamp");
     submit_ha_entity(&entity);
 
     register_ha_switch("Onboard Led");

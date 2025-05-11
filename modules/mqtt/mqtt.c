@@ -12,9 +12,9 @@
 
 #include "cJSON.h"
 
-#include "helpers.h"
 #include "mqtt.h"
 #include "platform_services.h"
+#include "system_commands.h"
 
 #if CONFIG_HOME_ASSISTANT_MQTT_DISCOVERY_ENABLE
 #include "ha.h"
@@ -195,6 +195,7 @@ char *build_telemetry_json(void) {
     cJSON_AddNumberToObject(json_root, "tempreture", t1);
     cJSON_AddNumberToObject(json_root, "onboard_led", get_onboard_led_state());
     cJSON_AddNumberToObject(json_root, "uptime", esp_timer_get_time() / 1000000);
+    cJSON_AddStringToObject(json_root, "startup", get_boot_time());
 #if CONFIG_HOME_ASSISTANT_MQTT_DISCOVERY_ENABLE
     cJSON_AddItemToObject(json_root, "tasks_dict", tasks);
 #endif
@@ -243,7 +244,7 @@ uint8_t parse_payload(const char *payload) {
     while (json_item) {
         if (json_item->string) {
             ESP_LOGI(TAG, "Dispatching key: %s", json_item->string);
-            dispatch_command(json_item->string, (void *)json_item);
+            command_dispatch(json_item->string, (void *)json_item);
             publish_telemetry();
         }
         json_item = json_item->next;

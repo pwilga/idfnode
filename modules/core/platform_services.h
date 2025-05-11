@@ -86,6 +86,15 @@ esp_err_t init_mdns_service();
  */
 const char *get_client_id();
 
+/**
+ * @brief Returns the ISO8601-formatted boot time of the system.
+ *
+ * Calculates the startup timestamp once and returns the cached value
+ * on subsequent calls.
+ *
+ * @return Pointer to a static ISO8601 string (UTC).
+ */
+const char *get_boot_time(void);
 #ifdef __cplusplus
 }
 #endif

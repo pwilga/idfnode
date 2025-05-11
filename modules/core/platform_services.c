@@ -1,4 +1,6 @@
 
+#include <sys/time.h>
+
 #include "esp_err.h"
 #include "esp_event.h"
 #include "esp_log.h"
@@ -101,4 +103,23 @@ const char *get_client_id(void) {
 
     initialized = true;
     return buf;
+}
+
+const char *get_boot_time(void) {
+
+    static char iso8601[32] = {0};
+    static bool initialized = false;
+
+    if (!initialized) {
+        struct timeval now;
+        gettimeofday(&now, NULL);
+
+        int64_t uptime_us = esp_timer_get_time();
+        time_t boot_time = now.tv_sec - (uptime_us / 1000000);
+
+        strftime(iso8601, sizeof(iso8601), "%Y-%m-%dT%H:%M:%SZ", gmtime(&boot_time));
+        initialized = true;
+    }
+
+    return iso8601;
 }
