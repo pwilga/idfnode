@@ -15,6 +15,7 @@
 #if CONFIG_MQTT_ENABLE
 #include "mqtt.h"
 #endif
+#include "wifi.h"
 
 EventGroupHandle_t app_event_group;
 
@@ -52,14 +53,10 @@ void esp_safe_restart(void *args) {
     ESP_ERROR_CHECK(
         esp_event_handler_instance_unregister(WIFI_EVENT, ESP_EVENT_ANY_ID, instance_any_id));
 
-    /* also to avoid error during shutdown */
+/* also to avoid error during shutdown */
 #if CONFIG_MQTT_ENABLE
     mqtt_shutdown();
 #endif
-    // mdns_free();
-
-    // esp_wifi_disconnect();
-    // esp_wifi_stop();
 
     esp_restart();
 }
@@ -122,4 +119,9 @@ const char *get_boot_time(void) {
     }
 
     return iso8601;
+}
+
+void switch_to_ap(void *args) {
+    mqtt_shutdown();
+    wifi_ensure_ap_mode();
 }

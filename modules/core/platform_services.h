@@ -15,10 +15,12 @@ extern "C" {
 /* Bits definition that we can wait for.
  * - we are connected to the AP with an IP
  * - we failed to connect after the maximum amount of retries */
-#define NETWORK_CONNECTED_BIT BIT0
-#define NETWORK_FAIL_BIT BIT1
-#define MQTT_CONNECTED_BIT BIT2
-#define MQTT_FAIL_BIT BIT3
+#define WIFI_STA_CONNECTED_BIT BIT0
+#define WIFI_STA_FAIL_BIT BIT1
+#define WIFI_AP_STARTED_BIT BIT2
+#define MQTT_CONNECTED_BIT BIT3
+#define MQTT_FAIL_BIT BIT4
+#define MQTT_SHUTDOWN_DONE BIT5
 
 /* FreeRTOS event group to signal application state */
 extern EventGroupHandle_t app_event_group;
@@ -95,6 +97,8 @@ const char *get_client_id();
  * @return Pointer to a static ISO8601 string (UTC).
  */
 const char *get_boot_time(void);
+
+void switch_to_ap(void *args);
 #ifdef __cplusplus
 }
 #endif

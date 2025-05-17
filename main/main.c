@@ -29,8 +29,9 @@ void app_main(void) {
 
     ESP_ERROR_CHECK(nvs_flash_safe_init());
 
-    // Must be called before any task that uses network features.
-    ESP_ERROR_CHECK(wifi_sta_init());
+    wifi_stack_init();
+    wifi_ensure_sta_mode();
+
     ESP_ERROR_CHECK(init_mdns_service());
 
     xTaskCreate(tcp_ota_task, "tcp_ota", 8192, NULL, 0, NULL);

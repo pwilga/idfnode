@@ -20,7 +20,7 @@
 #include "ha.h"
 #endif
 
-#define TAG "mqtt-simple"
+#define TAG "cikon-mqtt"
 #define TOPIC_BUF_SIZE 128
 
 TaskHandle_t mqtt_command_task_handle, mqtt_telemetry_task_handle;
@@ -35,6 +35,7 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
     switch ((esp_mqtt_event_id_t)event_id) {
     case MQTT_EVENT_CONNECTED:
         xEventGroupSetBits(app_event_group, MQTT_CONNECTED_BIT);
+        xEventGroupClearBits(app_event_group, MQTT_FAIL_BIT);
         break;
     case MQTT_EVENT_DISCONNECTED:
         xEventGroupSetBits(app_event_group, MQTT_FAIL_BIT);
@@ -142,23 +143,30 @@ void mqtt_init() {
     char topic[TOPIC_BUF_SIZE];
     MQTT_COMMAND_TOPIC(topic);
 
-    int msg_id = esp_mqtt_client_subscribe(mqtt_client, topic, MQTT_QOS);
+    if (esp_mqtt_client_subscribe(mqtt_client, topic, MQTT_QOS) < 0) {
+        ESP_LOGE(TAG, "Unable to subscribe to MQTT topic '%s'", topic);
+    }
 
     // Birth message
     MQTT_AVAILABILITY_TOPIC(topic);
     esp_mqtt_client_publish(mqtt_client, topic, "online", 0, MQTT_QOS, true);
 
-    // ESP_LOGW(TAG, "sent subscribe successful, msg_id=%d", msg_id);
-
     xTaskCreate(command_task, "mqtt_command", 4096, NULL, 10, &mqtt_command_task_handle);
     xTaskCreate(telemetry_task, "mqtt_telemetry", 4096, NULL, 5, &mqtt_telemetry_task_handle);
 }
 
-void mqtt_shutdown() {
-    vTaskDelete(mqtt_command_task_handle);
+static void mqtt_shutdown_worker(void *args) {
+
+    TaskHandle_t caller = (TaskHandle_t)args;
+
+    if (mqtt_command_task_handle && mqtt_command_task_handle != caller) {
+        vTaskDelete(mqtt_command_task_handle);
+    }
     mqtt_command_task_handle = NULL;
 
-    vTaskDelete(mqtt_telemetry_task_handle);
+    if (mqtt_telemetry_task_handle && mqtt_telemetry_task_handle != caller) {
+        vTaskDelete(mqtt_telemetry_task_handle);
+    }
     mqtt_telemetry_task_handle = NULL;
 
     vQueueDelete(mqtt_queue);
@@ -172,7 +180,17 @@ void mqtt_shutdown() {
     ESP_ERROR_CHECK(esp_mqtt_client_destroy(mqtt_client));
     mqtt_client = NULL;
 
+    xEventGroupClearBits(app_event_group, MQTT_CONNECTED_BIT | MQTT_FAIL_BIT);
+    xEventGroupSetBits(app_event_group, MQTT_SHUTDOWN_DONE);
+
     vTaskDelay(pdMS_TO_TICKS(100));
+    vTaskDelete(NULL);
+}
+
+void mqtt_shutdown() {
+    TaskHandle_t caller = xTaskGetCurrentTaskHandle();
+    xTaskCreate(mqtt_shutdown_worker, "mqtt_shutdown", 4096, caller, 5, NULL);
+    xEventGroupWaitBits(app_event_group, MQTT_SHUTDOWN_DONE, pdTRUE, pdFALSE, pdMS_TO_TICKS(1000));
 }
 
 float random_float(float min, float max) {

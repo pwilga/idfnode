@@ -14,6 +14,31 @@ extern "C" {
 #define MQTT_QOS 0
 
 void mqtt_init();
+
+/**
+ * @brief Initiates the shutdown sequence for the MQTT client.
+ *
+ * This function creates a separate FreeRTOS task (`mqtt_shutdown_worker`) to perform
+ * a safe and complete shutdown of the MQTT subsystem. It is designed this way to avoid
+ * the risk of a task deleting itself or another currently executing task.
+ *
+ * The shutdown sequence includes:
+ * - Terminating MQTT-related tasks (e.g., command and telemetry handlers),
+ * - Deleting the internal MQTT message queue,
+ * - Publishing the "offline" availability message to the broker,
+ * - Stopping and destroying the MQTT client,
+ * - Clearing MQTT-related status bits in the event group.
+ *
+ * @note
+ * This function captures the current task handle (`xTaskGetCurrentTaskHandle()`)
+ * and passes it to the shutdown worker. The worker will not attempt to delete
+ * the calling task, preventing undefined behavior caused by one task deleting
+ * another that is still executing (which would result in system instability or crashes).
+ *
+ * @warning
+ * Never call esp_mqtt_client_destroy() directly from within a task that uses the MQTT client,
+ * as it may lead to resource corruption or assertion failures. Always call this function instead.
+ */
 void mqtt_shutdown();
 
 void telemetry_task(void *args);

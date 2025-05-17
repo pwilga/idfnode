@@ -5,7 +5,11 @@
 extern "C" {
 #endif
 
-esp_err_t wifi_sta_init();
+#include <esp_wifi_types_generic.h>
+
+void wifi_stack_init();
+void wifi_ensure_sta_mode();
+void wifi_ensure_ap_mode();
 
 #ifdef __cplusplus
 }

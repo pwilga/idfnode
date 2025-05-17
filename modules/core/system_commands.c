@@ -5,6 +5,7 @@
 
 #include "driver/gpio.h"
 
+#include "mqtt.h"
 #include "system_commands.h"
 #include "platform_services.h"
 
@@ -13,7 +14,8 @@
 #endif
 
 const command_entry_t command_table[] = {{"onboard_led", onboard_led},
-                                         {"restart", restart},
+                                         {"restart", esp_safe_restart},
+                                         {"ap", switch_to_ap},
 #if CONFIG_HOME_ASSISTANT_MQTT_DISCOVERY_ENABLE
                                          {"ha", publish_ha_mqtt_discovery},
 #endif
