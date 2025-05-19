@@ -20,7 +20,9 @@ extern "C" {
 #define WIFI_AP_STARTED_BIT BIT2
 #define MQTT_CONNECTED_BIT BIT3
 #define MQTT_FAIL_BIT BIT4
-#define MQTT_SHUTDOWN_DONE BIT5
+// #define MQTT_SHUTDOWN_DONE BIT5
+#define MQTT_OFFLINE_PUBLISHED_BIT BIT6
+#define MQTT_SHUTDOWN_INITIATED_BIT BIT7
 
 /* FreeRTOS event group to signal application state */
 extern EventGroupHandle_t app_event_group;

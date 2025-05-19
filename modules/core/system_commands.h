@@ -20,6 +20,7 @@ typedef struct {
 esp_err_t command_dispatch(const char *cmd, void *args);
 
 void restart(void *args);
+void ap(void *args);
 void onboard_led(void *args);
 
 bool parse_bool_json(cJSON *cmnd_param);

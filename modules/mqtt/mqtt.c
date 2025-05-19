@@ -82,11 +82,18 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
         memcpy(message_buf + topic_len + 1, payload_ptr, payload_len);
         message_buf[message_len - 1] = '\0';
 
-        if (xQueueSend(mqtt_queue, &message_buf, portMAX_DELAY) != pdTRUE) {
-            ESP_LOGW(TAG, "Queue limit exceeded — message not enqueued");
-            free(message_buf);
+        if (mqtt_queue != NULL &&
+            !(xEventGroupGetBits(app_event_group) & MQTT_SHUTDOWN_INITIATED_BIT)) {
+
+            if (xQueueSend(mqtt_queue, &message_buf, portMAX_DELAY) != pdTRUE) {
+                ESP_LOGW(TAG, "Queue limit exceeded — message not enqueued");
+                free(message_buf);
+            }
         }
 
+        break;
+    case MQTT_EVENT_PUBLISHED:
+        xEventGroupSetBits(app_event_group, MQTT_OFFLINE_PUBLISHED_BIT);
         break;
     default:
         break;
@@ -155,42 +162,45 @@ void mqtt_init() {
     xTaskCreate(telemetry_task, "mqtt_telemetry", 4096, NULL, 5, &mqtt_telemetry_task_handle);
 }
 
-static void mqtt_shutdown_worker(void *args) {
+void mqtt_shutdown(void *args) {
 
-    TaskHandle_t caller = (TaskHandle_t)args;
+    xEventGroupSetBits(app_event_group, MQTT_SHUTDOWN_INITIATED_BIT);
 
-    if (mqtt_command_task_handle && mqtt_command_task_handle != caller) {
-        vTaskDelete(mqtt_command_task_handle);
+    int timeout = 100;
+    while ((mqtt_command_task_handle != NULL || mqtt_telemetry_task_handle != NULL) && timeout--) {
+        vTaskDelay(pdMS_TO_TICKS(10));
     }
-    mqtt_command_task_handle = NULL;
 
-    if (mqtt_telemetry_task_handle && mqtt_telemetry_task_handle != caller) {
-        vTaskDelete(mqtt_telemetry_task_handle);
+    if (mqtt_command_task_handle != NULL && mqtt_telemetry_task_handle != NULL) {
+        ESP_LOGW(TAG, "Timeout waiting for both command and telemetry tasks to finish!");
+    } else {
+        ESP_LOGI(TAG, "All tasks finished cleanly.");
     }
-    mqtt_telemetry_task_handle = NULL;
-
-    vQueueDelete(mqtt_queue);
-    mqtt_queue = NULL;
 
     char aval_buf_topic[TOPIC_BUF_SIZE];
     MQTT_AVAILABILITY_TOPIC(aval_buf_topic);
-    esp_mqtt_client_publish(mqtt_client, aval_buf_topic, "offline", 0, MQTT_QOS, true);
+
+    if (mqtt_client != NULL) {
+        esp_mqtt_client_publish(mqtt_client, aval_buf_topic, "offline", 0, 1, true);
+    }
+    EventBits_t bits = xEventGroupWaitBits(app_event_group, MQTT_OFFLINE_PUBLISHED_BIT, pdTRUE,
+                                           pdFALSE, pdMS_TO_TICKS(2000));
+
+    if (bits & MQTT_OFFLINE_PUBLISHED_BIT) {
+        ESP_LOGI(TAG, "Offline message confirmed published.");
+    } else {
+        ESP_LOGW(TAG, "Timeout waiting for offline publish.");
+    }
 
     ESP_ERROR_CHECK(esp_mqtt_client_stop(mqtt_client));
     ESP_ERROR_CHECK(esp_mqtt_client_destroy(mqtt_client));
     mqtt_client = NULL;
 
-    xEventGroupClearBits(app_event_group, MQTT_CONNECTED_BIT | MQTT_FAIL_BIT);
-    xEventGroupSetBits(app_event_group, MQTT_SHUTDOWN_DONE);
+    xEventGroupClearBits(app_event_group,
+                         MQTT_CONNECTED_BIT | MQTT_FAIL_BIT | MQTT_SHUTDOWN_INITIATED_BIT);
+    // xEventGroupSetBits(app_event_group, MQTT_SHUTDOWN_DONE);
 
     vTaskDelay(pdMS_TO_TICKS(100));
-    vTaskDelete(NULL);
-}
-
-void mqtt_shutdown() {
-    TaskHandle_t caller = xTaskGetCurrentTaskHandle();
-    xTaskCreate(mqtt_shutdown_worker, "mqtt_shutdown", 4096, caller, 5, NULL);
-    xEventGroupWaitBits(app_event_group, MQTT_SHUTDOWN_DONE, pdTRUE, pdFALSE, pdMS_TO_TICKS(1000));
 }
 
 float random_float(float min, float max) {
@@ -234,21 +244,33 @@ void publish_telemetry(void) {
     char topic[TOPIC_BUF_SIZE];
 
     MQTT_TELEMETRY_TOPIC(topic);
-    esp_mqtt_client_publish(mqtt_client, topic, payload, 0, MQTT_QOS, false);
 
-    // MQTT_AVAILABILITY_TOPIC(topic);
-    // esp_mqtt_client_publish(mqtt_client, topic, "online", 0, 1, 0);
+    esp_mqtt_client_publish(mqtt_client, topic, payload, 0, MQTT_QOS, false);
 
     free(payload);
 }
 
 void telemetry_task(void *args) {
-    while (1) {
-        publish_telemetry();
-        vTaskDelay(pdMS_TO_TICKS(TELEMETRY_INTERVAL_MS));
+
+    const int check_delay_ms = 10;
+    int telemetry_timer = 0;
+
+    while (!(xEventGroupGetBits(app_event_group) & MQTT_SHUTDOWN_INITIATED_BIT)) {
+        if (telemetry_timer <= 0) {
+            publish_telemetry();
+            telemetry_timer = TELEMETRY_INTERVAL_MS;
+        }
+
+        vTaskDelay(pdMS_TO_TICKS(check_delay_ms));
+        telemetry_timer -= check_delay_ms;
     }
+
+    ESP_LOGE(TAG, "telemetry_task: exiting");
+    mqtt_telemetry_task_handle = NULL;
+    vTaskDelete(NULL);
 }
 
+// Change name or break it down further !!
 uint8_t parse_payload(const char *payload) {
     cJSON *json_root = cJSON_Parse(payload);
 
@@ -273,10 +295,12 @@ uint8_t parse_payload(const char *payload) {
 }
 
 void command_task(void *args) {
+
     char *msg = NULL; // ensure safe free() even if xQueueReceive fails
 
-    while (1) {
-        if (xQueueReceive(mqtt_queue, &msg, portMAX_DELAY) == pdFALSE)
+    while (!(xEventGroupGetBits(app_event_group) & MQTT_SHUTDOWN_INITIATED_BIT)) {
+
+        if (xQueueReceive(mqtt_queue, &msg, pdMS_TO_TICKS(100)) == pdFALSE)
             goto cleanup;
 
         char *topic = msg;
@@ -296,6 +320,16 @@ void command_task(void *args) {
     cleanup:
         free(msg);
     }
+
+    ESP_LOGE(TAG, "command_task: exiting and cleaning mqtt_queue");
+
+    if (mqtt_queue) {
+        vQueueDelete(mqtt_queue);
+        mqtt_queue = NULL;
+    }
+
+    mqtt_command_task_handle = NULL;
+    vTaskDelete(NULL);
 }
 
 #endif // CONFIG_MQTT_ENABLE

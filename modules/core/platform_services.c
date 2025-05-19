@@ -124,4 +124,5 @@ const char *get_boot_time(void) {
 void switch_to_ap(void *args) {
     mqtt_shutdown();
     wifi_ensure_ap_mode();
+    vTaskDelete(NULL);
 }

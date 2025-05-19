@@ -14,7 +14,7 @@
 #endif
 
 const command_entry_t command_table[] = {{"onboard_led", onboard_led},
-                                         {"restart", esp_safe_restart},
+                                         {"restart", restart},
                                          {"ap", switch_to_ap},
 #if CONFIG_HOME_ASSISTANT_MQTT_DISCOVERY_ENABLE
                                          {"ha", publish_ha_mqtt_discovery},
@@ -40,6 +40,10 @@ esp_err_t command_dispatch(const char *cmd, void *args) {
 
 void restart(void *args) {
     xTaskCreate(esp_safe_restart, "restart", 2048, NULL, configMAX_PRIORITIES - 1, NULL);
+}
+
+void ap(void *args) {
+    xTaskCreate(switch_to_ap, "switch_to_ap", 2048, NULL, configMAX_PRIORITIES - 1, NULL);
 }
 
 static bool onboard_led_state = false;
