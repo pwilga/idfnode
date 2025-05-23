@@ -10,8 +10,8 @@ extern "C" {
 #include "stdbool.h"
 
 typedef struct {
-  char ha_config_topic[128];
-  cJSON *ha_config_payload;
+    char ha_config_topic[128];
+    cJSON *ha_config_payload;
 } ha_entity_t;
 
 /**
@@ -34,8 +34,7 @@ typedef struct {
  * @param name Name of the entity (e.g., "living_room_light" or
  * "sensor_temperature").
  */
-void build_ha_entity(ha_entity_t *entity, const char *entity_type,
-                     const char *name);
+void build_ha_entity(ha_entity_t *entity, const char *entity_type, const char *name);
 /**
  * @brief Frees the dynamically allocated Home Assistant entity configuration
  * payload.
@@ -56,7 +55,7 @@ void free_ha_entity(ha_entity_t *entity);
  *         Caller is responsible for freeing the object with cJSON_Delete().
  */
 cJSON *build_ha_device(void);
-void publish_ha_mqtt_discovery(void *args);
+void publish_ha_mqtt_discovery(bool force_empty_payload);
 
 /**
  * @brief Generates a JSON object describing current FreeRTOS tasks.

@@ -7,14 +7,14 @@
 #include "esp_event_base.h"
 #include "esp_log.h"
 #include "esp_random.h"
-#include "esp_timer.h"
-#include "driver/gpio.h"
+// #include "esp_timer.h"
+// #include "driver/gpio.h"
 
 #include "cJSON.h"
 
 #include "mqtt.h"
 #include "platform_services.h"
-#include "system_commands.h"
+#include "supervisor.h"
 
 #if CONFIG_HOME_ASSISTANT_MQTT_DISCOVERY_ENABLE
 #include "ha.h"
@@ -270,28 +270,45 @@ void telemetry_task(void *args) {
     vTaskDelete(NULL);
 }
 
-// Change name or break it down further !!
-uint8_t parse_payload(const char *payload) {
+void process_command_payload(const char *payload) {
+
     cJSON *json_root = cJSON_Parse(payload);
 
-    if (!json_root) {
+    if (!json_root || !cJSON_IsObject(json_root)) {
         ESP_LOGW(TAG, "Invalid JSON: Rejecting message.");
-        return 0;
+        cJSON_Delete(json_root);
+        return;
     }
 
-    cJSON *json_item = json_root->child;
-
-    while (json_item) {
-        if (json_item->string) {
-            ESP_LOGI(TAG, "Dispatching key: %s", json_item->string);
-            command_dispatch(json_item->string, (void *)json_item);
-            publish_telemetry();
+    for (cJSON *item = json_root->child; item != NULL; item = item->next) {
+        if (!item->string) {
+            continue;
         }
-        json_item = json_item->next;
+
+        supervisor_command_type_t cmd_type = supervisor_command_from_id(item->string);
+
+        if (cmd_type == CMD_UNKNOWN) {
+            ESP_LOGW(TAG, "Unknown command: %s", item->string);
+            continue;
+        }
+
+        const char *desc = supervisor_command_description(cmd_type);
+
+        ESP_LOGI(TAG, "Dispatching command: %s - %s", item->string, desc);
+
+        supervisor_command_t cmd = {
+            .type = cmd_type,
+        };
+
+        char *json_val = cJSON_PrintUnformatted(item);
+        snprintf(cmd.args_json_str, sizeof(cmd.args_json_str), "%s", json_val);
+        free(json_val);
+
+        supervisor_schedule_command(&cmd);
+        publish_telemetry();
     }
 
     cJSON_Delete(json_root);
-    return 1;
 }
 
 void command_task(void *args) {
@@ -314,11 +331,16 @@ void command_task(void *args) {
 
         // ESP_LOGI(TAG, "Matched topic: %s", topic);
 
-        if (!parse_payload(payload))
-            goto cleanup;
+        process_command_payload(payload);
+
+        // if (!parse_payload(payload))
+        //     goto cleanup;
 
     cleanup:
-        free(msg);
+        if (msg) {
+            free(msg);
+            msg = NULL;
+        }
     }
 
     ESP_LOGE(TAG, "command_task: exiting and cleaning mqtt_queue");

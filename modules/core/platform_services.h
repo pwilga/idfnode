@@ -9,8 +9,11 @@ extern "C" {
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/event_groups.h"
+#include "freertos/queue.h"
 
 #include "esp_event_base.h"
+
+#include "json_parser.h"
 
 /* Bits definition that we can wait for.
  * - we are connected to the AP with an IP
@@ -20,12 +23,15 @@ extern "C" {
 #define WIFI_AP_STARTED_BIT BIT2
 #define MQTT_CONNECTED_BIT BIT3
 #define MQTT_FAIL_BIT BIT4
-// #define MQTT_SHUTDOWN_DONE BIT5
-#define MQTT_OFFLINE_PUBLISHED_BIT BIT6
-#define MQTT_SHUTDOWN_INITIATED_BIT BIT7
+#define MQTT_OFFLINE_PUBLISHED_BIT BIT5
+#define MQTT_SHUTDOWN_INITIATED_BIT BIT6
+
+#define DEFAULT_QUEUE_LEN 8
+#define SYSTAG "cikon-systems"
 
 /* FreeRTOS event group to signal application state */
 extern EventGroupHandle_t app_event_group;
+extern QueueHandle_t supervisor_queue;
 
 extern esp_event_handler_instance_t instance_any_id;
 extern esp_event_handler_instance_t instance_got_ip;
@@ -100,7 +106,9 @@ const char *get_client_id();
  */
 const char *get_boot_time(void);
 
-void switch_to_ap(void *args);
+void onboard_led_set_state(logic_state_t state);
+bool get_onboard_led_state(void);
+
 #ifdef __cplusplus
 }
 #endif

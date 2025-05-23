@@ -15,9 +15,12 @@
 #if CONFIG_MQTT_ENABLE
 #include "mqtt.h"
 #endif
+#include "platform_services.h"
+#include "supervisor.h"
 #include "wifi.h"
 
 EventGroupHandle_t app_event_group;
+QueueHandle_t supervisor_queue;
 
 esp_event_handler_instance_t instance_any_id;
 esp_event_handler_instance_t instance_got_ip;
@@ -26,10 +29,16 @@ esp_err_t app_event_init(void) {
 
     app_event_group = xEventGroupCreate();
     if (!app_event_group) {
-        ESP_LOGE("cikon-systems", "Failed to create event group!");
+        ESP_LOGE(SYSTAG, "Failed to create event group!");
         return ESP_FAIL;
     }
 
+    supervisor_queue = xQueueCreate(DEFAULT_QUEUE_LEN, sizeof(supervisor_command_t));
+    // supervisor_queue = xQueueCreate(DEFAULT_QUEUE_LEN, sizeof(system_command_t));
+    if (!supervisor_queue) {
+        ESP_LOGE(SYSTAG, "Failed to create supervisor dispatcher queue!");
+        return ESP_FAIL;
+    }
     // onbard_led
     ESP_ERROR_CHECK(gpio_reset_pin(GPIO_NUM_2));
     ESP_ERROR_CHECK(gpio_set_direction(GPIO_NUM_2, GPIO_MODE_OUTPUT));
@@ -44,7 +53,7 @@ void esp_safe_restart(void *args) {
     // so that this function can be used as a FreeRTOS task.
     (void)args;
 
-    ESP_LOGI("restart", "Restart command received - executing restart.");
+    ESP_LOGI(SYSTAG, "Restart command received - executing restart.");
 
     /* Just to avoid errors when esp32 close wifi connection */
     ESP_ERROR_CHECK(
@@ -121,8 +130,23 @@ const char *get_boot_time(void) {
     return iso8601;
 }
 
-void switch_to_ap(void *args) {
-    mqtt_shutdown();
-    wifi_ensure_ap_mode();
-    vTaskDelete(NULL);
+static bool onboard_led_state = false;
+
+bool get_onboard_led_state(void) { return onboard_led_state; }
+
+void onboard_led_set_state(logic_state_t state) {
+
+    bool new_state;
+
+    if (state == STATE_TOGGLE)
+        new_state = !onboard_led_state;
+    else
+        new_state = state == STATE_ON ? true : false;
+
+    if (onboard_led_state != new_state) {
+        ESP_ERROR_CHECK(gpio_set_level(GPIO_NUM_2, !new_state));
+        onboard_led_state = new_state;
+    }
+
+    // ESP_LOGW("TIME", "TIME: %s", get_boot_time());
 }

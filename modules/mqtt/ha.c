@@ -9,9 +9,8 @@
 #include "cJSON.h"
 
 #include "ha.h"
-#include "helpers.h"
+#include "json_parser.h"
 #include "platform_services.h"
-#include "system_commands.h"
 #include "mqtt.h"
 
 #define TAG "home-assistant"
@@ -194,9 +193,9 @@ void register_ha_tasks_dict_sensor(const char *name) {
     submit_ha_entity(&entity);
 }
 
-void publish_ha_mqtt_discovery(void *args) {
+void publish_ha_mqtt_discovery(bool force_empty_payload) {
 
-    empty_payload = !parse_bool_json((cJSON *)args);
+    empty_payload = force_empty_payload;
 
     ha_entity_t entity;
 

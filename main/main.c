@@ -6,6 +6,7 @@
 #include "debug.h"
 #include "ota.h"
 #include "platform_services.h"
+#include "supervisor.h"
 #include "udp_monitor.h"
 #include "wifi.h"
 
@@ -36,6 +37,8 @@ void app_main(void) {
 
     xTaskCreate(tcp_ota_task, "tcp_ota", 8192, NULL, 0, NULL);
     xTaskCreate(udp_monitor_task, "udp_monitor", 4096, NULL, 5, NULL);
+
+    xTaskCreate(supervisor_task, "supervisor", 4096, NULL, 5, NULL);
 
 #if CONFIG_MQTT_ENABLE
     mqtt_init();
