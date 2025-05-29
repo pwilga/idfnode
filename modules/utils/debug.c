@@ -26,7 +26,7 @@ void memory_info_task(void *pvParameter) {
         ESP_LOGI(TAG, "External (PSRAM): %.2f KB", psram_free / 1024.0);
         ESP_LOGI(TAG, "=====================");
 
-        vTaskDelay(pdMS_TO_TICKS(5000)); // print every 5 seconds
+        vTaskDelay(pdMS_TO_TICKS(2000)); // print every 5 seconds
     }
 }
 

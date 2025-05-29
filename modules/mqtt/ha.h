@@ -57,23 +57,6 @@ void free_ha_entity(ha_entity_t *entity);
 cJSON *build_ha_device(void);
 void publish_ha_mqtt_discovery(bool force_empty_payload);
 
-/**
- * @brief Generates a JSON object describing current FreeRTOS tasks.
- *
- * This function collects runtime information about all currently active
- * FreeRTOS tasks and serializes it into a JSON dictionary using cJSON.
- * Each task is represented as a sub-object with fields such as priority,
- * stack watermark, runtime counter, task number, state, and core affinity
- * (if supported).
- *
- * @note Intended for diagnostic/debug use — prioritizes clarity over
- * efficiency.
- *
- * @return cJSON* Root JSON object representing the task dictionary,
- *                or NULL on allocation failure.
- */
-cJSON *create_tasks_dict_json(void);
-
 #ifdef __cplusplus
 }
 #endif

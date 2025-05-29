@@ -25,6 +25,7 @@ extern "C" {
 #define MQTT_FAIL_BIT BIT4
 #define MQTT_OFFLINE_PUBLISHED_BIT BIT5
 #define MQTT_SHUTDOWN_INITIATED_BIT BIT6
+#define TELEMETRY_TRIGGER_BIT BIT7
 
 #define DEFAULT_QUEUE_LEN 8
 #define SYSTAG "cikon-systems"
@@ -46,14 +47,14 @@ extern esp_event_handler_instance_t instance_got_ip;
  *      - ESP_OK on success
  *      - ESP_FAIL if event group creation failed
  */
-esp_err_t app_event_init(void);
+esp_err_t core_system_init(void);
 
 /**
  * @brief Unregisters network-related event handlers and performs a full ESP
  * restart.
  *
  */
-void esp_safe_restart(void *args);
+void esp_safe_restart();
 
 /**
  * @brief Initializes the NVS (Non-Volatile Storage) flash partition.

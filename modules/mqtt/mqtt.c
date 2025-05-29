@@ -6,9 +6,6 @@
 
 #include "esp_event_base.h"
 #include "esp_log.h"
-#include "esp_random.h"
-// #include "esp_timer.h"
-// #include "driver/gpio.h"
 
 #include "cJSON.h"
 
@@ -198,71 +195,48 @@ void mqtt_shutdown(void *args) {
 
     xEventGroupClearBits(app_event_group,
                          MQTT_CONNECTED_BIT | MQTT_FAIL_BIT | MQTT_SHUTDOWN_INITIATED_BIT);
-    // xEventGroupSetBits(app_event_group, MQTT_SHUTDOWN_DONE);
 
     vTaskDelay(pdMS_TO_TICKS(100));
 }
 
-float random_float(float min, float max) {
-    return min + ((float)esp_random() / UINT32_MAX) * (max - min);
-}
-
-char *build_telemetry_json(void) {
-    cJSON *json_root = cJSON_CreateObject();
-
-    if (!json_root)
-        return NULL;
-
-    float t1 = random_float(20.5f, 25.9f);
-    float t2 = random_float(50.5f, 80.9f);
-
-#if CONFIG_HOME_ASSISTANT_MQTT_DISCOVERY_ENABLE
-    cJSON *tasks = create_tasks_dict_json();
-#endif
-
-    cJSON_AddNumberToObject(json_root, "tempreture", t1);
-    cJSON_AddNumberToObject(json_root, "onboard_led", get_onboard_led_state());
-    cJSON_AddNumberToObject(json_root, "uptime", esp_timer_get_time() / 1000000);
-    cJSON_AddStringToObject(json_root, "startup", get_boot_time());
-#if CONFIG_HOME_ASSISTANT_MQTT_DISCOVERY_ENABLE
-    cJSON_AddItemToObject(json_root, "tasks_dict", tasks);
-#endif
-    char *json_str = cJSON_PrintUnformatted(json_root);
-
-    // cJSON_Delete(tasks);
-    cJSON_Delete(json_root);
-
-    return json_str;
-}
-
 void publish_telemetry(void) {
 
-    char *payload = build_telemetry_json();
-    if (!payload)
-        return;
+    cJSON *json = cJSON_CreateObject();
+    supervisor_state_to_json(json);
+
+    char *json_str = cJSON_PrintUnformatted(json);
+
+    // char *payload = build_telemetry_json();
+    // if (!payload)
+    //     return;
 
     char topic[TOPIC_BUF_SIZE];
 
     MQTT_TELEMETRY_TOPIC(topic);
 
-    esp_mqtt_client_publish(mqtt_client, topic, payload, 0, MQTT_QOS, false);
+    esp_mqtt_client_publish(mqtt_client, topic, json_str, 0, MQTT_QOS, false);
 
-    free(payload);
+    free(json_str);
+    cJSON_Delete(json);
 }
 
 void telemetry_task(void *args) {
 
-    const int check_delay_ms = 10;
-    int telemetry_timer = 0;
-
     while (!(xEventGroupGetBits(app_event_group) & MQTT_SHUTDOWN_INITIATED_BIT)) {
-        if (telemetry_timer <= 0) {
-            publish_telemetry();
-            telemetry_timer = TELEMETRY_INTERVAL_MS;
+
+        publish_telemetry();
+
+        EventBits_t bits = xEventGroupWaitBits(
+            app_event_group, TELEMETRY_TRIGGER_BIT | MQTT_SHUTDOWN_INITIATED_BIT, pdFALSE, pdFALSE,
+            pdMS_TO_TICKS(TELEMETRY_INTERVAL_MS));
+
+        if (bits & TELEMETRY_TRIGGER_BIT) {
+            xEventGroupClearBits(app_event_group, TELEMETRY_TRIGGER_BIT);
         }
 
-        vTaskDelay(pdMS_TO_TICKS(check_delay_ms));
-        telemetry_timer -= check_delay_ms;
+        if (bits & MQTT_SHUTDOWN_INITIATED_BIT) {
+            break;
+        }
     }
 
     ESP_LOGE(TAG, "telemetry_task: exiting");
@@ -287,7 +261,7 @@ void process_command_payload(const char *payload) {
 
         supervisor_command_type_t cmd_type = supervisor_command_from_id(item->string);
 
-        if (cmd_type == CMD_UNKNOWN) {
+        if (cmd_type == CMND_UNKNOWN) {
             ESP_LOGW(TAG, "Unknown command: %s", item->string);
             continue;
         }

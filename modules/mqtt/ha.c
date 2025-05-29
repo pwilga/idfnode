@@ -156,15 +156,15 @@ void register_ha_switch(const char *name) {
         char *sanitized_name = sanitize(name);
         char payload_onoff_buf[64];
 
-        snprintf(payload_onoff_buf, sizeof(payload_onoff_buf), "{\"%s\":1}", sanitized_name);
+        snprintf(payload_onoff_buf, sizeof(payload_onoff_buf), "{\"%s\":true}", sanitized_name);
         cJSON_AddStringToObject(entity.ha_config_payload, "payload_on", payload_onoff_buf);
 
-        snprintf(payload_onoff_buf, sizeof(payload_onoff_buf), "{\"%s\":0}", sanitized_name);
+        snprintf(payload_onoff_buf, sizeof(payload_onoff_buf), "{\"%s\":false}", sanitized_name);
         cJSON_AddStringToObject(entity.ha_config_payload, "payload_off", payload_onoff_buf);
         free(sanitized_name);
 
-        cJSON_AddNumberToObject(entity.ha_config_payload, "state_on", 1);
-        cJSON_AddNumberToObject(entity.ha_config_payload, "state_off", 0);
+        cJSON_AddBoolToObject(entity.ha_config_payload, "state_on", true);
+        cJSON_AddBoolToObject(entity.ha_config_payload, "state_off", false);
     }
     submit_ha_entity(&entity);
 }
@@ -214,68 +214,6 @@ void publish_ha_mqtt_discovery(bool force_empty_payload) {
     register_ha_switch("Onboard Led");
     register_ha_button("Restart");
     register_ha_tasks_dict_sensor("Tasks Dict");
-}
-
-cJSON *create_tasks_dict_json(void) {
-
-    UBaseType_t num_tasks = uxTaskGetNumberOfTasks();
-    TaskStatus_t *task_status_array = calloc(num_tasks, sizeof(TaskStatus_t));
-
-    if (!task_status_array)
-        return NULL;
-
-    cJSON *task_dict = cJSON_CreateObject();
-    if (!task_dict) {
-        free(task_status_array);
-        return NULL;
-    }
-
-    uint32_t total_runtime = 0;
-    UBaseType_t real_task_count =
-        uxTaskGetSystemState(task_status_array, num_tasks, &total_runtime);
-
-    for (UBaseType_t i = 0; i < real_task_count; i++) {
-        cJSON *json_task = cJSON_CreateObject();
-        if (!json_task)
-            continue;
-
-        cJSON_AddNumberToObject(json_task, "prio", task_status_array[i].uxCurrentPriority);
-        cJSON_AddNumberToObject(json_task, "stack", task_status_array[i].usStackHighWaterMark);
-        cJSON_AddNumberToObject(json_task, "runtime_ticks", task_status_array[i].ulRunTimeCounter);
-        cJSON_AddNumberToObject(json_task, "task_number", task_status_array[i].xTaskNumber);
-
-        // Map eTaskState enum to human-readable string
-        const char *state_str = "unknown";
-        switch (task_status_array[i].eCurrentState) {
-        case eRunning:
-            state_str = "running";
-            break;
-        case eReady:
-            state_str = "ready";
-            break;
-        case eBlocked:
-            state_str = "blocked";
-            break;
-        case eSuspended:
-            state_str = "suspended";
-            break;
-        case eDeleted:
-            state_str = "deleted";
-            break;
-        default:
-            break;
-        }
-        cJSON_AddStringToObject(json_task, "state", state_str);
-
-#if (INCLUDE_xTaskGetAffinity == 1)
-        cJSON_AddNumberToObject(json_task, "core", task_status_array[i].xCoreID);
-#endif
-
-        cJSON_AddItemToObject(task_dict, task_status_array[i].pcTaskName, json_task);
-    }
-
-    free(task_status_array);
-    return task_dict;
 }
 
 #endif // CONFIG_MQTT_ENABLE && CONFIG_HOME_ASSISTANT_MQTT_DISCOVERY_ENABLE

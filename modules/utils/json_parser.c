@@ -58,6 +58,7 @@ cJSON *json_str_as_object(const char *json_str) {
 }
 
 logic_state_t json_str_as_logic_state(const char *json_str) {
+
     cJSON *json_root = cJSON_Parse(json_str);
     if (!json_root) {
         return STATE_OFF;

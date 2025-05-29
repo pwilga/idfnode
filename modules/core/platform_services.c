@@ -25,7 +25,7 @@ QueueHandle_t supervisor_queue;
 esp_event_handler_instance_t instance_any_id;
 esp_event_handler_instance_t instance_got_ip;
 
-esp_err_t app_event_init(void) {
+esp_err_t core_system_init(void) {
 
     app_event_group = xEventGroupCreate();
     if (!app_event_group) {
@@ -34,24 +34,27 @@ esp_err_t app_event_init(void) {
     }
 
     supervisor_queue = xQueueCreate(DEFAULT_QUEUE_LEN, sizeof(supervisor_command_t));
-    // supervisor_queue = xQueueCreate(DEFAULT_QUEUE_LEN, sizeof(system_command_t));
+
     if (!supervisor_queue) {
         ESP_LOGE(SYSTAG, "Failed to create supervisor dispatcher queue!");
         return ESP_FAIL;
     }
+
     // onbard_led
     ESP_ERROR_CHECK(gpio_reset_pin(GPIO_NUM_2));
     ESP_ERROR_CHECK(gpio_set_direction(GPIO_NUM_2, GPIO_MODE_OUTPUT));
 
+    ESP_ERROR_CHECK(nvs_flash_safe_init());
+
+    wifi_stack_init();
+    wifi_ensure_sta_mode();
+
+    ESP_ERROR_CHECK(init_mdns_service());
+
     return ESP_OK;
 }
 
-void esp_safe_restart(void *args) {
-
-    // Argument 'args' is intentionally unused.
-    // Required only to match the TaskFunction_t signature,
-    // so that this function can be used as a FreeRTOS task.
-    (void)args;
+void esp_safe_restart() {
 
     ESP_LOGI(SYSTAG, "Restart command received - executing restart.");
 
@@ -148,5 +151,5 @@ void onboard_led_set_state(logic_state_t state) {
         onboard_led_state = new_state;
     }
 
-    // ESP_LOGW("TIME", "TIME: %s", get_boot_time());
+    supervisor_set_onboard_led_state(new_state);
 }
