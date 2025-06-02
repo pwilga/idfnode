@@ -52,6 +52,13 @@ menu "IDF-node Application Configuration"
             Enable or disable MQTT functionality in the application.
             When disabled, MQTT will not be initialized or used.
 
+    config MQTT_MAXIMUM_RETRY
+        int "MQTT Maximum retry"
+        default 5
+        depends on MQTT_ENABLE
+        help
+            Number of connection retry attempts to the MQTT broker before giving up.
+
     config MQTT_BROKER_URI
         string "MQTT Broker URI"
         default "mqtt://your-broker-url:1883"

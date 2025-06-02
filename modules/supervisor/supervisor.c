@@ -16,6 +16,8 @@
 #include "mqtt.h"
 #endif
 
+const char *TAG = "cikon-supervisor";
+
 typedef enum {
     SUPERVISOR_INTERVAL_1S,
     SUPERVISOR_INTERVAL_5S,
@@ -158,7 +160,6 @@ static void supervisor_execute_stage(supervisor_interval_stage_t stage) {
 
 void supervisor_task(void *args) {
 
-    const char *TAG = "cikon-supervisor";
     ESP_LOGI(TAG, "Supervisor task started.");
 
     supervisor_init();
@@ -192,7 +193,6 @@ void supervisor_task(void *args) {
 
 void supervisor_command_print_all(void) {
 
-    const char *TAG = "cikon-supervisor";
     ESP_LOGI(TAG, "Available supervisor commands:");
 
     for (supervisor_command_type_t cmd = 0; cmd < CMND_COUNT; cmd++) {
@@ -344,4 +344,12 @@ void supervisor_init() {
     // xTaskCreate(heartbeat_task, "heartbeat_task", 4096, NULL, 0, NULL);
     // xTaskCreate(led_blink_task, "led_blink_task", 2048, NULL, 0,
     //             &ledBlinkTaskHandle);
+}
+
+void supervisor_publish_mqtt(const char *topic, const char *payload, int qos, bool retain) {
+    if (!(xEventGroupGetBits(app_event_group) & MQTT_FAIL_BIT)) {
+        mqtt_publish(topic, payload, qos, retain);
+    } else {
+        ESP_LOGW(TAG, "No connection to the MQTT broker, skipping publish to topic: %s", topic);
+    }
 }

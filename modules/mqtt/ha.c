@@ -12,6 +12,7 @@
 #include "json_parser.h"
 #include "platform_services.h"
 #include "mqtt.h"
+#include "supervisor.h"
 
 #define TAG "home-assistant"
 
@@ -95,8 +96,6 @@ void free_ha_entity(ha_entity_t *entity) {
     }
 }
 
-extern esp_mqtt_client_handle_t mqtt_client;
-
 /**
  * @brief Publishes a Home Assistant entity configuration via MQTT and frees its
  * resources.
@@ -120,10 +119,9 @@ void submit_ha_entity(ha_entity_t *entity) {
     ESP_LOGI(TAG, "Topic: %s", entity->ha_config_topic);
     ESP_LOGI(TAG, "Payload: %s", payload);
 
-    esp_mqtt_client_publish(mqtt_client, entity->ha_config_topic, payload, 0, MQTT_QOS, true);
+    supervisor_publish_mqtt(entity->ha_config_topic, payload, 0, true);
 
     cJSON_free(payload);
-
     free_ha_entity(entity);
 }
 

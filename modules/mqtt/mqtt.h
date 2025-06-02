@@ -10,7 +10,6 @@ extern "C" {
 
 #define TELEMETRY_INTERVAL_MS 5000
 #define MQTT_RX_BUFFER_SIZE 1024
-#define MQTT_NAME "idfnode"
 #define MQTT_QOS 0
 
 void mqtt_init();
@@ -44,8 +43,10 @@ void mqtt_shutdown();
 void telemetry_task(void *args);
 void command_task(void *args);
 
+void mqtt_publish(const char *topic, const char *payload, int qos, bool retain);
+
 static inline void get_mqtt_topic(char *buf, size_t buf_size, const char *suffix) {
-    snprintf(buf, buf_size, "%s/%s/%s", MQTT_NAME, get_client_id(), suffix);
+    snprintf(buf, buf_size, "%s/%s/%s", CONFIG_MQTT_NODE_NAME, get_client_id(), suffix);
 }
 
 #define MQTT_COMMAND_TOPIC(buf) get_mqtt_topic((buf), sizeof(buf), "cmnd")
