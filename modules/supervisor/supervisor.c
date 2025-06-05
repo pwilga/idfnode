@@ -333,7 +333,7 @@ void supervisor_set_onboard_led_state(bool new_state) {
 void supervisor_init() {
 
 #if CONFIG_MQTT_ENABLE
-    mqtt_init();
+    mqtt_init(true);
 #endif
 
     xTaskCreate(tcp_ota_task, "tcp_ota", 8192, NULL, 0, NULL);

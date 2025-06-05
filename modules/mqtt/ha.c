@@ -3,6 +3,7 @@
 #if CONFIG_MQTT_ENABLE && CONFIG_HOME_ASSISTANT_MQTT_DISCOVERY_ENABLE
 
 #include <stdbool.h>
+#include <string.h>
 
 #include "esp_log.h"
 
@@ -11,7 +12,6 @@
 #include "ha.h"
 #include "json_parser.h"
 #include "platform_services.h"
-#include "mqtt.h"
 #include "supervisor.h"
 
 #define TAG "home-assistant"
@@ -69,14 +69,12 @@ void build_ha_entity(ha_entity_t *entity, const char *entity_type, const char *n
     cJSON_AddStringToObject(json_root, "name", name);
     cJSON_AddStringToObject(json_root, "uniq_id", unique_id);
 
-    MQTT_TELEMETRY_TOPIC(buf);
-    cJSON_AddStringToObject(json_root, "stat_t", buf);
+    snprintf(buf, sizeof(buf), "%s/%s", CONFIG_MQTT_NODE_NAME, get_client_id());
+    cJSON_AddStringToObject(json_root, "~", buf);
 
-    MQTT_COMMAND_TOPIC(buf);
-    cJSON_AddStringToObject(json_root, "cmd_t", buf);
-
-    MQTT_AVAILABILITY_TOPIC(buf);
-    cJSON_AddStringToObject(json_root, "avty_t", buf);
+    cJSON_AddStringToObject(json_root, "stat_t", "~/tele");
+    cJSON_AddStringToObject(json_root, "cmd_t", "~/cmnd");
+    cJSON_AddStringToObject(json_root, "avty_t", "~/aval");
 
     snprintf(buf, sizeof(buf), "{{ value_json.%s  }}", sanitized_name);
     cJSON_AddStringToObject(json_root, "val_tpl", buf);
@@ -181,12 +179,11 @@ void register_ha_tasks_dict_sensor(const char *name) {
         snprintf(val_buf, sizeof(val_buf), "{{ value_json.%s | count }}", sanitized_name);
         cJSON_ReplaceItemInObject(entity.ha_config_payload, "val_tpl", cJSON_CreateString(val_buf));
 
-        MQTT_TELEMETRY_TOPIC(val_buf);
-        cJSON_AddStringToObject(entity.ha_config_payload, "json_attr_t", val_buf);
-
         snprintf(val_buf, sizeof(val_buf), "{{ value_json.%s | tojson }}", sanitized_name);
         cJSON_AddStringToObject(entity.ha_config_payload, "json_attr_tpl", val_buf);
         free(sanitized_name);
+
+        cJSON_AddStringToObject(entity.ha_config_payload, "json_attr_t", "~/tele");
     }
     submit_ha_entity(&entity);
 }

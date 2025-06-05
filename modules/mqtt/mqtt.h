@@ -12,7 +12,7 @@ extern "C" {
 #define MQTT_RX_BUFFER_SIZE 1024
 #define MQTT_QOS 0
 
-void mqtt_init();
+void mqtt_init(bool secure);
 
 /**
  * @brief Initiates the shutdown sequence for the MQTT client.

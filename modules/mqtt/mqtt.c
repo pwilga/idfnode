@@ -28,6 +28,10 @@ QueueHandle_t mqtt_queue;
 static uint8_t mqtt_retry_counter = 0;
 static bool mqtt_skip_current_msg = false;
 
+extern const uint8_t _binary_ca_crt_start[] asm("_binary_ca_crt_start");
+extern const uint8_t _binary_cikonesp_crt_start[] asm("_binary_cikonesp_crt_start");
+extern const uint8_t _binary_cikonesp_key_start[] asm("_binary_cikonesp_key_start");
+
 static void mqtt_shutdown_task(void *args) {
     mqtt_shutdown();
     vTaskDelete(NULL);
@@ -136,21 +140,27 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
     }
 }
 
-void mqtt_init() {
+void mqtt_init(bool secure) {
 
     static char avail_topic_buf[TOPIC_BUF_SIZE];
-
     MQTT_AVAILABILITY_TOPIC(avail_topic_buf);
+
     esp_mqtt_client_config_t mqtt_cfg = {
         .broker =
             {
-                .address.uri = CONFIG_MQTT_BROKER_URI,
+                .address.uri = secure ? "mqtts://skynet.cikon.eu:8883" : CONFIG_MQTT_BROKER_URI,
+                .verification.certificate = secure ? (const char *)_binary_ca_crt_start : NULL,
             },
         .credentials =
             {
                 .client_id = get_client_id(),
-                .username = CONFIG_MQTT_USERNAME,
-                .authentication.password = CONFIG_MQTT_PASSWORD,
+                .username = secure ? NULL : CONFIG_MQTT_USERNAME,
+                .authentication =
+                    {
+                        .password = secure ? NULL : CONFIG_MQTT_PASSWORD,
+                        .certificate = secure ? (const char *)_binary_cikonesp_crt_start : NULL,
+                        .key = secure ? (const char *)_binary_cikonesp_key_start : NULL,
+                    },
             },
         .buffer.size = MQTT_RX_BUFFER_SIZE,
         .session =
