@@ -12,6 +12,7 @@
 #include "lwip/netdb.h"
 #include "lwip/sockets.h"
 
+#include "config_manager.h"
 #include "platform_services.h"
 #include "udp_monitor.h"
 
@@ -41,7 +42,7 @@ void udp_monitor_task(void *arg) {
 
     struct sockaddr_in listen_addr = {
         .sin_family = AF_INET,
-        .sin_port = htons(CONFIG_UDP_MONITOR_PORT),
+        .sin_port = htons(config_get()->udp_mon_port),
         .sin_addr.s_addr = htonl(INADDR_ANY),
     };
 
@@ -60,7 +61,7 @@ void udp_monitor_task(void *arg) {
         return;
     }
 
-    ESP_LOGI(TAG, "Waiting for UDP client on port: %d", CONFIG_UDP_MONITOR_PORT);
+    ESP_LOGI(TAG, "Waiting for UDP client on port: %d", config_get()->udp_mon_port);
 
     socklen_t addr_len = sizeof(recv_addr);
     while (1) {

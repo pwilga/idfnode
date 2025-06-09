@@ -10,6 +10,7 @@
 #include "lwip/sockets.h"
 #include "mbedtls/md5.h"
 
+#include "config_manager.h"
 #include "platform_services.h"
 
 #define RETURN_IF_FALSE(x)                                                                         \
@@ -178,7 +179,7 @@ void tcp_ota_task(void *args) {
     struct sockaddr_in *dest_addr_ip4 = (struct sockaddr_in *)&dest_addr;
     dest_addr_ip4->sin_addr.s_addr = htonl(INADDR_ANY);
     dest_addr_ip4->sin_family = AF_INET;
-    dest_addr_ip4->sin_port = htons(CONFIG_OTA_TCP_PORT);
+    dest_addr_ip4->sin_port = htons(config_get()->ota_tcp_port);
 
     int listen_sock = socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
     if (listen_sock < 0) {
@@ -203,7 +204,7 @@ void tcp_ota_task(void *args) {
     }
 
     while (1) {
-        ESP_LOGI(TAG, "Listening for connections, port:%d.", CONFIG_OTA_TCP_PORT);
+        ESP_LOGI(TAG, "Listening for connections, port: %d.", config_get()->ota_tcp_port);
 
         struct sockaddr_storage source_addr;
         socklen_t addr_len = sizeof(source_addr);

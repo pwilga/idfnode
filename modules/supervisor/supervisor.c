@@ -12,6 +12,8 @@
 #include "udp_monitor.h"
 #include "wifi.h"
 
+#include "config_manager.h"
+
 #if CONFIG_MQTT_ENABLE
 #include "mqtt.h"
 #endif
@@ -122,6 +124,10 @@ void command_dispatch(supervisor_command_t *cmd) {
         supervisor_command_print_all();
         break;
 
+    case CMND_SET_CONF:
+        cJSON *json_args = json_str_as_object(cmd->args_json_str);
+        config_manager_set_from_json(json_args);
+        break;
     default:
         ESP_LOGW(TAG, "Unknown command type: %s", supervisor_command_id(cmd->type));
         break;

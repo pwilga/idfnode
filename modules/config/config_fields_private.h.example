@@ -1,0 +1,18 @@
+// Example config_fields_private.h (do NOT commit your real config_fields_private.h)
+// Copy this file as config_fields_private.h and fill with your own values.
+
+#define CONFIG_FIELDS(STR, U8, U16) \
+    STR(mdns_host, 32, "changeme") \
+    STR(mdns_instance, 64, "Example Device") \
+    STR(mqtt_broker, 128, "mqtt://example:1883") \
+    STR(mqtt_disc_pref, 32, "homeassistant") \
+    U8(mqtt_mtls_en, 1) \
+    STR(mqtt_node, 32, "espnode") \
+    STR(mqtt_pass, 32, "password") \
+    U8(mqtt_max_retry, 5) \
+    STR(mqtt_user, 32, "mqttuser") \
+    U16(ota_tcp_port, 5555) \
+    U8(wifi_max_retry, 5) \
+    STR(wifi_pass, 64, "password") \
+    STR(wifi_ssid, 32, "changeme") \
+    U16(udp_mon_port, 5005)

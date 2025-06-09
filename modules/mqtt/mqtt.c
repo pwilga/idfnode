@@ -44,7 +44,7 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
         xEventGroupSetBits(app_event_group, MQTT_CONNECTED_BIT);
         xEventGroupClearBits(app_event_group, MQTT_FAIL_BIT);
 
-        ESP_LOGI(TAG, "Connected to MQTT Broker: %s", CONFIG_MQTT_BROKER_URI);
+        ESP_LOGI(TAG, "Connected to MQTT Broker: %s", config_get()->mqtt_broker);
 
         char topic[TOPIC_BUF_SIZE];
         MQTT_COMMAND_TOPIC(topic);
@@ -56,6 +56,7 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
         // Birth message
         MQTT_AVAILABILITY_TOPIC(topic);
         esp_mqtt_client_publish(mqtt_client, topic, "online", 0, MQTT_QOS, true);
+        xEventGroupSetBits(app_event_group, TELEMETRY_TRIGGER_BIT);
         break;
     case MQTT_EVENT_ERROR:
         xEventGroupSetBits(app_event_group, MQTT_FAIL_BIT);
@@ -66,15 +67,15 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
         xEventGroupSetBits(app_event_group, MQTT_FAIL_BIT);
         xEventGroupClearBits(app_event_group, MQTT_CONNECTED_BIT);
 
-        if (mqtt_retry_counter < CONFIG_MQTT_MAXIMUM_RETRY) {
+        if (mqtt_retry_counter < config_get()->mqtt_max_retry) {
             mqtt_retry_counter++;
             ESP_LOGI(TAG, "Retry to connect to the MQTT Broker (%d/%d)", mqtt_retry_counter,
-                     CONFIG_MQTT_MAXIMUM_RETRY);
+                     config_get()->mqtt_max_retry);
         } else {
             ESP_LOGE(TAG,
                      "Failed to connect to MQTT Broker '%s' after %d retries, shutting down MQTT "
                      "subsystem...",
-                     CONFIG_MQTT_BROKER_URI, CONFIG_MQTT_MAXIMUM_RETRY);
+                     config_get()->mqtt_broker, config_get()->mqtt_max_retry);
 
             // From this context, starting a new task is the only way to destroy MQTT.
             xTaskCreate(mqtt_shutdown_task, "mqtt_shutdown", 2048, NULL, 10, NULL);
@@ -148,16 +149,16 @@ void mqtt_init(bool secure) {
     esp_mqtt_client_config_t mqtt_cfg = {
         .broker =
             {
-                .address.uri = secure ? "mqtts://skynet.cikon.eu:8883" : CONFIG_MQTT_BROKER_URI,
+                .address.uri = config_get()->mqtt_broker,
                 .verification.certificate = secure ? (const char *)_binary_ca_crt_start : NULL,
             },
         .credentials =
             {
                 .client_id = get_client_id(),
-                .username = secure ? NULL : CONFIG_MQTT_USERNAME,
+                .username = secure ? NULL : config_get()->mqtt_user,
                 .authentication =
                     {
-                        .password = secure ? NULL : CONFIG_MQTT_PASSWORD,
+                        .password = secure ? NULL : config_get()->mqtt_pass,
                         .certificate = secure ? (const char *)_binary_cikonesp_crt_start : NULL,
                         .key = secure ? (const char *)_binary_cikonesp_key_start : NULL,
                     },

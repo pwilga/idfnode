@@ -9,6 +9,7 @@
 
 #include "cJSON.h"
 
+#include "config_manager.h"
 #include "ha.h"
 #include "json_parser.h"
 #include "platform_services.h"
@@ -55,7 +56,7 @@ void build_ha_entity(ha_entity_t *entity, const char *entity_type, const char *n
     snprintf(unique_id, sizeof(unique_id), "%.6s_%s", get_client_id(), sanitized_name);
 
     snprintf(entity->ha_config_topic, sizeof(entity->ha_config_topic), "%s/%s/%s/config",
-             CONFIG_MQTT_DISCOVERY_PREFIX, entity_type, unique_id);
+             config_get()->mqtt_disc_pref, entity_type, unique_id);
 
     if (empty_payload) {
         entity->ha_config_payload = NULL;
@@ -69,7 +70,7 @@ void build_ha_entity(ha_entity_t *entity, const char *entity_type, const char *n
     cJSON_AddStringToObject(json_root, "name", name);
     cJSON_AddStringToObject(json_root, "uniq_id", unique_id);
 
-    snprintf(buf, sizeof(buf), "%s/%s", CONFIG_MQTT_NODE_NAME, get_client_id());
+    snprintf(buf, sizeof(buf), "%s/%s", config_get()->mqtt_node, get_client_id());
     cJSON_AddStringToObject(json_root, "~", buf);
 
     cJSON_AddStringToObject(json_root, "stat_t", "~/tele");

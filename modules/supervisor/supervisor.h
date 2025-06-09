@@ -26,6 +26,7 @@ typedef enum {
     CMND(CMND_SET_AP, "ap", "Receive nested JSON string")                                          \
     CMND(CMND_SET_MODE, "mode", "Setting modes of something")                                      \
     CMND(CMND_HA_DISCOVERY, "ha", "MQTT Discovery mode")                                           \
+    CMND(CMND_SET_CONF, "setconf", "Device Setup")                                                 \
     CMND(CMND_HELP, "help", "Print help message on the terminal")
 
 typedef char str32_t[32];

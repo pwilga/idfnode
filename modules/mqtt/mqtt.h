@@ -5,6 +5,7 @@
 extern "C" {
 #endif
 
+#include "config_manager.h"
 #include "mqtt_client.h"
 #include "platform_services.h"
 
@@ -46,7 +47,7 @@ void command_task(void *args);
 void mqtt_publish(const char *topic, const char *payload, int qos, bool retain);
 
 static inline void get_mqtt_topic(char *buf, size_t buf_size, const char *suffix) {
-    snprintf(buf, buf_size, "%s/%s/%s", CONFIG_MQTT_NODE_NAME, get_client_id(), suffix);
+    snprintf(buf, buf_size, "%s/%s/%s", config_get()->mqtt_node, get_client_id(), suffix);
 }
 
 #define MQTT_COMMAND_TOPIC(buf) get_mqtt_topic((buf), sizeof(buf), "cmnd")

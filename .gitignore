@@ -23,3 +23,5 @@ __pycache__/
 *.pyc
 .env/
 main/certs/
+
+modules/config/config_fields_private.h

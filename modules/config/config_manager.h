@@ -5,6 +5,8 @@
 #include <stdbool.h>
 
 #include "esp_err.h"
+#include "config_fields_private.h"
+#include "cJSON.h"
 
 /**
  * @file config_manager.h
@@ -22,20 +24,6 @@
  *   - Use config_manager_log_all_keys() to log all NVS keys in the config namespace.
  *   - Use config_manager_erase_all() to erase all config data from NVS.
  */
-#define CONFIG_FIELDS(STR, U8, U16)                                                                \
-    STR(mdns_host, 32, CONFIG_MDNS_HOSTNAME)                                                       \
-    STR(mdns_instance, 64, CONFIG_MDNS_INSTANCE_NAME)                                              \
-    STR(mqtt_broker, 128, CONFIG_MQTT_BROKER_URI)                                                  \
-    STR(mqtt_disc_pref, 32, CONFIG_MQTT_DISCOVERY_PREFIX)                                          \
-    U8(mqtt_retry, CONFIG_MQTT_MAXIMUM_RETRY)                                                      \
-    STR(mqtt_node, 32, CONFIG_MQTT_NODE_NAME)                                                      \
-    STR(mqtt_pass, 32, CONFIG_MQTT_PASSWORD)                                                       \
-    STR(mqtt_user, 32, CONFIG_MQTT_USERNAME)                                                       \
-    U16(ota_tcp_port, CONFIG_OTA_TCP_PORT)                                                         \
-    STR(wifi_pass, 64, CONFIG_WIFI_PASSWORD)                                                       \
-    U8(wifi_max_retry, CONFIG_WIFI_MAXIMUM_RETRY)                                                  \
-    STR(wifi_ssid, 32, CONFIG_WIFI_SSID)                                                           \
-    U16(udp_mon_port, CONFIG_UDP_MONITOR_PORT)
 
 /**
  * @brief Structure holding all persistent configuration fields.
@@ -85,7 +73,7 @@ void config_manager_init(void);
  *
  * @return Pointer to config_t structure with current values.
  */
-const config_t *config_manager_get(void);
+const config_t *config_get(void);
 
 /**
  * @brief Log all NVS keys in the configuration namespace (for diagnostics).
@@ -96,5 +84,13 @@ void config_manager_log_all_keys(void);
  * @brief Erase all configuration data from NVS (factory reset).
  */
 void config_manager_erase_all();
+
+/**
+ * @brief Set configuration fields from a cJSON object.
+ *
+ * For each key in the JSON, if it matches a config field, the corresponding setter is called.
+ * If the key is unknown, a warning is logged.
+ */
+void config_manager_set_from_json(const cJSON *json);
 
 #endif // CONFIG_MANAGER_H

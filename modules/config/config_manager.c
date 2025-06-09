@@ -4,6 +4,7 @@
 #include "nvs_flash.h"
 #include "nvs.h"
 #include "esp_log.h"
+#include "cJSON.h"
 
 #include "config_manager.h"
 
@@ -95,20 +96,38 @@ void config_manager_init(void) {
 
 #define STR(field, size, defval)                                                                   \
     len = size;                                                                                    \
-    if (nvs_get_str(nvs, #field, config_data.field, &len) != ESP_OK) {                             \
-        ESP_LOGE(TAG, "LOAD_STR: %s (default), nvs_get_str err", #field);                          \
-        strncpy(config_data.field, defval, size);                                                  \
-        config_data.field[size - 1] = '\0';                                                        \
+    {                                                                                              \
+        esp_err_t err = nvs_get_str(nvs, #field, config_data.field, &len);                         \
+        if (err != ESP_OK) {                                                                       \
+            if (err != ESP_ERR_NVS_NOT_FOUND) {                                                    \
+                ESP_LOGE(TAG, "LOAD_STR: %s (default), nvs_get_str err: %s", #field,               \
+                         esp_err_to_name(err));                                                    \
+            }                                                                                      \
+            strncpy(config_data.field, defval, size);                                              \
+            config_data.field[size - 1] = '\0';                                                    \
+        }                                                                                          \
     }
 #define U8(field, defval)                                                                          \
-    if (nvs_get_u8(nvs, #field, &config_data.field) != ESP_OK) {                                   \
-        ESP_LOGE(TAG, "LOAD_U8: %s = %u (default)", #field, (unsigned)(defval));                   \
-        config_data.field = defval;                                                                \
+    {                                                                                              \
+        esp_err_t err = nvs_get_u8(nvs, #field, &config_data.field);                               \
+        if (err != ESP_OK) {                                                                       \
+            if (err != ESP_ERR_NVS_NOT_FOUND) {                                                    \
+                ESP_LOGE(TAG, "LOAD_U8: %s = %u (default), nvs_get_u8 err: %s", #field,            \
+                         (unsigned)(defval), esp_err_to_name(err));                                \
+            }                                                                                      \
+            config_data.field = defval;                                                            \
+        }                                                                                          \
     }
 #define U16(field, defval)                                                                         \
-    if (nvs_get_u16(nvs, #field, &config_data.field) != ESP_OK) {                                  \
-        ESP_LOGE(TAG, "LOAD_U16: %s = %u (default)", #field, (unsigned)(defval));                  \
-        config_data.field = defval;                                                                \
+    {                                                                                              \
+        esp_err_t err = nvs_get_u16(nvs, #field, &config_data.field);                              \
+        if (err != ESP_OK) {                                                                       \
+            if (err != ESP_ERR_NVS_NOT_FOUND) {                                                    \
+                ESP_LOGE(TAG, "LOAD_U16: %s = %u (default), nvs_get_u16 err: %s", #field,          \
+                         (unsigned)(defval), esp_err_to_name(err));                                \
+            }                                                                                      \
+            config_data.field = defval;                                                            \
+        }                                                                                          \
     }
     CONFIG_FIELDS(STR, U8, U16);
 #undef STR
@@ -117,7 +136,7 @@ void config_manager_init(void) {
     nvs_close(nvs);
 }
 
-const config_t *config_manager_get(void) { return &config_data; }
+const config_t *config_get(void) { return &config_data; }
 
 void config_manager_log_all_keys(void) {
 
@@ -144,5 +163,49 @@ void config_manager_erase_all(void) {
         ESP_LOGI(TAG, "NVS ERASE: All keys erased successfully.");
     } else {
         ESP_LOGE(TAG, "NVS ERASE: Failed to erase NVS: %s", esp_err_to_name(err));
+    }
+}
+
+#define CONFIG_FIELD_APPLY_SETTER_STR(field, size, default_val)                                    \
+    if (strcmp(item->string, #field) == 0) {                                                       \
+        if (item->type == cJSON_String) {                                                          \
+            config_set_##field(item->valuestring);                                                 \
+        } else {                                                                                   \
+            ESP_LOGW(TAG, "JSON type mismatch for field %s (expected string)", #field);            \
+        }                                                                                          \
+        return 1;                                                                                  \
+    }
+#define CONFIG_FIELD_APPLY_SETTER_U8(field, default_val)                                           \
+    if (strcmp(item->string, #field) == 0) {                                                       \
+        if (item->type == cJSON_Number) {                                                          \
+            config_set_##field(item->valueint);                                                    \
+        } else {                                                                                   \
+            ESP_LOGW(TAG, "JSON type mismatch for field %s (expected number)", #field);            \
+        }                                                                                          \
+        return 1;                                                                                  \
+    }
+#define CONFIG_FIELD_APPLY_SETTER_U16(field, default_val)                                          \
+    if (strcmp(item->string, #field) == 0) {                                                       \
+        if (item->type == cJSON_Number) {                                                          \
+            config_set_##field(item->valueint);                                                    \
+        } else {                                                                                   \
+            ESP_LOGW(TAG, "JSON type mismatch for field %s (expected number)", #field);            \
+        }                                                                                          \
+        return 1;                                                                                  \
+    }
+
+static int config_manager_apply_json_item(const cJSON *item) {
+    CONFIG_FIELDS(CONFIG_FIELD_APPLY_SETTER_STR, CONFIG_FIELD_APPLY_SETTER_U8,
+                  CONFIG_FIELD_APPLY_SETTER_U16)
+    return 0;
+}
+
+void config_manager_set_from_json(const cJSON *json) {
+    for (const cJSON *item = json->child; item != NULL; item = item->next) {
+        if (!item->string)
+            continue;
+        if (!config_manager_apply_json_item(item)) {
+            ESP_LOGW(TAG, "Unknown configuration key: %s", item->string);
+        }
     }
 }

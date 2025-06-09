@@ -9,7 +9,7 @@ idf_component_register(
         "../modules/mqtt/ha.c"
         "../modules/supervisor/supervisor.c"
         "../modules/utils/json_parser.c"
-        "../modules/utils/config_manager.c"
+        "../modules/config/config_manager.c"
         "main.c"
     REQUIRES driver esp_wifi nvs_flash lwip app_update mbedtls esp_timer mdns mqtt json
     PRIV_REQUIRES spi_flash
@@ -21,6 +21,7 @@ idf_component_register(
         "../modules/monitor"
         "../modules/mqtt"
         "../modules/supervisor"
+        "../modules/config"
     EMBED_TXTFILES
         "certs/ca.crt"
         "certs/cikonesp.crt"

@@ -1,8 +1,11 @@
+#include <string.h>
+
 #include "esp_log.h"
 #include "esp_wifi.h"
 #include "esp_mac.h"
-#include "platform_services.h"
 
+#include "config_manager.h"
+#include "platform_services.h"
 #include "wifi.h"
 
 static const char *TAG = "wifi-sta";
@@ -29,13 +32,13 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t e
                 return;
             }
 
-            if (retry_counter < CONFIG_WIFI_MAXIMUM_RETRY) {
+            if (retry_counter < config_get()->wifi_max_retry) {
                 ESP_ERROR_CHECK(esp_wifi_connect());
                 retry_counter++;
                 ESP_LOGI(TAG, "Retry to connect to the AP");
             } else {
                 ESP_LOGW(TAG, "Failed to connect to the AP after %d retries",
-                         CONFIG_WIFI_MAXIMUM_RETRY);
+                         config_get()->wifi_max_retry);
                 xEventGroupSetBits(app_event_group, WIFI_STA_FAIL_BIT);
                 xEventGroupClearBits(app_event_group, WIFI_STA_CONNECTED_BIT | WIFI_AP_STARTED_BIT);
             }
@@ -132,8 +135,11 @@ void wifi_ensure_sta_mode() {
         esp_wifi_stop();
     }
 
-    wifi_config_t sta_config = {
-        .sta = {.ssid = CONFIG_WIFI_SSID, .password = CONFIG_WIFI_PASSWORD}};
+    wifi_config_t sta_config = {0};
+
+    strncpy((char *)sta_config.sta.ssid, config_get()->wifi_ssid, sizeof(sta_config.sta.ssid));
+    strncpy((char *)sta_config.sta.password, config_get()->wifi_pass,
+            sizeof(sta_config.sta.password));
 
     if (ap_netif) {
         esp_netif_destroy(ap_netif);
@@ -152,10 +158,10 @@ void wifi_ensure_sta_mode() {
                             pdFALSE, portMAX_DELAY);
 
     if (bits & WIFI_STA_CONNECTED_BIT) {
-        ESP_LOGI(TAG, "Connected to AP SSID: %s", CONFIG_WIFI_SSID);
+        ESP_LOGI(TAG, "Connected to AP SSID: %s", config_get()->wifi_ssid);
     }
     if (bits & WIFI_STA_FAIL_BIT) {
-        ESP_LOGI(TAG, "Failed to connect to SSID: %s", CONFIG_WIFI_SSID);
+        ESP_LOGI(TAG, "Failed to connect to SSID: %s", config_get()->wifi_ssid);
     }
 
     xEventGroupClearBits(app_event_group, WIFI_AP_STARTED_BIT);
