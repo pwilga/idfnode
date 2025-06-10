@@ -107,12 +107,14 @@ void wifi_ensure_ap_mode() {
         esp_wifi_stop();
     }
 
-    wifi_config_t ap_config = {.ap = {.ssid = "ESP32_Config",
-                                      .ssid_len = 0,
+    wifi_config_t ap_config = {.ap = {.ssid_len = 0,
                                       .password = "",
                                       .channel = 1,
                                       .max_connection = 4,
                                       .authmode = WIFI_AUTH_OPEN}};
+
+    strncpy((char *)ap_config.ap.ssid, config_get()->wifi_ap_ssid, sizeof(ap_config.ap.ssid));
+
     if (sta_netif) {
         esp_netif_destroy(sta_netif);
         sta_netif = NULL;

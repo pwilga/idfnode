@@ -8,9 +8,6 @@ extern "C" {
 #include "stdbool.h"
 #include "cJSON.h"
 
-#define MAX_JSON_ARGS_LEN 64
-
-// X Macro
 typedef enum {
     TELE_TYPE_BOOL,
     TELE_TYPE_STRING,
@@ -27,7 +24,8 @@ typedef enum {
     CMND(CMND_SET_MODE, "mode", "Setting modes of something")                                      \
     CMND(CMND_HA_DISCOVERY, "ha", "MQTT Discovery mode")                                           \
     CMND(CMND_SET_CONF, "setconf", "Device Setup")                                                 \
-    CMND(CMND_HELP, "help", "Print help message on the terminal")
+    CMND(CMND_HELP, "help", "Print help message on the terminal")                                  \
+    CMND(CMND_RESET_CONF, "reset_conf", "Reset configuration to factory defaults")
 
 typedef char str32_t[32];
 
@@ -48,7 +46,7 @@ typedef enum {
 
 typedef struct {
     supervisor_command_type_t type;
-    char args_json_str[MAX_JSON_ARGS_LEN];
+    char *args_json_str;
 } supervisor_command_t;
 
 typedef struct {

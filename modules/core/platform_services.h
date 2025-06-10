@@ -110,6 +110,12 @@ const char *get_boot_time(void);
 void onboard_led_set_state(logic_state_t state);
 bool get_onboard_led_state(void);
 
+/**
+ * @brief Erase and re-initialize the entire NVS partition (factory reset of all non-volatile
+ * storage). After this call, NVS is ready for use.
+ */
+void reset_nvs_partition(void);
+
 #ifdef __cplusplus
 }
 #endif

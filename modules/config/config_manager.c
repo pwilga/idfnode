@@ -156,16 +156,6 @@ void config_manager_log_all_keys(void) {
     }
 }
 
-void config_manager_erase_all(void) {
-
-    esp_err_t err = nvs_flash_erase();
-    if (err == ESP_OK) {
-        ESP_LOGI(TAG, "NVS ERASE: All keys erased successfully.");
-    } else {
-        ESP_LOGE(TAG, "NVS ERASE: Failed to erase NVS: %s", esp_err_to_name(err));
-    }
-}
-
 #define CONFIG_FIELD_APPLY_SETTER_STR(field, size, default_val)                                    \
     if (strcmp(item->string, #field) == 0) {                                                       \
         if (item->type == cJSON_String) {                                                          \

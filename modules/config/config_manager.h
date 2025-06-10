@@ -22,7 +22,6 @@
  *   - Use config_set_<field>() to update and save a single field to NVS.
  *   - Use config_manager_get() to access the current config (read-only pointer).
  *   - Use config_manager_log_all_keys() to log all NVS keys in the config namespace.
- *   - Use config_manager_erase_all() to erase all config data from NVS.
  */
 
 /**
@@ -79,11 +78,6 @@ const config_t *config_get(void);
  * @brief Log all NVS keys in the configuration namespace (for diagnostics).
  */
 void config_manager_log_all_keys(void);
-
-/**
- * @brief Erase all configuration data from NVS (factory reset).
- */
-void config_manager_erase_all();
 
 /**
  * @brief Set configuration fields from a cJSON object.

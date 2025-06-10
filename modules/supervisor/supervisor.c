@@ -79,9 +79,19 @@ supervisor_command_type_t supervisor_command_from_id(const char *id) {
 }
 
 bool supervisor_schedule_command(supervisor_command_t *cmd) {
+
     if (!supervisor_queue)
         return false;
-    return xQueueSend(supervisor_queue, cmd, pdMS_TO_TICKS(100)) == pdTRUE;
+
+    if (xQueueSend(supervisor_queue, &cmd, pdMS_TO_TICKS(100)) != pdTRUE) {
+        ESP_LOGW(TAG, "supervisor_schedule_command: queue full, freeing cmd=%p args_json_str=%p",
+                 cmd, cmd->args_json_str);
+        if (cmd->args_json_str)
+            free(cmd->args_json_str);
+        free(cmd);
+        return false;
+    }
+    return true;
 }
 
 void command_dispatch(supervisor_command_t *cmd) {
@@ -126,7 +136,21 @@ void command_dispatch(supervisor_command_t *cmd) {
 
     case CMND_SET_CONF:
         cJSON *json_args = json_str_as_object(cmd->args_json_str);
+        if (!json_args) {
+            ESP_LOGW(TAG, "Command aborted: invalid JSON arguments: %s", cmd->args_json_str);
+            return;
+        }
         config_manager_set_from_json(json_args);
+
+        // char *json_str = cJSON_Print(json_args);
+        // ESP_LOGI(TAG, "Setting configuration from JSON: %s", json_str);
+        // free(json_str);
+
+        cJSON_Delete(json_args);
+
+        break;
+    case CMND_RESET_CONF:
+        reset_nvs_partition();
         break;
     default:
         ESP_LOGW(TAG, "Unknown command type: %s", supervisor_command_id(cmd->type));
@@ -174,15 +198,21 @@ void supervisor_task(void *args) {
     for (int i = 0; i < SUPERVISOR_INTERVAL_COUNT; ++i)
         last_stage[i] = xTaskGetTickCount();
 
-    supervisor_command_t cmd;
+    supervisor_command_t *cmd;
 
     // SUPERVISOR_INIT_ONLY, no need to update this field later
     snprintf(state.startup, sizeof(state.startup), "%s", get_boot_time());
 
     while (1) {
         if (xQueueReceive(supervisor_queue, &cmd, pdMS_TO_TICKS(100))) {
-            ESP_LOGI(TAG, "Received command: %s", supervisor_command_id(cmd.type));
-            command_dispatch(&cmd);
+            ESP_LOGI(TAG, "Received command: %s", supervisor_command_id(cmd->type));
+            command_dispatch(cmd);
+
+            if (cmd->args_json_str) {
+                free(cmd->args_json_str);
+                cmd->args_json_str = NULL;
+            }
+            free(cmd);
         }
 
         // Main cyclic stage execution, for each interval stage.
@@ -339,7 +369,7 @@ void supervisor_set_onboard_led_state(bool new_state) {
 void supervisor_init() {
 
 #if CONFIG_MQTT_ENABLE
-    mqtt_init(true);
+    mqtt_init(config_get()->mqtt_mtls_en);
 #endif
 
     xTaskCreate(tcp_ota_task, "tcp_ota", 8192, NULL, 0, NULL);

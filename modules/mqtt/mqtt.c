@@ -308,15 +308,21 @@ void process_command_payload(const char *payload) {
 
         ESP_LOGI(TAG, "Dispatching command: %s - %s", item->string, desc);
 
-        supervisor_command_t cmd = {
-            .type = cmd_type,
-        };
+        supervisor_command_t *cmd = malloc(sizeof(supervisor_command_t));
+        if (!cmd) {
+            ESP_LOGE(TAG, "Failed to allocate supervisor_command_t");
+            continue;
+        }
+        cmd->type = cmd_type;
+        cmd->args_json_str = NULL;
 
         char *json_val = cJSON_PrintUnformatted(item);
-        snprintf(cmd.args_json_str, sizeof(cmd.args_json_str), "%s", json_val);
-        free(json_val);
+        if (json_val) {
+            cmd->args_json_str = strdup(json_val);
+            free(json_val);
+        }
 
-        supervisor_schedule_command(&cmd);
+        supervisor_schedule_command(cmd);
         publish_telemetry();
     }
 

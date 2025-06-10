@@ -1,4 +1,3 @@
-
 #include <sys/time.h>
 
 #include "esp_err.h"
@@ -33,7 +32,7 @@ esp_err_t core_system_init(void) {
         return ESP_FAIL;
     }
 
-    supervisor_queue = xQueueCreate(DEFAULT_QUEUE_LEN, sizeof(supervisor_command_t));
+    supervisor_queue = xQueueCreate(DEFAULT_QUEUE_LEN, sizeof(supervisor_command_t *));
 
     if (!supervisor_queue) {
         ESP_LOGE(SYSTAG, "Failed to create supervisor dispatcher queue!");
@@ -155,4 +154,14 @@ void onboard_led_set_state(logic_state_t state) {
     }
 
     supervisor_set_onboard_led_state(new_state);
+}
+
+void reset_nvs_partition(void) {
+    esp_err_t err = nvs_flash_erase();
+    if (err == ESP_OK) {
+        ESP_LOGI(SYSTAG, "NVS ERASE: All keys erased successfully.");
+        ESP_ERROR_CHECK(nvs_flash_safe_init());
+    } else {
+        ESP_LOGE(SYSTAG, "NVS ERASE: Failed to erase NVS: %s", esp_err_to_name(err));
+    }
 }
