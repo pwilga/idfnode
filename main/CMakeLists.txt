@@ -10,8 +10,9 @@ idf_component_register(
         "../modules/supervisor/supervisor.c"
         "../modules/utils/json_parser.c"
         "../modules/config/config_manager.c"
+        "../modules/https/https_server.c"
         "main.c"
-    REQUIRES driver esp_wifi nvs_flash lwip app_update mbedtls esp_timer mdns mqtt json
+    REQUIRES driver esp_wifi nvs_flash lwip app_update mbedtls esp_timer mdns mqtt json esp_https_server
     PRIV_REQUIRES spi_flash
     INCLUDE_DIRS
         "../modules/core"
@@ -22,6 +23,7 @@ idf_component_register(
         "../modules/mqtt"
         "../modules/supervisor"
         "../modules/config"
+        "../modules/https"
     EMBED_TXTFILES
         "certs/ca.crt"
         "certs/cikonesp.crt"

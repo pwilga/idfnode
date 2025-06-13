@@ -3,16 +3,16 @@
 
 #include "cJSON.h"
 
+#include "config_manager.h"
 #include "debug.h"
 #include "ha.h"
+#include "https_server.h"
 #include "json_parser.h"
 #include "ota.h"
 #include "supervisor.h"
 #include "platform_services.h"
 #include "udp_monitor.h"
 #include "wifi.h"
-
-#include "config_manager.h"
 
 #if CONFIG_MQTT_ENABLE
 #include "mqtt.h"
@@ -128,6 +128,7 @@ void command_dispatch(supervisor_command_t *cmd) {
     case CMND_SET_AP:
         mqtt_shutdown();
         wifi_ensure_ap_mode();
+
         break;
 
     case CMND_HELP:
@@ -151,6 +152,16 @@ void command_dispatch(supervisor_command_t *cmd) {
         break;
     case CMND_RESET_CONF:
         reset_nvs_partition();
+        esp_safe_restart();
+        break;
+    case CMND_HTTPS:
+        logic_state_t https_state = json_str_as_logic_state(cmd->args_json_str);
+
+        if (https_state == STATE_ON) {
+            https_init();
+        } else if (https_state == STATE_OFF) {
+            https_shutdown();
+        }
         break;
     default:
         ESP_LOGW(TAG, "Unknown command type: %s", supervisor_command_id(cmd->type));
@@ -190,9 +201,8 @@ static void supervisor_execute_stage(supervisor_interval_stage_t stage) {
 
 void supervisor_task(void *args) {
 
-    ESP_LOGI(TAG, "Supervisor task started.");
-
     supervisor_init();
+    ESP_LOGI(TAG, "Supervisor task started.");
 
     TickType_t last_stage[SUPERVISOR_INTERVAL_COUNT];
     for (int i = 0; i < SUPERVISOR_INTERVAL_COUNT; ++i)

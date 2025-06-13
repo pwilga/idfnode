@@ -29,12 +29,6 @@ void mqtt_init(bool secure);
  * - Stopping and destroying the MQTT client,
  * - Clearing MQTT-related status bits in the event group.
  *
- * @note
- * This function captures the current task handle (`xTaskGetCurrentTaskHandle()`)
- * and passes it to the shutdown worker. The worker will not attempt to delete
- * the calling task, preventing undefined behavior caused by one task deleting
- * another that is still executing (which would result in system instability or crashes).
- *
  * @warning
  * Never call esp_mqtt_client_destroy() directly from within a task that uses the MQTT client,
  * as it may lead to resource corruption or assertion failures. Always call this function instead.

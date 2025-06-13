@@ -18,14 +18,15 @@ typedef enum {
 
 #define CMND_LIST                                                                                  \
     CMND(CMND_RESTART, "restart", "Restart the system")                                            \
-    CMND(CMND_LED_SET, "onboard_led", "Turn onboard LED on/off")                                   \
+    CMND(CMND_LED_SET, "led", "Turn onboard LED on/off")                                           \
     CMND(CMND_LOG_STATUS, "log", "Set internal value")                                             \
     CMND(CMND_SET_AP, "ap", "Receive nested JSON string")                                          \
     CMND(CMND_SET_MODE, "mode", "Setting modes of something")                                      \
     CMND(CMND_HA_DISCOVERY, "ha", "MQTT Discovery mode")                                           \
     CMND(CMND_SET_CONF, "setconf", "Device Setup")                                                 \
     CMND(CMND_HELP, "help", "Print help message on the terminal")                                  \
-    CMND(CMND_RESET_CONF, "reset_conf", "Reset configuration to factory defaults")
+    CMND(CMND_RESET_CONF, "resetconf", "Reset configuration to factory defaults")                  \
+    CMND(CMND_HTTPS, "https", "HTTPS server control")
 
 typedef char str32_t[32];
 
