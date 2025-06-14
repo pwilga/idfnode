@@ -282,53 +282,6 @@ void telemetry_task(void *args) {
     vTaskDelete(NULL);
 }
 
-void process_command_payload(const char *payload) {
-
-    cJSON *json_root = cJSON_Parse(payload);
-
-    if (!json_root || !cJSON_IsObject(json_root)) {
-        ESP_LOGW(TAG, "Invalid JSON: Rejecting message.");
-        cJSON_Delete(json_root);
-        return;
-    }
-
-    for (cJSON *item = json_root->child; item != NULL; item = item->next) {
-        if (!item->string) {
-            continue;
-        }
-
-        supervisor_command_type_t cmd_type = supervisor_command_from_id(item->string);
-
-        if (cmd_type == CMND_UNKNOWN) {
-            ESP_LOGW(TAG, "Unknown command: %s", item->string);
-            continue;
-        }
-
-        const char *desc = supervisor_command_description(cmd_type);
-
-        ESP_LOGI(TAG, "Dispatching command: %s - %s", item->string, desc);
-
-        supervisor_command_t *cmd = malloc(sizeof(supervisor_command_t));
-        if (!cmd) {
-            ESP_LOGE(TAG, "Failed to allocate supervisor_command_t");
-            continue;
-        }
-        cmd->type = cmd_type;
-        cmd->args_json_str = NULL;
-
-        char *json_val = cJSON_PrintUnformatted(item);
-        if (json_val) {
-            cmd->args_json_str = strdup(json_val);
-            free(json_val);
-        }
-
-        supervisor_schedule_command(cmd);
-        publish_telemetry();
-    }
-
-    cJSON_Delete(json_root);
-}
-
 void command_task(void *args) {
 
     char *msg = NULL; // ensure safe free() even if xQueueReceive fails
@@ -347,7 +300,8 @@ void command_task(void *args) {
         if (strcmp(topic, commmand_topic))
             goto cleanup;
 
-        process_command_payload(payload);
+        supervisor_process_command_payload(payload);
+        xEventGroupSetBits(app_event_group, TELEMETRY_TRIGGER_BIT);
 
     cleanup:
         if (msg) {

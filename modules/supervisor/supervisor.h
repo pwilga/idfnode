@@ -18,14 +18,15 @@ typedef enum {
 
 #define CMND_LIST                                                                                  \
     CMND(CMND_RESTART, "restart", "Restart the system")                                            \
-    CMND(CMND_LED_SET, "led", "Turn onboard LED on/off")                                           \
+    CMND(CMND_LED_SET, "onboard_led", "Turn onboard LED on/off")                                   \
     CMND(CMND_LOG_STATUS, "log", "Set internal value")                                             \
-    CMND(CMND_SET_AP, "ap", "Receive nested JSON string")                                          \
+    CMND(CMND_SET_AP, "ap", "Enable Wi-Fi Access Point (AP) mode")                                 \
     CMND(CMND_SET_MODE, "mode", "Setting modes of something")                                      \
     CMND(CMND_HA_DISCOVERY, "ha", "MQTT Discovery mode")                                           \
     CMND(CMND_SET_CONF, "setconf", "Device Setup")                                                 \
     CMND(CMND_HELP, "help", "Print help message on the terminal")                                  \
     CMND(CMND_RESET_CONF, "resetconf", "Reset configuration to factory defaults")                  \
+    CMND(CMND_SET_STA, "sta", "Enable Wi-Fi Station (STA) mode")                                   \
     CMND(CMND_HTTPS, "https", "HTTPS server control")
 
 typedef char str32_t[32];
@@ -63,6 +64,7 @@ bool supervisor_schedule_command(supervisor_command_t *cmd);
 const char *supervisor_command_id(supervisor_command_type_t cmd);
 const char *supervisor_command_description(supervisor_command_type_t cmd);
 supervisor_command_type_t supervisor_command_from_id(const char *id);
+void supervisor_process_command_payload(const char *payload);
 
 void supervisor_publish_mqtt(const char *topic, const char *payload, int qos, bool retain);
 void supervisor_command_print_all(void);

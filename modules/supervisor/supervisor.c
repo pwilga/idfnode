@@ -128,6 +128,13 @@ void command_dispatch(supervisor_command_t *cmd) {
     case CMND_SET_AP:
         mqtt_shutdown();
         wifi_ensure_ap_mode();
+        https_init();
+
+        break;
+    case CMND_SET_STA:
+        https_shutdown();
+        wifi_ensure_sta_mode();
+        mqtt_init(config_get()->mqtt_mtls_en);
 
         break;
 
@@ -398,4 +405,51 @@ void supervisor_publish_mqtt(const char *topic, const char *payload, int qos, bo
     } else {
         ESP_LOGW(TAG, "No connection to the MQTT broker, skipping publish to topic: %s", topic);
     }
+}
+
+void supervisor_process_command_payload(const char *payload) {
+
+    cJSON *json_root = cJSON_Parse(payload);
+
+    if (!json_root || !cJSON_IsObject(json_root)) {
+        ESP_LOGW(TAG, "Invalid JSON: Rejecting message.");
+        cJSON_Delete(json_root);
+        return;
+    }
+
+    for (cJSON *item = json_root->child; item != NULL; item = item->next) {
+        if (!item->string) {
+            continue;
+        }
+
+        supervisor_command_type_t cmd_type = supervisor_command_from_id(item->string);
+
+        if (cmd_type == CMND_UNKNOWN) {
+            ESP_LOGW(TAG, "Unknown command: %s", item->string);
+            continue;
+        }
+
+        const char *desc = supervisor_command_description(cmd_type);
+
+        ESP_LOGI(TAG, "Dispatching command: %s - %s", item->string, desc);
+
+        supervisor_command_t *cmd = malloc(sizeof(supervisor_command_t));
+        if (!cmd) {
+            ESP_LOGE(TAG, "Failed to allocate supervisor_command_t");
+            continue;
+        }
+        cmd->type = cmd_type;
+        cmd->args_json_str = NULL;
+
+        char *json_val = cJSON_PrintUnformatted(item);
+        if (json_val) {
+            cmd->args_json_str = strdup(json_val);
+            free(json_val);
+        }
+
+        supervisor_schedule_command(cmd);
+        // publish_telemetry();
+    }
+
+    cJSON_Delete(json_root);
 }
