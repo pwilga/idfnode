@@ -28,9 +28,9 @@ QueueHandle_t mqtt_queue;
 static uint8_t mqtt_retry_counter = 0;
 static bool mqtt_skip_current_msg = false;
 
-extern const uint8_t _binary_ca_crt_start[] asm("_binary_ca_crt_start");
-extern const uint8_t _binary_cikonesp_crt_start[] asm("_binary_cikonesp_crt_start");
-extern const uint8_t _binary_cikonesp_key_start[] asm("_binary_cikonesp_key_start");
+extern const uint8_t ca_crt_start[] asm("_binary_ca_crt_start");
+extern const uint8_t cikonesp_crt_start[] asm("_binary_cikonesp_crt_start");
+extern const uint8_t cikonesp_key_start[] asm("_binary_cikonesp_key_start");
 
 static void mqtt_shutdown_task(void *args) {
     mqtt_shutdown();
@@ -150,7 +150,7 @@ void mqtt_init(bool secure) {
         .broker =
             {
                 .address.uri = config_get()->mqtt_broker,
-                .verification.certificate = secure ? (const char *)_binary_ca_crt_start : NULL,
+                .verification.certificate = secure ? (const char *)ca_crt_start : NULL,
             },
         .credentials =
             {
@@ -159,8 +159,8 @@ void mqtt_init(bool secure) {
                 .authentication =
                     {
                         .password = secure ? NULL : config_get()->mqtt_pass,
-                        .certificate = secure ? (const char *)_binary_cikonesp_crt_start : NULL,
-                        .key = secure ? (const char *)_binary_cikonesp_key_start : NULL,
+                        .certificate = secure ? (const char *)cikonesp_crt_start : NULL,
+                        .key = secure ? (const char *)cikonesp_key_start : NULL,
                     },
             },
         .buffer.size = MQTT_RX_BUFFER_SIZE,
