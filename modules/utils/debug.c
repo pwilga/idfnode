@@ -3,27 +3,53 @@
 #include "esp_flash.h"
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
+#include "platform_services.h"
+#include "string.h"
 
-void memory_info_task(void *pvParameter) {
+void debug_info_task(void *args) {
 
-    static const char *TAG = "mem-info";
+    static const char *TAG = "sys-info";
 
     while (1) {
         // General free heap
+
+        // size_t min_free_heap = esp_get_minimum_free_heap_size();
+
+        // // Internal (default) memory
+        // size_t internal_free = heap_caps_get_free_size(MALLOC_CAP_INTERNAL);
+
+        // // External (PSRAM) memory, if available
+        // size_t psram_free = heap_caps_get_free_size(MALLOC_CAP_SPIRAM);
+
         size_t free_heap = esp_get_free_heap_size();
-        size_t min_free_heap = esp_get_minimum_free_heap_size();
+        EventBits_t bits = xEventGroupGetBits(app_event_group);
 
-        // Internal (default) memory
-        size_t internal_free = heap_caps_get_free_size(MALLOC_CAP_INTERNAL);
-
-        // External (PSRAM) memory, if available
-        size_t psram_free = heap_caps_get_free_size(MALLOC_CAP_SPIRAM);
-
-        ESP_LOGI(TAG, "==== Memory Info ====");
-        ESP_LOGI(TAG, "Free heap:        %.2f KB", free_heap / 1024.0);
-        ESP_LOGI(TAG, "Min. ever free:   %.2f KB", min_free_heap / 1024.0);
-        ESP_LOGI(TAG, "Internal free:    %.2f KB", internal_free / 1024.0);
-        ESP_LOGI(TAG, "External (PSRAM): %.2f KB", psram_free / 1024.0);
+        ESP_LOGI(TAG, "==== Sys Info ====");
+        ESP_LOGI(TAG, "Free heap: %.2f KB", free_heap / 1024.0);
+        // Wypisz tylko ustawione bity event group
+        char bits_str[128] = "";
+        if (bits & WIFI_STA_CONNECTED_BIT)
+            strcat(bits_str, "STA ");
+        if (bits & WIFI_AP_STARTED_BIT)
+            strcat(bits_str, "AP ");
+        if (bits & MQTT_CONNECTED_BIT)
+            strcat(bits_str, "MQTT_C ");
+        if (bits & MQTT_FAIL_BIT)
+            strcat(bits_str, "MQTT_F ");
+        if (bits & HTTPS_SHUTDOWN_INITIATED_BIT)
+            strcat(bits_str, "HTTPS_SHUT ");
+        if (bits & TELEMETRY_TRIGGER_BIT)
+            strcat(bits_str, "TEL ");
+        if (bits & WIFI_STA_FAIL_BIT)
+            strcat(bits_str, "STA_F ");
+        if (bits & MQTT_OFFLINE_PUBLISHED_BIT)
+            strcat(bits_str, "MQTT_OFF ");
+        if (bits & MQTT_SHUTDOWN_INITIATED_BIT)
+            strcat(bits_str, "MQTT_SHUT ");
+        ESP_LOGI(TAG, "Set bits: %s", bits_str[0] ? bits_str : "(none)");
+        // ESP_LOGI(TAG, "Min. ever free:   %.2f KB", min_free_heap / 1024.0);
+        // ESP_LOGI(TAG, "Internal free:    %.2f KB", internal_free / 1024.0);
+        // ESP_LOGI(TAG, "External (PSRAM): %.2f KB", psram_free / 1024.0);
         ESP_LOGI(TAG, "=====================");
 
         vTaskDelay(pdMS_TO_TICKS(2000)); // print every 5 seconds

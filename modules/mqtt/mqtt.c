@@ -41,6 +41,8 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
                                void *event_data) {
     switch ((esp_mqtt_event_id_t)event_id) {
     case MQTT_EVENT_CONNECTED:
+
+        mqtt_retry_counter = 0;
         xEventGroupSetBits(app_event_group, MQTT_CONNECTED_BIT);
         xEventGroupClearBits(app_event_group, MQTT_FAIL_BIT);
 
@@ -143,6 +145,8 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 
 void mqtt_init(bool secure) {
 
+    xEventGroupWaitBits(app_event_group, WIFI_STA_CONNECTED_BIT, pdFALSE, pdFALSE, portMAX_DELAY);
+
     static char avail_topic_buf[TOPIC_BUF_SIZE];
     MQTT_AVAILABILITY_TOPIC(avail_topic_buf);
 
@@ -190,9 +194,14 @@ void mqtt_init(bool secure) {
 
 void mqtt_shutdown() {
 
+    if (mqtt_command_task_handle == NULL && mqtt_telemetry_task_handle == NULL) {
+        ESP_LOGE(TAG, "MQTT tasks already stopped, nothing to do.");
+        return;
+    }
+
     xEventGroupSetBits(app_event_group, MQTT_SHUTDOWN_INITIATED_BIT);
 
-    int timeout = 100;
+    uint8_t timeout = 100;
     while ((mqtt_command_task_handle != NULL || mqtt_telemetry_task_handle != NULL) && timeout--) {
         vTaskDelay(pdMS_TO_TICKS(10));
     }

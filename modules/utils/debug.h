@@ -5,7 +5,7 @@
 extern "C" {
 #endif
 
-void memory_info_task(void *pvParameter);
+void debug_info_task(void *args);
 void led_blink_task(void *args);
 void heartbeat_task(void *args);
 void print_sys_info_task(void *args);

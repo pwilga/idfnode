@@ -126,16 +126,16 @@ void command_dispatch(supervisor_command_t *cmd) {
         break;
 
     case CMND_SET_AP:
-        mqtt_shutdown();
+
+        supervisor_stop_services_for_current_wifi_mode();
         wifi_ensure_ap_mode();
-        https_init();
+        supervisor_start_services_for_current_wifi_mode();
 
         break;
     case CMND_SET_STA:
-        https_shutdown();
+        supervisor_stop_services_for_current_wifi_mode();
         wifi_ensure_sta_mode();
-        mqtt_init(config_get()->mqtt_mtls_en);
-
+        supervisor_start_services_for_current_wifi_mode();
         break;
 
     case CMND_HELP:
@@ -299,6 +299,7 @@ void supervisor_add_json_field(cJSON *json_root, const char *name, const void *v
  */
 
 void supervisor_append_task_info(cJSON *json_root) {
+
     if (!json_root)
         return;
 
@@ -385,14 +386,12 @@ void supervisor_set_onboard_led_state(bool new_state) {
 
 void supervisor_init() {
 
-#if CONFIG_MQTT_ENABLE
-    mqtt_init(config_get()->mqtt_mtls_en);
-#endif
+    supervisor_start_services_for_current_wifi_mode();
 
     xTaskCreate(tcp_ota_task, "tcp_ota", 8192, NULL, 0, NULL);
     xTaskCreate(udp_monitor_task, "udp_monitor", 4096, NULL, 5, NULL);
 
-    xTaskCreate(memory_info_task, "memory_info_task", 4096, NULL, 0, NULL);
+    xTaskCreate(debug_info_task, "debug_info", 4096, NULL, 0, NULL);
 
     // xTaskCreate(heartbeat_task, "heartbeat_task", 4096, NULL, 0, NULL);
     // xTaskCreate(led_blink_task, "led_blink_task", 2048, NULL, 0,
@@ -448,8 +447,35 @@ void supervisor_process_command_payload(const char *payload) {
         }
 
         supervisor_schedule_command(cmd);
-        // publish_telemetry();
     }
 
     cJSON_Delete(json_root);
+}
+
+void supervisor_start_services_for_current_wifi_mode(void) {
+    EventBits_t bits =
+        xEventGroupWaitBits(app_event_group, WIFI_STA_CONNECTED_BIT | WIFI_AP_STARTED_BIT, pdFALSE,
+                            pdFALSE, pdMS_TO_TICKS(500));
+    if (bits & WIFI_STA_CONNECTED_BIT) {
+#if CONFIG_MQTT_ENABLE
+        mqtt_init(config_get()->mqtt_mtls_en);
+#endif
+    }
+    if (bits & WIFI_AP_STARTED_BIT) {
+        https_init();
+    }
+}
+
+void supervisor_stop_services_for_current_wifi_mode(void) {
+    EventBits_t bits =
+        xEventGroupWaitBits(app_event_group, WIFI_STA_CONNECTED_BIT | WIFI_AP_STARTED_BIT, pdFALSE,
+                            pdFALSE, pdMS_TO_TICKS(500));
+    if (bits & WIFI_STA_CONNECTED_BIT) {
+#if CONFIG_MQTT_ENABLE
+        mqtt_shutdown();
+#endif
+    }
+    if (bits & WIFI_AP_STARTED_BIT) {
+        https_shutdown();
+    }
 }

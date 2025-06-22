@@ -6,6 +6,7 @@ extern "C" {
 #endif
 
 #include "stdbool.h"
+#include "esp_wifi.h"
 #include "cJSON.h"
 
 typedef enum {
@@ -70,6 +71,9 @@ void supervisor_publish_mqtt(const char *topic, const char *payload, int qos, bo
 void supervisor_command_print_all(void);
 void supervisor_state_to_json(cJSON *json_root);
 void supervisor_set_onboard_led_state(bool new_state);
+
+void supervisor_start_services_for_current_wifi_mode(void);
+void supervisor_stop_services_for_current_wifi_mode(void);
 
 #ifdef __cplusplus
 }

@@ -31,10 +31,6 @@ static void https_inactivity_timer_callback(TimerHandle_t xTimer) {
     ESP_LOGW(TAG, "HTTPS inactivity timer: %.1f s timeout, restarting server",
              HTTPS_INACTIVITY_TIMEOUT_MS / 1000.0f);
     https_shutdown();
-
-    while (https_server_handle != NULL)
-        vTaskDelay(pdMS_TO_TICKS(10));
-
     https_init();
 }
 
@@ -67,8 +63,15 @@ void https_init(void) {
 }
 
 void https_shutdown(void) {
-    if (https_server_handle != NULL)
-        xEventGroupSetBits(app_event_group, HTTPS_SHUTDOWN_INITIATED_BIT);
+
+    if (https_server_handle == NULL)
+        return;
+
+    xEventGroupSetBits(app_event_group, HTTPS_SHUTDOWN_INITIATED_BIT);
+
+    uint8_t timeout = 100;
+    while (https_server_handle != NULL && timeout--)
+        vTaskDelay(pdMS_TO_TICKS(10));
 }
 
 static bool https_check_basic_auth(httpd_req_t *req) {
@@ -140,7 +143,7 @@ static esp_err_t cmnd_post_handler(httpd_req_t *req) {
         received += ret;
     }
     buf[received] = '\0';
-    ESP_LOGI(TAG, "Received command: %s", buf);
+
     supervisor_process_command_payload(buf);
     free(buf);
     httpd_resp_send(req, "OK", HTTPD_RESP_USE_STRLEN);
