@@ -5,6 +5,7 @@
 #include "freertos/FreeRTOS.h"
 #include "platform_services.h"
 #include "string.h"
+#include "supervisor.h"
 
 void debug_info_task(void *args) {
 
@@ -24,7 +25,6 @@ void debug_info_task(void *args) {
         size_t free_heap = esp_get_free_heap_size();
         EventBits_t bits = xEventGroupGetBits(app_event_group);
 
-        ESP_LOGI(TAG, "==== Sys Info ====");
         ESP_LOGI(TAG, "Free heap: %.2f KB", free_heap / 1024.0);
         // Wypisz tylko ustawione bity event group
         char bits_str[128] = "";
@@ -46,10 +46,14 @@ void debug_info_task(void *args) {
             strcat(bits_str, "MQTT_OFF ");
         if (bits & MQTT_SHUTDOWN_INITIATED_BIT)
             strcat(bits_str, "MQTT_SHUT ");
+        if (bits & HTTPS_SERVER_STARTED_BIT)
+            strcat(bits_str, "HTTPS_STARTED ");
+
         ESP_LOGI(TAG, "Set bits: %s", bits_str[0] ? bits_str : "(none)");
         // ESP_LOGI(TAG, "Min. ever free:   %.2f KB", min_free_heap / 1024.0);
         // ESP_LOGI(TAG, "Internal free:    %.2f KB", internal_free / 1024.0);
         // ESP_LOGI(TAG, "External (PSRAM): %.2f KB", psram_free / 1024.0);
+        ESP_LOGI(TAG, "Uptime: %lu s", (unsigned long)state_get()->uptime);
         ESP_LOGI(TAG, "=====================");
 
         vTaskDelay(pdMS_TO_TICKS(2000)); // print every 5 seconds

@@ -3,8 +3,9 @@
 #include "button_gpio.h"
 #include "esp_log.h"
 #include <stdint.h>
+#include <supervisor.h>
 
-static const char *TAG = "button-manager";
+static const char *TAG = "cikon-button-manager";
 static button_handle_t button_handles[MAX_BUTTONS] = {0};
 static uint8_t button_count = 0;
 
@@ -14,16 +15,21 @@ static void button_event_handler(void *button_handle, void *usr_data) {
 
     switch (event) {
     case BUTTON_SINGLE_CLICK:
-        ESP_LOGI(TAG, "Button %d: SINGLE CLICK", idx);
+        // ESP_LOGI(TAG, "Button %d: SINGLE CLICK", idx);
+        supervisor_process_command_payload("{\"help\":1}");
+
         break;
     case BUTTON_DOUBLE_CLICK:
-        ESP_LOGI(TAG, "Button %d: DOUBLE CLICK", idx);
+        supervisor_process_command_payload("{\"log\":1}");
+
         break;
     // case BUTTON_MULTIPLE_CLICK:
     //     ESP_LOGI(TAG, "Button %d: MULTI CLICK (>=3)", idx);
     //     break;
     case BUTTON_LONG_PRESS_START:
-        ESP_LOGI(TAG, "Button %d: LONG PRESS", idx);
+        // ESP_LOGI(TAG, "Button %d: LONG PRESS", idx);
+        supervisor_process_command_payload("{\"ap\":1}");
+
         break;
     // case BUTTON_PRESS_DOWN:
     //     ESP_LOGI(TAG, "Button %d: PRESS DOWN", idx);

@@ -72,8 +72,10 @@ void supervisor_command_print_all(void);
 void supervisor_state_to_json(cJSON *json_root);
 void supervisor_set_onboard_led_state(bool new_state);
 
-void supervisor_start_services_for_current_wifi_mode(void);
-void supervisor_stop_services_for_current_wifi_mode(void);
+// void supervisor_start_services_for_current_wifi_mode(void);
+// void supervisor_stop_services_for_current_wifi_mode(void);
+
+const supervisor_state_t *state_get(void);
 
 #ifdef __cplusplus
 }

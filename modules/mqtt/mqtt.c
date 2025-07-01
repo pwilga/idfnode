@@ -195,7 +195,7 @@ void mqtt_init(bool secure) {
 void mqtt_shutdown() {
 
     if (mqtt_command_task_handle == NULL && mqtt_telemetry_task_handle == NULL) {
-        ESP_LOGE(TAG, "MQTT tasks already stopped, nothing to do.");
+        // ESP_LOGE(TAG, "MQTT tasks already stopped, nothing to do.");
         return;
     }
 
@@ -208,9 +208,10 @@ void mqtt_shutdown() {
 
     if (mqtt_command_task_handle != NULL && mqtt_telemetry_task_handle != NULL) {
         ESP_LOGW(TAG, "Timeout waiting for both command and telemetry tasks to finish!");
-    } else {
-        ESP_LOGI(TAG, "All tasks finished cleanly.");
     }
+    // else {
+    //     ESP_LOGI(TAG, "All tasks finished cleanly.");
+    // }
 
     char aval_buf_topic[TOPIC_BUF_SIZE];
     MQTT_AVAILABILITY_TOPIC(aval_buf_topic);

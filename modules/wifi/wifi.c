@@ -7,20 +7,113 @@
 #include "config_manager.h"
 #include "platform_services.h"
 #include "wifi.h"
-#include "freertos/timers.h"
 
-#define WIFI_AP_INACTIVITY_TIMEOUT_MINUTES 1
-
-static const char *TAG = "cikon-wifi";
-static uint8_t retry_counter = 0;
+#define TAG "cikon-wifi"
+#define TAG_STA TAG "-sta"
+#define TAG_AP TAG "-ap"
 
 esp_netif_t *sta_netif, *ap_netif;
 bool ignore_sta_disconnect_event = false;
 static bool ap_has_client = false;
+static TaskHandle_t wifi_sta_connection_task_handle = NULL;
+
+const char *wifi_disconnect_reason_str(uint8_t reason) {
+    switch (reason) {
+    case WIFI_REASON_AUTH_EXPIRE:
+        return "AUTH_EXPIRE";
+    case WIFI_REASON_AUTH_LEAVE:
+        return "AUTH_LEAVE";
+    case WIFI_REASON_ASSOC_EXPIRE:
+        return "ASSOC_EXPIRE";
+    case WIFI_REASON_AUTH_FAIL:
+        return "AUTH_FAIL";
+    case WIFI_REASON_NO_AP_FOUND:
+        return "NO_AP_FOUND";
+    case WIFI_REASON_4WAY_HANDSHAKE_TIMEOUT:
+        return "4WAY_HANDSHAKE_TIMEOUT";
+    case WIFI_REASON_BEACON_TIMEOUT:
+        return "BEACON_TIMEOUT";
+    default:
+        return "UNKNOWN";
+    }
+}
+
+#define WIFI_RETRY_INITIAL_MS 60000 // 1 min
+#define WIFI_RETRY_MAX_MS 600000    // 10 min
+#define WIFI_BURST_RETRY_COUNT 5
+#define WIFI_BURST_RETRY_DELAY_MS 5000 // 5 sec
+
+/**
+ * @brief WiFi STA connection retry task with exponential backoff.
+ *
+ * After each burst of connection attempts, the interval before the next burst is multiplied
+ * (doubled) to reduce network and power usage if the network is unavailable for a long time. This
+ * prevents constant retries and allows for quick reconnection if the network returns soon, while
+ * spacing out attempts over time if the outage persists.
+ *
+ * @param args Unused.
+ */
+static void wifi_sta_connection_task(void *args) {
+
+    int interval = WIFI_RETRY_INITIAL_MS;
+
+    while (1) {
+        bool connected = false;
+        for (int i = 0; i < WIFI_BURST_RETRY_COUNT; ++i) {
+            ESP_LOGI(TAG_STA, "Connection attempt %d/%d in group (delay: %d ms)", i + 1,
+                     WIFI_BURST_RETRY_COUNT, WIFI_BURST_RETRY_DELAY_MS);
+            ESP_ERROR_CHECK(esp_wifi_disconnect());
+            ESP_ERROR_CHECK(esp_wifi_connect());
+
+            EventBits_t bits =
+                xEventGroupWaitBits(app_event_group, WIFI_STA_CONNECTED_BIT, pdFALSE, pdFALSE,
+                                    pdMS_TO_TICKS(WIFI_BURST_RETRY_DELAY_MS));
+
+            if (bits & WIFI_STA_CONNECTED_BIT) {
+                connected = true;
+                break;
+            } else {
+                xEventGroupSetBits(app_event_group, WIFI_STA_FAIL_BIT);
+                // xEventGroupClearBits(app_event_group, WIFI_STA_CONNECTED_BIT);
+            }
+        }
+
+        if (connected) {
+            // ESP_LOGI(TAG_STA, "Failed to connect to WiFi network (SSID: %s).",
+            //          config_get()->wifi_ssid);
+            xEventGroupClearBits(app_event_group, WIFI_STA_FAIL_BIT);
+            break;
+        }
+
+        ESP_LOGI(TAG_STA, "Waiting %d ms before next group of connection attempts", interval);
+        vTaskDelay(pdMS_TO_TICKS(interval));
+        interval *= 2;
+        if (interval > WIFI_RETRY_MAX_MS)
+            interval = WIFI_RETRY_MAX_MS;
+    }
+    ESP_LOGE(TAG_STA, "WiFi STA retry task exiting");
+    wifi_sta_connection_task_handle = NULL;
+    vTaskDelete(NULL);
+}
+
+void wifi_sta_connection_task_ensure_running(void) {
+    if (wifi_sta_connection_task_handle == NULL) {
+        xTaskCreate(wifi_sta_connection_task, "sta_retry", 2048, NULL, 1,
+                    &wifi_sta_connection_task_handle);
+    }
+}
+
+void wifi_sta_connection_task_shutdown(void) {
+    if (wifi_sta_connection_task_handle != NULL) {
+        vTaskDelete(wifi_sta_connection_task_handle);
+        wifi_sta_connection_task_handle = NULL;
+        ESP_LOGI(TAG_STA, "WiFi STA connection task killed from outside");
+    }
+}
 
 static void wifi_ap_timeout_task(void *args) {
     int seconds_without_clients = 0;
-    const int timeout_seconds = WIFI_AP_INACTIVITY_TIMEOUT_MINUTES * 60;
+    const int timeout_seconds = CONFIG_WIFI_AP_INACTIVITY_TIMEOUT_MINUTES * 60;
 
     while (xEventGroupGetBits(app_event_group) & WIFI_AP_STARTED_BIT) {
         if (ap_has_client) {
@@ -28,11 +121,13 @@ static void wifi_ap_timeout_task(void *args) {
         } else {
             seconds_without_clients++;
             if (seconds_without_clients >= timeout_seconds) {
-                ESP_LOGI(TAG,
-                         "AP inactivity timeout: no clients for %d minutes, disabling Access Point "
-                         "(AP).",
-                         WIFI_AP_INACTIVITY_TIMEOUT_MINUTES);
-                wifi_ensure_sta_mode();
+                ESP_LOGI(
+                    TAG_AP,
+                    "AP inactivity timeout: no clients for %d minute(s), disabling Access Point "
+                    "(AP).",
+                    CONFIG_WIFI_AP_INACTIVITY_TIMEOUT_MINUTES);
+
+                ESP_ERROR_CHECK(safe_wifi_stop());
                 seconds_without_clients = 0;
             }
         }
@@ -48,48 +143,44 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t e
 
         switch (event_id) {
 
-        case WIFI_EVENT_STA_START:
-            ESP_ERROR_CHECK(esp_wifi_connect());
-            break;
+            // case WIFI_EVENT_STA_START:
+            //     ESP_ERROR_CHECK(esp_wifi_connect());
+            //     break;
 
         case WIFI_EVENT_STA_DISCONNECTED:
+
+            wifi_event_sta_disconnected_t *disconn = (wifi_event_sta_disconnected_t *)event_data;
+            ESP_LOGI(TAG_STA, "Disconnected, reason: %d (%s)", disconn->reason,
+                     wifi_disconnect_reason_str(disconn->reason));
 
             if (ignore_sta_disconnect_event) {
                 ignore_sta_disconnect_event = false;
                 return;
             }
 
-            if (retry_counter < config_get()->wifi_max_retry) {
-                ESP_ERROR_CHECK(esp_wifi_connect());
-                retry_counter++;
-                ESP_LOGI(TAG, "Retrying connection to WiFi network (STA)...");
-            } else {
-                ESP_LOGW(TAG, "Failed to connect to WiFi network (STA) after %d retries.",
-                         config_get()->wifi_max_retry);
-                xEventGroupSetBits(app_event_group, WIFI_STA_FAIL_BIT);
-                xEventGroupClearBits(app_event_group, WIFI_STA_CONNECTED_BIT | WIFI_AP_STARTED_BIT);
-            }
-            ESP_LOGI(TAG, "Failed to connect to WiFi network (STA).");
+            xEventGroupClearBits(app_event_group, WIFI_STA_CONNECTED_BIT);
+            wifi_sta_connection_task_ensure_running();
+
             break;
 
         case WIFI_EVENT_AP_START:
             xEventGroupSetBits(app_event_group, WIFI_AP_STARTED_BIT);
-            xEventGroupClearBits(app_event_group, WIFI_STA_CONNECTED_BIT | WIFI_STA_FAIL_BIT);
+            // xEventGroupClearBits(app_event_group, WIFI_STA_CONNECTED_BIT | WIFI_STA_FAIL_BIT);
             ap_has_client = false;
             xTaskCreate(wifi_ap_timeout_task, "ap_timeout", 3072, NULL, 1, NULL);
             break;
 
         case WIFI_EVENT_AP_STOP:
-            ESP_LOGI(TAG, "Access Point (AP) has been stopped.");
+            ESP_LOGI(TAG_AP, "Access Point (AP) has been stopped.");
             xEventGroupClearBits(app_event_group, WIFI_AP_STARTED_BIT);
             break;
 
         case WIFI_EVENT_AP_STACONNECTED:
-            ESP_LOGI(TAG, "A client has connected to the Access Point (AP).");
+            ESP_LOGI(TAG_AP, "A client has connected to the Access Point (AP).");
             ap_has_client = true;
             break;
         case WIFI_EVENT_AP_STADISCONNECTED:
-            ESP_LOGI(TAG, "A client has disconnected from the Access Point (AP).");
+            ESP_LOGI(TAG_AP, "A client has disconnected from the Access Point (AP).");
             ap_has_client = false;
             break;
 
@@ -98,8 +189,8 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t e
         }
 
     } else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
-
-        retry_counter = 0;
+        ESP_LOGI(TAG_STA, "Successfully connected to WiFi network (SSID: %s).",
+                 config_get()->wifi_ssid);
 
         xEventGroupSetBits(app_event_group, WIFI_STA_CONNECTED_BIT);
         xEventGroupClearBits(app_event_group, WIFI_STA_FAIL_BIT);
@@ -123,6 +214,12 @@ void wifi_stack_init() {
 
 void wifi_ensure_ap_mode() {
 
+    wifi_sta_connection_task_shutdown();
+
+    uint8_t timeout = 100;
+    while (wifi_sta_connection_task_handle != NULL && timeout--)
+        vTaskDelay(pdMS_TO_TICKS(10));
+
     ESP_ERROR_CHECK(safe_wifi_stop());
 
     wifi_config_t ap_config = {.ap = {.ssid_len = 0,
@@ -140,8 +237,8 @@ void wifi_ensure_ap_mode() {
 
     ESP_ERROR_CHECK(esp_wifi_start());
 
-    xEventGroupWaitBits(app_event_group, WIFI_AP_STARTED_BIT, pdFALSE, pdFALSE, portMAX_DELAY);
-    xEventGroupClearBits(app_event_group, WIFI_STA_CONNECTED_BIT | WIFI_STA_FAIL_BIT);
+    // xEventGroupWaitBits(app_event_group, WIFI_AP_STARTED_BIT, pdFALSE, pdFALSE, portMAX_DELAY);
+    // xEventGroupClearBits(app_event_group, WIFI_STA_CONNECTED_BIT | WIFI_STA_FAIL_BIT);
 }
 
 void wifi_ensure_sta_mode() {
@@ -154,6 +251,8 @@ void wifi_ensure_sta_mode() {
     strncpy((char *)sta_config.sta.password, config_get()->wifi_pass,
             sizeof(sta_config.sta.password));
 
+    sta_config.sta.threshold.authmode = WIFI_AUTH_WPA2_PSK;
+
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &sta_config));
 
@@ -161,40 +260,18 @@ void wifi_ensure_sta_mode() {
 
     ESP_ERROR_CHECK(esp_wifi_start());
 
-    EventBits_t bits =
-        xEventGroupWaitBits(app_event_group, WIFI_STA_CONNECTED_BIT | WIFI_STA_FAIL_BIT, pdFALSE,
-                            pdFALSE, portMAX_DELAY);
-
-    if (bits & WIFI_STA_CONNECTED_BIT) {
-        ESP_LOGI(TAG, "Successfully connected to WiFi network (SSID: %s).",
-                 config_get()->wifi_ssid);
-    }
-    if (bits & WIFI_STA_FAIL_BIT) {
-        ESP_LOGI(TAG, "Failed to connect to WiFi network (SSID: %s).", config_get()->wifi_ssid);
-    }
-
-    xEventGroupClearBits(app_event_group, WIFI_AP_STARTED_BIT);
+    wifi_sta_connection_task_ensure_running();
 }
 
 esp_err_t safe_wifi_stop() {
 
     ignore_sta_disconnect_event = true;
 
-    EventBits_t bits = xEventGroupGetBits(app_event_group);
-    esp_err_t err = ESP_OK;
-    bool any_action = false;
+    esp_wifi_disconnect();
+    esp_err_t err = esp_wifi_stop();
 
-    if (bits & WIFI_STA_CONNECTED_BIT) {
-        err = esp_wifi_disconnect();
-        ESP_LOGI(TAG, "Disconnecting from WiFi network (STA): %s", esp_err_to_name(err));
-        any_action = true;
-    }
-    if ((bits & WIFI_STA_CONNECTED_BIT) || (bits & WIFI_AP_STARTED_BIT)) {
-        err = esp_wifi_stop();
-        ESP_LOGI(TAG, "Stopping WiFi (STA/AP): %s", esp_err_to_name(err));
-        xEventGroupClearBits(app_event_group, WIFI_STA_CONNECTED_BIT | WIFI_AP_STARTED_BIT);
-        any_action = true;
-    }
+    xEventGroupClearBits(app_event_group,
+                         WIFI_STA_CONNECTED_BIT | WIFI_AP_STARTED_BIT | WIFI_STA_FAIL_BIT);
 
     if (sta_netif) {
         esp_netif_destroy(sta_netif);
@@ -206,8 +283,5 @@ esp_err_t safe_wifi_stop() {
         ap_netif = NULL;
     }
 
-    if (!any_action) {
-        ESP_LOGI(TAG, "WiFi is already stopped.");
-    }
     return err;
 }

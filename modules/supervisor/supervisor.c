@@ -43,7 +43,41 @@ static supervisor_state_t state = {
 #undef TELE
 };
 
-const supervisor_state_t *supervisor_get_state(void) { return &state; }
+void supervisor_start_services_for_wifi_mode(wifi_mode_t mode) {
+    switch (mode) {
+    case WIFI_MODE_STA:
+#if CONFIG_MQTT_ENABLE
+        mqtt_init(config_get()->mqtt_mtls_en);
+#endif
+        break;
+    case WIFI_MODE_AP:
+        https_init();
+        break;
+    default:
+        break;
+    }
+}
+
+void supervisor_stop_services_for_wifi_mode(wifi_mode_t mode) {
+    switch (mode) {
+    case WIFI_MODE_STA:
+#if CONFIG_MQTT_ENABLE
+        mqtt_shutdown();
+#endif
+        break;
+    case WIFI_MODE_AP:
+        https_shutdown();
+        break;
+    default:
+#if CONFIG_MQTT_ENABLE
+        mqtt_shutdown();
+#endif
+        https_shutdown();
+        break;
+    }
+}
+
+const supervisor_state_t *state_get(void) { return &state; }
 
 const char *supervisor_command_id(supervisor_command_type_t cmd) {
     switch (cmd) {
@@ -126,16 +160,14 @@ void command_dispatch(supervisor_command_t *cmd) {
         break;
 
     case CMND_SET_AP:
-
-        supervisor_stop_services_for_current_wifi_mode();
+        // supervisor_stop_services_for_wifi_mode(WIFI_MODE_STA);
         wifi_ensure_ap_mode();
-        supervisor_start_services_for_current_wifi_mode();
 
         break;
     case CMND_SET_STA:
-        supervisor_stop_services_for_current_wifi_mode();
+        // supervisor_stop_services_for_wifi_mode(WIFI_MODE_AP);
         wifi_ensure_sta_mode();
-        supervisor_start_services_for_current_wifi_mode();
+
         break;
 
     case CMND_HELP:
@@ -384,9 +416,34 @@ void supervisor_set_onboard_led_state(bool new_state) {
     xEventGroupSetBits(app_event_group, TELEMETRY_TRIGGER_BIT);
 }
 
+static void supervisor_wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id,
+                                          void *event_data) {
+    if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
+        // supervisor_stop_services_for_wifi_mode(WIFI_MODE_AP);
+        supervisor_start_services_for_wifi_mode(WIFI_MODE_STA);
+    }
+
+    if (event_base == WIFI_EVENT) {
+        switch (event_id) {
+        case WIFI_EVENT_AP_START:
+            supervisor_stop_services_for_wifi_mode(WIFI_MODE_STA);
+            supervisor_start_services_for_wifi_mode(WIFI_MODE_AP);
+            break;
+        case WIFI_EVENT_AP_STOP:
+            supervisor_stop_services_for_wifi_mode(WIFI_MODE_AP);
+            break;
+        }
+    }
+}
+
 void supervisor_init() {
 
-    supervisor_start_services_for_current_wifi_mode();
+    ESP_ERROR_CHECK(esp_event_handler_instance_register(
+        WIFI_EVENT, ESP_EVENT_ANY_ID, &supervisor_wifi_event_handler, NULL, NULL));
+    ESP_ERROR_CHECK(esp_event_handler_instance_register(
+        IP_EVENT, IP_EVENT_STA_GOT_IP, &supervisor_wifi_event_handler, NULL, NULL));
+
+    // supervisor_start_services_for_current_wifi_mode();
 
     xTaskCreate(tcp_ota_task, "tcp_ota", 8192, NULL, 0, NULL);
     xTaskCreate(udp_monitor_task, "udp_monitor", 4096, NULL, 5, NULL);
@@ -450,32 +507,4 @@ void supervisor_process_command_payload(const char *payload) {
     }
 
     cJSON_Delete(json_root);
-}
-
-void supervisor_start_services_for_current_wifi_mode(void) {
-    EventBits_t bits =
-        xEventGroupWaitBits(app_event_group, WIFI_STA_CONNECTED_BIT | WIFI_AP_STARTED_BIT, pdFALSE,
-                            pdFALSE, pdMS_TO_TICKS(500));
-    if (bits & WIFI_STA_CONNECTED_BIT) {
-#if CONFIG_MQTT_ENABLE
-        mqtt_init(config_get()->mqtt_mtls_en);
-#endif
-    }
-    if (bits & WIFI_AP_STARTED_BIT) {
-        https_init();
-    }
-}
-
-void supervisor_stop_services_for_current_wifi_mode(void) {
-    EventBits_t bits =
-        xEventGroupWaitBits(app_event_group, WIFI_STA_CONNECTED_BIT | WIFI_AP_STARTED_BIT, pdFALSE,
-                            pdFALSE, pdMS_TO_TICKS(500));
-    if (bits & WIFI_STA_CONNECTED_BIT) {
-#if CONFIG_MQTT_ENABLE
-        mqtt_shutdown();
-#endif
-    }
-    if (bits & WIFI_AP_STARTED_BIT) {
-        https_shutdown();
-    }
 }

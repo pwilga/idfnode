@@ -200,14 +200,16 @@ void https_server_stop(void) {
 void https_server_task(void *args) {
 
     https_server_start();
+    xEventGroupSetBits(app_event_group, HTTPS_SERVER_STARTED_BIT);
 
     while (!(xEventGroupGetBits(app_event_group) & HTTPS_SHUTDOWN_INITIATED_BIT)) {
         vTaskDelay(pdMS_TO_TICKS(100));
     }
 
     https_server_stop();
+    // ESP_LOGE(TAG, "HTTPS server task exiting");
 
-    xEventGroupClearBits(app_event_group, HTTPS_SHUTDOWN_INITIATED_BIT);
+    xEventGroupClearBits(app_event_group, HTTPS_SHUTDOWN_INITIATED_BIT | HTTPS_SERVER_STARTED_BIT);
     https_server_handle = NULL;
     vTaskDelete(NULL);
 }

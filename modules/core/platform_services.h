@@ -15,9 +15,6 @@ extern "C" {
 
 #include "json_parser.h"
 
-/* Bits definition that we can wait for.
- * - we are connected to the AP with an IP
- * - we failed to connect after the maximum amount of retries */
 #define WIFI_STA_CONNECTED_BIT BIT0
 #define WIFI_STA_FAIL_BIT BIT1
 #define WIFI_AP_STARTED_BIT BIT2
@@ -27,6 +24,7 @@ extern "C" {
 #define MQTT_SHUTDOWN_INITIATED_BIT BIT6
 #define HTTPS_SHUTDOWN_INITIATED_BIT BIT7
 #define TELEMETRY_TRIGGER_BIT BIT8
+#define HTTPS_SERVER_STARTED_BIT BIT9
 
 #define DEFAULT_QUEUE_LEN 8
 #define SYSTAG "cikon-systems"
