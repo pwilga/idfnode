@@ -33,21 +33,23 @@ void debug_info_task(void *args) {
         if (bits & WIFI_AP_STARTED_BIT)
             strcat(bits_str, "AP ");
         if (bits & MQTT_CONNECTED_BIT)
-            strcat(bits_str, "MQTT_C ");
+            strcat(bits_str, "MQTT ");
         if (bits & MQTT_FAIL_BIT)
             strcat(bits_str, "MQTT_F ");
         if (bits & HTTPS_SHUTDOWN_INITIATED_BIT)
             strcat(bits_str, "HTTPS_SHUT ");
         if (bits & TELEMETRY_TRIGGER_BIT)
             strcat(bits_str, "TEL ");
-        if (bits & WIFI_STA_FAIL_BIT)
-            strcat(bits_str, "STA_F ");
+        // if (bits & WIFI_STA_FAIL_BIT)
+        //     strcat(bits_str, "STA_F ");
         if (bits & MQTT_OFFLINE_PUBLISHED_BIT)
             strcat(bits_str, "MQTT_OFF ");
         if (bits & MQTT_SHUTDOWN_INITIATED_BIT)
             strcat(bits_str, "MQTT_SHUT ");
         if (bits & HTTPS_SERVER_STARTED_BIT)
-            strcat(bits_str, "HTTPS_STARTED ");
+            strcat(bits_str, "HTTPS ");
+        if (bits & INTERNET_REACHABLE_BIT)
+            strcat(bits_str, "INET ");
 
         ESP_LOGI(TAG, "Set bits: %s", bits_str[0] ? bits_str : "(none)");
         // ESP_LOGI(TAG, "Min. ever free:   %.2f KB", min_free_heap / 1024.0);

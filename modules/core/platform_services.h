@@ -16,7 +16,7 @@ extern "C" {
 #include "json_parser.h"
 
 #define WIFI_STA_CONNECTED_BIT BIT0
-#define WIFI_STA_FAIL_BIT BIT1
+// #define WIFI_STA_FAIL_BIT BIT1
 #define WIFI_AP_STARTED_BIT BIT2
 #define MQTT_CONNECTED_BIT BIT3
 #define MQTT_FAIL_BIT BIT4
@@ -25,6 +25,7 @@ extern "C" {
 #define HTTPS_SHUTDOWN_INITIATED_BIT BIT7
 #define TELEMETRY_TRIGGER_BIT BIT8
 #define HTTPS_SERVER_STARTED_BIT BIT9
+#define INTERNET_REACHABLE_BIT BIT10
 
 #define DEFAULT_QUEUE_LEN 8
 #define SYSTAG "cikon-systems"

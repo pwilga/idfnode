@@ -12,6 +12,7 @@ idf_component_register(
         "../modules/utils/button_manager.c"
         "../modules/config/config_manager.c"
         "../modules/https/https_server.c"
+        "../modules/utils/net.c"
         "main.c"
     REQUIRES driver esp_wifi nvs_flash lwip app_update mbedtls esp_timer mdns mqtt json esp_https_server button
     PRIV_REQUIRES spi_flash

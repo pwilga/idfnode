@@ -8,6 +8,7 @@
 #include "ha.h"
 #include "https_server.h"
 #include "json_parser.h"
+#include "net.h"
 #include "ota.h"
 #include "supervisor.h"
 #include "platform_services.h"
@@ -24,6 +25,7 @@ typedef enum {
     SUPERVISOR_INTERVAL_1S,
     SUPERVISOR_INTERVAL_5S,
     SUPERVISOR_INTERVAL_60S,
+    SUPERVISOR_INTERVAL_10M,
     SUPERVISOR_INTERVAL_2H,
     SUPERVISOR_INTERVAL_12H,
     SUPERVISOR_INTERVAL_COUNT
@@ -33,10 +35,10 @@ static const uint32_t supervisor_intervals_ms[SUPERVISOR_INTERVAL_COUNT] = {
     [SUPERVISOR_INTERVAL_1S] = 1000,
     [SUPERVISOR_INTERVAL_5S] = 5000,
     [SUPERVISOR_INTERVAL_60S] = 60000,
+    [SUPERVISOR_INTERVAL_10M] = 10 * 60 * 1000,
     [SUPERVISOR_INTERVAL_2H] = 2 * 60 * 60 * 1000,
     [SUPERVISOR_INTERVAL_12H] = 12 * 60 * 60 * 1000};
 
-// static supervisor_state_t state;
 static supervisor_state_t state = {
 #define TELE(name, generic_type, telemetry_field_type_t, default_val) .name = default_val,
     TELE_LIST
@@ -58,23 +60,11 @@ void supervisor_start_services_for_wifi_mode(wifi_mode_t mode) {
     }
 }
 
-void supervisor_stop_services_for_wifi_mode(wifi_mode_t mode) {
-    switch (mode) {
-    case WIFI_MODE_STA:
+void supervisor_shutdown_all_wifi_services() {
 #if CONFIG_MQTT_ENABLE
-        mqtt_shutdown();
+    mqtt_shutdown();
 #endif
-        break;
-    case WIFI_MODE_AP:
-        https_shutdown();
-        break;
-    default:
-#if CONFIG_MQTT_ENABLE
-        mqtt_shutdown();
-#endif
-        https_shutdown();
-        break;
-    }
+    https_shutdown();
 }
 
 const supervisor_state_t *state_get(void) { return &state; }
@@ -160,12 +150,12 @@ void command_dispatch(supervisor_command_t *cmd) {
         break;
 
     case CMND_SET_AP:
-        // supervisor_stop_services_for_wifi_mode(WIFI_MODE_STA);
+        supervisor_shutdown_all_wifi_services();
         wifi_ensure_ap_mode();
 
         break;
     case CMND_SET_STA:
-        // supervisor_stop_services_for_wifi_mode(WIFI_MODE_AP);
+        supervisor_shutdown_all_wifi_services();
         wifi_ensure_sta_mode();
 
         break;
@@ -221,17 +211,18 @@ static void supervisor_execute_stage(supervisor_interval_stage_t stage) {
 
     case SUPERVISOR_INTERVAL_5S:
         state.tempreture = random_float(20.5f, 25.9f);
-
+        is_internet_reachable() ? xEventGroupSetBits(app_event_group, INTERNET_REACHABLE_BIT)
+                                : xEventGroupClearBits(app_event_group, INTERNET_REACHABLE_BIT);
         break;
 
     case SUPERVISOR_INTERVAL_60S:
-        // np. RSSI, heap, NTP sync
+
+        break;
+    case SUPERVISOR_INTERVAL_10M:
         break;
     case SUPERVISOR_INTERVAL_2H:
-        // kod co 2h
         break;
     case SUPERVISOR_INTERVAL_12H:
-        // kod co 12h
         break;
     default:
         break;
@@ -416,21 +407,31 @@ void supervisor_set_onboard_led_state(bool new_state) {
     xEventGroupSetBits(app_event_group, TELEMETRY_TRIGGER_BIT);
 }
 
+/**
+ * @brief Supervisor WiFi/IP event handler for service management.
+ *
+ * This handler is registered only to start and stop services (e.g., MQTT, HTTPS)
+ * depending on the current WiFi mode or connection state. It does not handle any
+ * other logic or application events.
+ */
 static void supervisor_wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id,
                                           void *event_data) {
     if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
-        // supervisor_stop_services_for_wifi_mode(WIFI_MODE_AP);
-        supervisor_start_services_for_wifi_mode(WIFI_MODE_STA);
+        // supervisor_start_services_for_wifi_mode(WIFI_MODE_STA);
+#if CONFIG_MQTT_ENABLE
+        mqtt_init(config_get()->mqtt_mtls_en);
+#endif
     }
 
     if (event_base == WIFI_EVENT) {
         switch (event_id) {
         case WIFI_EVENT_AP_START:
-            supervisor_stop_services_for_wifi_mode(WIFI_MODE_STA);
-            supervisor_start_services_for_wifi_mode(WIFI_MODE_AP);
+            https_init();
+            // supervisor_start_services_for_wifi_mode(WIFI_MODE_AP);
             break;
         case WIFI_EVENT_AP_STOP:
-            supervisor_stop_services_for_wifi_mode(WIFI_MODE_AP);
+            https_shutdown();
+            // supervisor_shutdown_all_wifi_services(WIFI_MODE_AP);
             break;
         }
     }
@@ -442,8 +443,6 @@ void supervisor_init() {
         WIFI_EVENT, ESP_EVENT_ANY_ID, &supervisor_wifi_event_handler, NULL, NULL));
     ESP_ERROR_CHECK(esp_event_handler_instance_register(
         IP_EVENT, IP_EVENT_STA_GOT_IP, &supervisor_wifi_event_handler, NULL, NULL));
-
-    // supervisor_start_services_for_current_wifi_mode();
 
     xTaskCreate(tcp_ota_task, "tcp_ota", 8192, NULL, 0, NULL);
     xTaskCreate(udp_monitor_task, "udp_monitor", 4096, NULL, 5, NULL);

@@ -72,16 +72,17 @@ static void wifi_sta_connection_task(void *args) {
             if (bits & WIFI_STA_CONNECTED_BIT) {
                 connected = true;
                 break;
-            } else {
-                xEventGroupSetBits(app_event_group, WIFI_STA_FAIL_BIT);
-                // xEventGroupClearBits(app_event_group, WIFI_STA_CONNECTED_BIT);
             }
+            // else {
+            //     xEventGroupSetBits(app_event_group, WIFI_STA_FAIL_BIT);
+            //     // xEventGroupClearBits(app_event_group, WIFI_STA_CONNECTED_BIT);
+            // }
         }
 
         if (connected) {
             // ESP_LOGI(TAG_STA, "Failed to connect to WiFi network (SSID: %s).",
             //          config_get()->wifi_ssid);
-            xEventGroupClearBits(app_event_group, WIFI_STA_FAIL_BIT);
+            // xEventGroupClearBits(app_event_group, WIFI_STA_FAIL_BIT);
             break;
         }
 
@@ -98,7 +99,7 @@ static void wifi_sta_connection_task(void *args) {
 
 void wifi_sta_connection_task_ensure_running(void) {
     if (wifi_sta_connection_task_handle == NULL) {
-        xTaskCreate(wifi_sta_connection_task, "sta_retry", 2048, NULL, 1,
+        xTaskCreate(wifi_sta_connection_task, "sta_con", 2048, NULL, 1,
                     &wifi_sta_connection_task_handle);
     }
 }
@@ -193,7 +194,7 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t e
                  config_get()->wifi_ssid);
 
         xEventGroupSetBits(app_event_group, WIFI_STA_CONNECTED_BIT);
-        xEventGroupClearBits(app_event_group, WIFI_STA_FAIL_BIT);
+        // xEventGroupClearBits(app_event_group, WIFI_STA_FAIL_BIT);
     }
 }
 
@@ -214,12 +215,6 @@ void wifi_stack_init() {
 
 void wifi_ensure_ap_mode() {
 
-    wifi_sta_connection_task_shutdown();
-
-    uint8_t timeout = 100;
-    while (wifi_sta_connection_task_handle != NULL && timeout--)
-        vTaskDelay(pdMS_TO_TICKS(10));
-
     ESP_ERROR_CHECK(safe_wifi_stop());
 
     wifi_config_t ap_config = {.ap = {.ssid_len = 0,
@@ -236,9 +231,6 @@ void wifi_ensure_ap_mode() {
     ap_netif = esp_netif_create_default_wifi_ap();
 
     ESP_ERROR_CHECK(esp_wifi_start());
-
-    // xEventGroupWaitBits(app_event_group, WIFI_AP_STARTED_BIT, pdFALSE, pdFALSE, portMAX_DELAY);
-    // xEventGroupClearBits(app_event_group, WIFI_STA_CONNECTED_BIT | WIFI_STA_FAIL_BIT);
 }
 
 void wifi_ensure_sta_mode() {
@@ -265,13 +257,18 @@ void wifi_ensure_sta_mode() {
 
 esp_err_t safe_wifi_stop() {
 
+    wifi_sta_connection_task_shutdown();
+
+    uint8_t timeout = 100;
+    while (wifi_sta_connection_task_handle != NULL && timeout--)
+        vTaskDelay(pdMS_TO_TICKS(10));
+
     ignore_sta_disconnect_event = true;
 
     esp_wifi_disconnect();
     esp_err_t err = esp_wifi_stop();
 
-    xEventGroupClearBits(app_event_group,
-                         WIFI_STA_CONNECTED_BIT | WIFI_AP_STARTED_BIT | WIFI_STA_FAIL_BIT);
+    xEventGroupClearBits(app_event_group, WIFI_STA_CONNECTED_BIT | WIFI_AP_STARTED_BIT);
 
     if (sta_netif) {
         esp_netif_destroy(sta_netif);
