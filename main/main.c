@@ -7,9 +7,10 @@ void app_main(void) {
 
     ESP_ERROR_CHECK(core_system_init());
 
-    xTaskCreate(supervisor_task, "supervisor", 4096, NULL, 5, NULL);
+    xTaskCreate(supervisor_task, "supervisor", CONFIG_SUPERVISOR_TASK_STACK_SIZE, NULL,
+                CONFIG_SUPERVISOR_TASK_PRIORITY, NULL);
 
     for (;;) {
-        vTaskDelay(2000 / portTICK_PERIOD_MS);
+        vTaskDelay(5000 / portTICK_PERIOD_MS);
     }
 }

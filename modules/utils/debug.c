@@ -6,27 +6,62 @@
 #include "platform_services.h"
 #include "string.h"
 #include "supervisor.h"
+#include "config_manager.h"
+
+static const char *TAG = "cikon-debug";
+
+void debug_print_config_summary(void) {
+    const config_t *cfg = config_get();
+    ESP_LOGI(TAG, "| * CONFIG *");
+#define PRINT_STR(field, size, defval) ESP_LOGI(TAG, "| %-16s | %-36.36s |", #field, cfg->field);
+#define PRINT_U8(field, defval) ESP_LOGI(TAG, "| %-16s | %-36u |", #field, (unsigned)cfg->field);
+#define PRINT_U16(field, defval) ESP_LOGI(TAG, "| %-16s | %-36u |", #field, (unsigned)cfg->field);
+    CONFIG_FIELDS(PRINT_STR, PRINT_U8, PRINT_U16)
+#undef PRINT_STR
+#undef PRINT_U8
+#undef PRINT_U16
+}
+
+void debug_print_tasks_summary(void) {
+
+    TaskStatus_t *task_status_array;
+    UBaseType_t task_count = uxTaskGetNumberOfTasks();
+    task_status_array = malloc(task_count * sizeof(TaskStatus_t));
+    ESP_LOGI(TAG, "| * TASKS *");
+    if (task_status_array) {
+        UBaseType_t real_count = uxTaskGetSystemState(task_status_array, task_count, NULL);
+        char line[128] = "";
+        int col = 0;
+        for (UBaseType_t i = 0; i < real_count; i++) {
+            char entry[40];
+            snprintf(entry, sizeof(entry), "| %-14s %6u ", task_status_array[i].pcTaskName,
+                     (unsigned)(task_status_array[i].usStackHighWaterMark * sizeof(StackType_t)));
+            strcat(line, entry);
+            col++;
+            if (col == 3) {
+                strcat(line, "|");
+                ESP_LOGI(TAG, "%s", line);
+                line[0] = '\0';
+                col = 0;
+            }
+        }
+        if (col > 0 && line[0]) {
+            strcat(line, "|");
+            ESP_LOGI(TAG, "%s", line);
+        }
+        free(task_status_array);
+    }
+}
 
 void debug_info_task(void *args) {
 
-    static const char *TAG = "sys-info";
-
     while (1) {
-        // General free heap
-
-        // size_t min_free_heap = esp_get_minimum_free_heap_size();
-
-        // // Internal (default) memory
-        // size_t internal_free = heap_caps_get_free_size(MALLOC_CAP_INTERNAL);
-
-        // // External (PSRAM) memory, if available
-        // size_t psram_free = heap_caps_get_free_size(MALLOC_CAP_SPIRAM);
 
         size_t free_heap = esp_get_free_heap_size();
         EventBits_t bits = xEventGroupGetBits(app_event_group);
 
         ESP_LOGI(TAG, "Free heap: %.2f KB", free_heap / 1024.0);
-        // Wypisz tylko ustawione bity event group
+
         char bits_str[128] = "";
         if (bits & WIFI_STA_CONNECTED_BIT)
             strcat(bits_str, "STA ");
@@ -52,19 +87,20 @@ void debug_info_task(void *args) {
             strcat(bits_str, "INET ");
 
         ESP_LOGI(TAG, "Set bits: %s", bits_str[0] ? bits_str : "(none)");
-        // ESP_LOGI(TAG, "Min. ever free:   %.2f KB", min_free_heap / 1024.0);
-        // ESP_LOGI(TAG, "Internal free:    %.2f KB", internal_free / 1024.0);
-        // ESP_LOGI(TAG, "External (PSRAM): %.2f KB", psram_free / 1024.0);
+
         ESP_LOGI(TAG, "Uptime: %lu s", (unsigned long)state_get()->uptime);
+        ESP_LOGI(TAG, "IP: %s", get_device_ip());
+
+        debug_print_tasks_summary();
+        // debug_print_config_summary();
+
         ESP_LOGI(TAG, "=====================");
 
-        vTaskDelay(pdMS_TO_TICKS(2000)); // print every 5 seconds
+        vTaskDelay(pdMS_TO_TICKS(2000));
     }
 }
 
 void print_sys_info_task(void *args) {
-
-    static const char *TAG = "print-sys-info-task";
 
     /* Print chip information */
     esp_chip_info_t chip_info;
@@ -116,27 +152,5 @@ void heartbeat_task(void *args) {
     while (1) {
         ESP_LOGW(TAG, "Computer-generated beating of human heart");
         vTaskDelay(1500 / portTICK_PERIOD_MS);
-    }
-}
-
-void show_task_info(void *args) {
-
-    static char task_list_buf[2048];
-    // static char runtime_buf[2048];
-
-    while (1) {
-        // // Wypisz info o stanie tasków (nazwa, stan, priorytet, stos, ID)
-        vTaskList(task_list_buf);
-
-        printf("\033[2J"); // Wyczyść ekran
-        printf("\033[H");  // Kursor na górę
-        printf("ESP32 Task Monitor (live)\n");
-        printf("--------------------------\n");
-        printf("Name          State Prio Stack Num\n");
-        printf("%s\n", task_list_buf);
-
-        ESP_LOGI("TASKS", "Task List:\nName          State Prio Stack Num\n %s ", task_list_buf);
-
-        vTaskDelay(pdMS_TO_TICKS(5000)); // print every 5 seconds
     }
 }

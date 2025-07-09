@@ -188,8 +188,10 @@ void mqtt_init(bool secure) {
     esp_mqtt_client_register_event(mqtt_client, ESP_EVENT_ANY_ID, mqtt_event_handler, mqtt_client);
     esp_mqtt_client_start(mqtt_client);
 
-    xTaskCreate(command_task, "mqtt_command", 4096, NULL, 10, &mqtt_command_task_handle);
-    xTaskCreate(telemetry_task, "mqtt_telemetry", 4096, NULL, 5, &mqtt_telemetry_task_handle);
+    xTaskCreate(command_task, "mqtt_command", CONFIG_MQTT_COMMAND_TASK_STACK_SIZE, NULL,
+                CONFIG_MQTT_COMMAND_TASK_PRIORITY, &mqtt_command_task_handle);
+    xTaskCreate(telemetry_task, "mqtt_telemetry", CONFIG_MQTT_TELEMETRY_TASK_STACK_SIZE, NULL,
+                CONFIG_MQTT_TELEMETRY_TASK_PRIORITY, &mqtt_telemetry_task_handle);
 }
 
 void mqtt_shutdown() {

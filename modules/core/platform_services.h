@@ -116,6 +116,12 @@ bool get_onboard_led_state(void);
  */
 void reset_nvs_partition(void);
 
+/**
+ * @brief Returns active IPv4 address as string (STA first, then AP).
+ * @return Static string with IP or "0.0.0.0" if none.
+ */
+const char *get_device_ip(void);
+
 #ifdef __cplusplus
 }
 #endif

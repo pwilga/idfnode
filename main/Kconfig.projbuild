@@ -1,18 +1,45 @@
 menu "IDF-node Application Configuration"
 
-    config WIFI_STA_RETRY_INTERVAL_MS
-        int "WiFi STA retry interval (ms)"
-        default 5000
-        range 1000 60000
-        help
-            Interval between WiFi STA connection attempts in milliseconds.
-
     config WIFI_AP_INACTIVITY_TIMEOUT_MINUTES
         int "WiFi AP inactivity timeout (minutes)"
         default 1
         range 1 60
         help
             Timeout in minutes before disabling AP if no clients are connected.
+
+    # --- WiFi STA retry/backoff options ---
+    config WIFI_STA_RETRY_INITIAL_MS
+        int "WiFi STA retry initial interval (ms)"
+        default 60000
+        range 1000 600000
+        help
+            Initial delay before retrying WiFi STA connection after a burst of failed attempts.
+            Used for exponential backoff. Typical: 60000 (1 min).
+
+    config WIFI_STA_RETRY_MAX_MS
+        int "WiFi STA retry maximum interval (ms)"
+        default 600000
+        range 1000 3600000
+        help
+            Maximum delay between WiFi STA connection retry bursts (exponential backoff upper limit).
+            Typical: 600000 (10 min).
+
+    config WIFI_STA_BURST_RETRY_COUNT
+        int "WiFi STA burst retry count"
+        default 5
+        range 1 20
+        help
+            Number of immediate retry attempts in a burst before increasing the retry interval.
+            Typical: 5.
+
+    config WIFI_STA_BURST_RETRY_DELAY_MS
+        int "WiFi STA burst retry delay (ms)"
+        default 5000
+        range 100 60000
+        help
+            Delay between individual attempts within a burst of WiFi STA connection retries.
+            Typical: 5000 (5 sec).
+
 
     menuconfig MQTT_ENABLE
         bool "Enable MQTT"
@@ -32,5 +59,49 @@ menu "IDF-node Application Configuration"
             Home Assistant to detect and add entities automatically.
 
             Requires a working MQTT connection.
+
+    menu "Tasks configuration"
+
+        config SUPERVISOR_TASK_STACK_SIZE
+            int "Supervisor task stack size"
+            default 4096
+
+        config SUPERVISOR_TASK_PRIORITY
+            int "Supervisor task priority"
+            default 5
+
+        config MQTT_COMMAND_TASK_STACK_SIZE
+            int "MQTT command task stack size"
+            default 4096
+
+        config MQTT_COMMAND_TASK_PRIORITY
+            int "MQTT command task priority"
+            default 10
+
+        config MQTT_TELEMETRY_TASK_STACK_SIZE
+            int "MQTT telemetry task stack size"
+            default 4096
+
+        config MQTT_TELEMETRY_TASK_PRIORITY
+            int "MQTT telemetry task priority"
+            default 5
+
+        config TCP_OTA_TASK_STACK_SIZE
+            int "TCP OTA task stack size"
+            default 8192
+
+        config TCP_OTA_TASK_PRIORITY
+            int "TCP OTA task priority"
+            default 0
+
+        config UDP_MONITOR_TASK_STACK_SIZE
+            int "UDP monitor task stack size"
+            default 4096
+
+        config UDP_MONITOR_TASK_PRIORITY
+            int "UDP monitor task priority"
+            default 5
+
+    endmenu
 
 endmenu  # IDF-node Application Configuration

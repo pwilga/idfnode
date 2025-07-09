@@ -3,6 +3,7 @@
 
 #include "cJSON.h"
 
+#include "button_manager.h"
 #include "config_manager.h"
 #include "debug.h"
 #include "ha.h"
@@ -444,10 +445,14 @@ void supervisor_init() {
     ESP_ERROR_CHECK(esp_event_handler_instance_register(
         IP_EVENT, IP_EVENT_STA_GOT_IP, &supervisor_wifi_event_handler, NULL, NULL));
 
-    xTaskCreate(tcp_ota_task, "tcp_ota", 8192, NULL, 0, NULL);
-    xTaskCreate(udp_monitor_task, "udp_monitor", 4096, NULL, 5, NULL);
+    xTaskCreate(tcp_ota_task, "tcp_ota", CONFIG_TCP_OTA_TASK_STACK_SIZE, NULL,
+                CONFIG_TCP_OTA_TASK_PRIORITY, NULL);
+    xTaskCreate(udp_monitor_task, "udp_monitor", CONFIG_UDP_MONITOR_TASK_STACK_SIZE, NULL,
+                CONFIG_UDP_MONITOR_TASK_PRIORITY, NULL);
 
     xTaskCreate(debug_info_task, "debug_info", 4096, NULL, 0, NULL);
+
+    button_manager_init(0);
 
     // xTaskCreate(heartbeat_task, "heartbeat_task", 4096, NULL, 0, NULL);
     // xTaskCreate(led_blink_task, "led_blink_task", 2048, NULL, 0,

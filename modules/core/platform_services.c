@@ -5,6 +5,7 @@
 #include "esp_log.h"
 #include "esp_netif.h"
 #include "esp_mac.h"
+#include "esp_netif_ip_addr.h"
 
 #include "driver/gpio.h"
 #include "mdns.h"
@@ -164,4 +165,25 @@ void reset_nvs_partition(void) {
     } else {
         ESP_LOGE(SYSTAG, "NVS ERASE: Failed to erase NVS: %s", esp_err_to_name(err));
     }
+}
+
+const char *get_device_ip(void) {
+    static char ip_str[16];
+    extern esp_netif_t *sta_netif, *ap_netif;
+    esp_netif_ip_info_t ip_info;
+    esp_netif_t *active = NULL;
+    if (sta_netif && esp_netif_get_ip_info(sta_netif, &ip_info) == ESP_OK && ip_info.ip.addr != 0) {
+        active = sta_netif;
+    } else if (ap_netif && esp_netif_get_ip_info(ap_netif, &ip_info) == ESP_OK &&
+               ip_info.ip.addr != 0) {
+        active = ap_netif;
+    }
+    if (active) {
+        snprintf(ip_str, sizeof(ip_str), "%d.%d.%d.%d", esp_ip4_addr1(&ip_info.ip),
+                 esp_ip4_addr2(&ip_info.ip), esp_ip4_addr3(&ip_info.ip),
+                 esp_ip4_addr4(&ip_info.ip));
+    } else {
+        snprintf(ip_str, sizeof(ip_str), "0.0.0.0");
+    }
+    return ip_str;
 }

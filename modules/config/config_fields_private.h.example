@@ -10,7 +10,6 @@
     U8(mqtt_mtls_en, 1)                                                                  \
     STR(mqtt_node, 32, "idfnode")                                                        \
     STR(mqtt_pass, 32, "?")                                                              \
-    U8(mqtt_max_retry, 5)                                                                \
     STR(mqtt_user, 32, "mqttuser")                                                       \
     U16(ota_tcp_port, 5555)                                                              \
     STR(wifi_ap_ssid, 32, "ESP32_Config")                                                \

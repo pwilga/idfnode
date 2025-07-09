@@ -38,11 +38,6 @@ const char *wifi_disconnect_reason_str(uint8_t reason) {
     }
 }
 
-#define WIFI_RETRY_INITIAL_MS 60000 // 1 min
-#define WIFI_RETRY_MAX_MS 600000    // 10 min
-#define WIFI_BURST_RETRY_COUNT 5
-#define WIFI_BURST_RETRY_DELAY_MS 5000 // 5 sec
-
 /**
  * @brief WiFi STA connection retry task with exponential backoff.
  *
@@ -55,19 +50,20 @@ const char *wifi_disconnect_reason_str(uint8_t reason) {
  */
 static void wifi_sta_connection_task(void *args) {
 
-    int interval = WIFI_RETRY_INITIAL_MS;
+    int interval = CONFIG_WIFI_STA_RETRY_INITIAL_MS;
 
     while (1) {
         bool connected = false;
-        for (int i = 0; i < WIFI_BURST_RETRY_COUNT; ++i) {
-            ESP_LOGI(TAG_STA, "Connection attempt %d/%d in group (delay: %d ms)", i + 1,
-                     WIFI_BURST_RETRY_COUNT, WIFI_BURST_RETRY_DELAY_MS);
+        for (int i = 0; i < CONFIG_WIFI_STA_BURST_RETRY_COUNT; ++i) {
+            ESP_LOGI(TAG_STA, "Connection attempt %d/%d in group (delay: %.2f s)", i + 1,
+                     CONFIG_WIFI_STA_BURST_RETRY_COUNT,
+                     CONFIG_WIFI_STA_BURST_RETRY_DELAY_MS / 1000.0);
             ESP_ERROR_CHECK(esp_wifi_disconnect());
             ESP_ERROR_CHECK(esp_wifi_connect());
 
             EventBits_t bits =
                 xEventGroupWaitBits(app_event_group, WIFI_STA_CONNECTED_BIT, pdFALSE, pdFALSE,
-                                    pdMS_TO_TICKS(WIFI_BURST_RETRY_DELAY_MS));
+                                    pdMS_TO_TICKS(CONFIG_WIFI_STA_BURST_RETRY_DELAY_MS));
 
             if (bits & WIFI_STA_CONNECTED_BIT) {
                 connected = true;
@@ -86,11 +82,12 @@ static void wifi_sta_connection_task(void *args) {
             break;
         }
 
-        ESP_LOGI(TAG_STA, "Waiting %d ms before next group of connection attempts", interval);
+        ESP_LOGI(TAG_STA, "Waiting %.2f s before next group of connection attempts",
+                 interval / 1000.0);
         vTaskDelay(pdMS_TO_TICKS(interval));
         interval *= 2;
-        if (interval > WIFI_RETRY_MAX_MS)
-            interval = WIFI_RETRY_MAX_MS;
+        if (interval > CONFIG_WIFI_STA_RETRY_MAX_MS)
+            interval = CONFIG_WIFI_STA_RETRY_MAX_MS;
     }
     ESP_LOGE(TAG_STA, "WiFi STA retry task exiting");
     wifi_sta_connection_task_handle = NULL;
@@ -124,7 +121,7 @@ static void wifi_ap_timeout_task(void *args) {
             if (seconds_without_clients >= timeout_seconds) {
                 ESP_LOGI(
                     TAG_AP,
-                    "AP inactivity timeout: no clients for %d minute(s), disabling Access Point "
+                    "🚦 AP inactivity timeout: no clients for %d minute(s), disabling Access Point "
                     "(AP).",
                     CONFIG_WIFI_AP_INACTIVITY_TIMEOUT_MINUTES);
 
@@ -134,6 +131,9 @@ static void wifi_ap_timeout_task(void *args) {
         }
         vTaskDelay(pdMS_TO_TICKS(1000));
     }
+    ESP_LOGI(TAG_AP, "Switching to STA mode.");
+
+    wifi_ensure_sta_mode();
     vTaskDelete(NULL);
 }
 
