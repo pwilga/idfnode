@@ -67,7 +67,9 @@ const char *supervisor_command_description(supervisor_command_type_t cmd);
 supervisor_command_type_t supervisor_command_from_id(const char *id);
 void supervisor_process_command_payload(const char *payload);
 
+#if CONFIG_MQTT_ENABLE
 void supervisor_publish_mqtt(const char *topic, const char *payload, int qos, bool retain);
+#endif
 void supervisor_command_print_all(void);
 void supervisor_state_to_json(cJSON *json_root);
 void supervisor_set_onboard_led_state(bool new_state);

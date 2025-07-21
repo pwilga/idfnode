@@ -1,3 +1,5 @@
+#include <string.h>
+
 #include "esp_log.h"
 #include "esp_random.h"
 
@@ -6,7 +8,6 @@
 #include "button_manager.h"
 #include "config_manager.h"
 #include "debug.h"
-#include "ha.h"
 #include "https_server.h"
 #include "json_parser.h"
 #include "net.h"
@@ -18,6 +19,10 @@
 
 #if CONFIG_MQTT_ENABLE
 #include "mqtt.h"
+#endif
+
+#if CONFIG_MQTT_ENABLE && CONFIG_HOME_ASSISTANT_MQTT_DISCOVERY_ENABLE
+#include "ha.h"
 #endif
 
 const char *TAG = "cikon-supervisor";
@@ -124,6 +129,7 @@ void command_dispatch(supervisor_command_t *cmd) {
     const char *TAG = "supervisor-command-dispatcher";
 
     switch (cmd->type) {
+#if CONFIG_MQTT_ENABLE
     case CMND_HA_DISCOVERY:
         logic_state_t force_empty_payload = json_str_as_logic_state(cmd->args_json_str);
         if (force_empty_payload == STATE_TOGGLE) {
@@ -132,6 +138,7 @@ void command_dispatch(supervisor_command_t *cmd) {
         }
         publish_ha_mqtt_discovery(force_empty_payload == STATE_OFF);
         break;
+#endif
     case CMND_RESTART:
         esp_safe_restart();
         break;
@@ -459,13 +466,16 @@ void supervisor_init() {
     //             &ledBlinkTaskHandle);
 }
 
+#if CONFIG_MQTT_ENABLE
 void supervisor_publish_mqtt(const char *topic, const char *payload, int qos, bool retain) {
-    if (!(xEventGroupGetBits(app_event_group) & MQTT_FAIL_BIT)) {
+
+    if (xEventGroupGetBits(app_event_group) & MQTT_CONNECTED_BIT) {
         mqtt_publish(topic, payload, qos, retain);
     } else {
         ESP_LOGW(TAG, "No connection to the MQTT broker, skipping publish to topic: %s", topic);
     }
 }
+#endif
 
 void supervisor_process_command_payload(const char *payload) {
 

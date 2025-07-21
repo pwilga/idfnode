@@ -44,7 +44,6 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 
         mqtt_retry_counter = 0;
         xEventGroupSetBits(app_event_group, MQTT_CONNECTED_BIT);
-        xEventGroupClearBits(app_event_group, MQTT_FAIL_BIT);
 
         ESP_LOGI(TAG, "Connected to MQTT Broker: %s", config_get()->mqtt_broker);
 
@@ -61,12 +60,10 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
         xEventGroupSetBits(app_event_group, TELEMETRY_TRIGGER_BIT);
         break;
     case MQTT_EVENT_ERROR:
-        xEventGroupSetBits(app_event_group, MQTT_FAIL_BIT);
         xEventGroupClearBits(app_event_group, MQTT_CONNECTED_BIT);
         break;
     case MQTT_EVENT_DISCONNECTED:
 
-        xEventGroupSetBits(app_event_group, MQTT_FAIL_BIT);
         xEventGroupClearBits(app_event_group, MQTT_CONNECTED_BIT);
 
         if (mqtt_retry_counter < config_get()->mqtt_max_retry) {
@@ -218,7 +215,7 @@ void mqtt_shutdown() {
     char aval_buf_topic[TOPIC_BUF_SIZE];
     MQTT_AVAILABILITY_TOPIC(aval_buf_topic);
 
-    if (mqtt_client != NULL && !(xEventGroupGetBits(app_event_group) & MQTT_FAIL_BIT)) {
+    if (mqtt_client != NULL) {
         esp_mqtt_client_publish(mqtt_client, aval_buf_topic, "offline", 0, 1, true);
 
         EventBits_t bits = xEventGroupWaitBits(app_event_group, MQTT_OFFLINE_PUBLISHED_BIT, pdTRUE,
@@ -237,8 +234,7 @@ void mqtt_shutdown() {
         mqtt_client = NULL;
     }
 
-    xEventGroupClearBits(app_event_group,
-                         MQTT_CONNECTED_BIT | MQTT_FAIL_BIT | MQTT_SHUTDOWN_INITIATED_BIT);
+    xEventGroupClearBits(app_event_group, MQTT_CONNECTED_BIT | MQTT_SHUTDOWN_INITIATED_BIT);
 
     vTaskDelay(pdMS_TO_TICKS(100));
 }

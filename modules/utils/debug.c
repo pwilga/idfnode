@@ -69,14 +69,10 @@ void debug_info_task(void *args) {
             strcat(bits_str, "AP ");
         if (bits & MQTT_CONNECTED_BIT)
             strcat(bits_str, "MQTT ");
-        if (bits & MQTT_FAIL_BIT)
-            strcat(bits_str, "MQTT_F ");
         if (bits & HTTPS_SHUTDOWN_INITIATED_BIT)
             strcat(bits_str, "HTTPS_SHUT ");
         if (bits & TELEMETRY_TRIGGER_BIT)
             strcat(bits_str, "TEL ");
-        // if (bits & WIFI_STA_FAIL_BIT)
-        //     strcat(bits_str, "STA_F ");
         if (bits & MQTT_OFFLINE_PUBLISHED_BIT)
             strcat(bits_str, "MQTT_OFF ");
         if (bits & MQTT_SHUTDOWN_INITIATED_BIT)

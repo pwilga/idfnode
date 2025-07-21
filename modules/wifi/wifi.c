@@ -3,6 +3,7 @@
 #include "esp_log.h"
 #include "esp_wifi.h"
 #include "esp_mac.h"
+#include "sdkconfig.h"
 
 #include "config_manager.h"
 #include "platform_services.h"
@@ -16,6 +17,12 @@ esp_netif_t *sta_netif, *ap_netif;
 bool ignore_sta_disconnect_event = false;
 static bool ap_has_client = false;
 static TaskHandle_t wifi_sta_connection_task_handle = NULL;
+static TaskHandle_t wifi_ap_task_handle = NULL;
+
+volatile static uint32_t ap_seconds_without_clients = 0;
+
+static portMUX_TYPE wifi_sta_task_mux = portMUX_INITIALIZER_UNLOCKED;
+static portMUX_TYPE wifi_ap_timeout_mux = portMUX_INITIALIZER_UNLOCKED;
 
 const char *wifi_disconnect_reason_str(uint8_t reason) {
     switch (reason) {
@@ -55,6 +62,7 @@ static void wifi_sta_connection_task(void *args) {
     while (1) {
         bool connected = false;
         for (int i = 0; i < CONFIG_WIFI_STA_BURST_RETRY_COUNT; ++i) {
+
             ESP_LOGI(TAG_STA, "Connection attempt %d/%d in group (delay: %.2f s)", i + 1,
                      CONFIG_WIFI_STA_BURST_RETRY_COUNT,
                      CONFIG_WIFI_STA_BURST_RETRY_DELAY_MS / 1000.0);
@@ -69,16 +77,9 @@ static void wifi_sta_connection_task(void *args) {
                 connected = true;
                 break;
             }
-            // else {
-            //     xEventGroupSetBits(app_event_group, WIFI_STA_FAIL_BIT);
-            //     // xEventGroupClearBits(app_event_group, WIFI_STA_CONNECTED_BIT);
-            // }
         }
 
         if (connected) {
-            // ESP_LOGI(TAG_STA, "Failed to connect to WiFi network (SSID: %s).",
-            //          config_get()->wifi_ssid);
-            // xEventGroupClearBits(app_event_group, WIFI_STA_FAIL_BIT);
             break;
         }
 
@@ -89,51 +90,61 @@ static void wifi_sta_connection_task(void *args) {
         if (interval > CONFIG_WIFI_STA_RETRY_MAX_MS)
             interval = CONFIG_WIFI_STA_RETRY_MAX_MS;
     }
-    ESP_LOGE(TAG_STA, "WiFi STA retry task exiting");
     wifi_sta_connection_task_handle = NULL;
     vTaskDelete(NULL);
 }
 
 void wifi_sta_connection_task_ensure_running(void) {
-    if (wifi_sta_connection_task_handle == NULL) {
-        xTaskCreate(wifi_sta_connection_task, "sta_con", 2048, NULL, 1,
+
+    taskENTER_CRITICAL(&wifi_sta_task_mux);
+    if (wifi_sta_connection_task_handle == NULL ||
+        eTaskGetState(wifi_sta_connection_task_handle) == eDeleted) {
+        xTaskCreate(wifi_sta_connection_task, "sta_con", CONFIG_WIFI_STA_CONNECTION_TASK_STACK_SIZE,
+                    NULL, CONFIG_WIFI_STA_CONNECTION_TASK_PRIORITY,
                     &wifi_sta_connection_task_handle);
     }
-}
-
-void wifi_sta_connection_task_shutdown(void) {
-    if (wifi_sta_connection_task_handle != NULL) {
-        vTaskDelete(wifi_sta_connection_task_handle);
-        wifi_sta_connection_task_handle = NULL;
-        ESP_LOGI(TAG_STA, "WiFi STA connection task killed from outside");
-    }
+    taskEXIT_CRITICAL(&wifi_sta_task_mux);
 }
 
 static void wifi_ap_timeout_task(void *args) {
-    int seconds_without_clients = 0;
+
     const int timeout_seconds = CONFIG_WIFI_AP_INACTIVITY_TIMEOUT_MINUTES * 60;
 
     while (xEventGroupGetBits(app_event_group) & WIFI_AP_STARTED_BIT) {
         if (ap_has_client) {
-            seconds_without_clients = 0;
+
+            taskENTER_CRITICAL(&wifi_ap_timeout_mux);
+            ap_seconds_without_clients = 0;
+            taskEXIT_CRITICAL(&wifi_ap_timeout_mux);
+
         } else {
-            seconds_without_clients++;
-            if (seconds_without_clients >= timeout_seconds) {
+
+            taskENTER_CRITICAL(&wifi_ap_timeout_mux);
+            ap_seconds_without_clients++;
+            taskEXIT_CRITICAL(&wifi_ap_timeout_mux);
+
+            if (ap_seconds_without_clients >= timeout_seconds) {
                 ESP_LOGI(
                     TAG_AP,
                     "🚦 AP inactivity timeout: no clients for %d minute(s), disabling Access Point "
                     "(AP).",
                     CONFIG_WIFI_AP_INACTIVITY_TIMEOUT_MINUTES);
-
-                ESP_ERROR_CHECK(safe_wifi_stop());
-                seconds_without_clients = 0;
+                break;
             }
         }
         vTaskDelay(pdMS_TO_TICKS(1000));
     }
-    ESP_LOGI(TAG_AP, "Switching to STA mode.");
 
-    wifi_ensure_sta_mode();
+    wifi_mode_t mode;
+
+    if (esp_wifi_get_mode(&mode) != ESP_OK || mode != WIFI_MODE_STA) {
+        ESP_LOGI(TAG_AP, "Switching to STA mode.");
+        wifi_ensure_sta_mode();
+    } else {
+        ESP_LOGI(TAG_AP, "Already in STA mode, no need to switch.");
+    }
+
+    wifi_ap_task_handle = NULL;
     vTaskDelete(NULL);
 }
 
@@ -144,31 +155,40 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t e
 
         switch (event_id) {
 
-            // case WIFI_EVENT_STA_START:
-            //     ESP_ERROR_CHECK(esp_wifi_connect());
-            //     break;
-
         case WIFI_EVENT_STA_DISCONNECTED:
+
+            xEventGroupClearBits(app_event_group, WIFI_STA_CONNECTED_BIT);
 
             wifi_event_sta_disconnected_t *disconn = (wifi_event_sta_disconnected_t *)event_data;
             ESP_LOGI(TAG_STA, "Disconnected, reason: %d (%s)", disconn->reason,
                      wifi_disconnect_reason_str(disconn->reason));
 
             if (ignore_sta_disconnect_event) {
+                // ESP_LOGW(TAG_STA,
+                //          "Ignoring disconnect event due to ongoing shutdown or mode change.");
                 ignore_sta_disconnect_event = false;
                 return;
             }
 
-            xEventGroupClearBits(app_event_group, WIFI_STA_CONNECTED_BIT);
             wifi_sta_connection_task_ensure_running();
 
             break;
 
         case WIFI_EVENT_AP_START:
             xEventGroupSetBits(app_event_group, WIFI_AP_STARTED_BIT);
-            // xEventGroupClearBits(app_event_group, WIFI_STA_CONNECTED_BIT | WIFI_STA_FAIL_BIT);
             ap_has_client = false;
-            xTaskCreate(wifi_ap_timeout_task, "ap_timeout", 3072, NULL, 1, NULL);
+
+            if (wifi_ap_task_handle != NULL) {
+                eTaskState state = eTaskGetState(wifi_ap_task_handle);
+                if (state != eDeleted && state != eInvalid) {
+                    // ESP_LOGW(TAG_AP, "AP timeout task already running (state: %d), ignoring.",
+                    //          state);
+                    break;
+                }
+            }
+
+            xTaskCreate(wifi_ap_timeout_task, "ap_timeout", CONFIG_WIFI_AP_TIMEOUT_TASK_STACK_SIZE,
+                        NULL, CONFIG_WIFI_AP_TIMEOUT_TASK_PRIORITY, &wifi_ap_task_handle);
             break;
 
         case WIFI_EVENT_AP_STOP:
@@ -194,7 +214,6 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t e
                  config_get()->wifi_ssid);
 
         xEventGroupSetBits(app_event_group, WIFI_STA_CONNECTED_BIT);
-        // xEventGroupClearBits(app_event_group, WIFI_STA_FAIL_BIT);
     }
 }
 
@@ -215,6 +234,7 @@ void wifi_stack_init() {
 
 void wifi_ensure_ap_mode() {
 
+    ignore_sta_disconnect_event = true;
     ESP_ERROR_CHECK(safe_wifi_stop());
 
     wifi_config_t ap_config = {.ap = {.ssid_len = 0,
@@ -234,6 +254,14 @@ void wifi_ensure_ap_mode() {
 }
 
 void wifi_ensure_sta_mode() {
+
+    // wifi_mode_t mode;
+
+    if (sta_netif != NULL) {
+        ignore_sta_disconnect_event = true;
+    } else {
+        ignore_sta_disconnect_event = false;
+    }
 
     ESP_ERROR_CHECK(safe_wifi_stop());
 
@@ -257,13 +285,21 @@ void wifi_ensure_sta_mode() {
 
 esp_err_t safe_wifi_stop() {
 
-    wifi_sta_connection_task_shutdown();
+    // Make sure the STA connection task is stopped before stopping WiFi
+    TaskHandle_t sta_tmp_handle = NULL;
 
-    uint8_t timeout = 100;
-    while (wifi_sta_connection_task_handle != NULL && timeout--)
-        vTaskDelay(pdMS_TO_TICKS(10));
+    taskENTER_CRITICAL(&wifi_sta_task_mux);
+    sta_tmp_handle = wifi_sta_connection_task_handle;
+    wifi_sta_connection_task_handle = NULL;
+    taskEXIT_CRITICAL(&wifi_sta_task_mux);
 
-    ignore_sta_disconnect_event = true;
+    if (sta_tmp_handle != NULL) {
+        vTaskDelete(sta_tmp_handle);
+    }
+
+    taskENTER_CRITICAL(&wifi_ap_timeout_mux);
+    ap_seconds_without_clients = 0;
+    taskEXIT_CRITICAL(&wifi_ap_timeout_mux);
 
     esp_wifi_disconnect();
     esp_err_t err = esp_wifi_stop();

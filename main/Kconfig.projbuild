@@ -7,7 +7,6 @@ menu "IDF-node Application Configuration"
         help
             Timeout in minutes before disabling AP if no clients are connected.
 
-    # --- WiFi STA retry/backoff options ---
     config WIFI_STA_RETRY_INITIAL_MS
         int "WiFi STA retry initial interval (ms)"
         default 60000
@@ -70,21 +69,23 @@ menu "IDF-node Application Configuration"
             int "Supervisor task priority"
             default 5
 
-        config MQTT_COMMAND_TASK_STACK_SIZE
-            int "MQTT command task stack size"
-            default 4096
+        if MQTT_ENABLE
+            config MQTT_COMMAND_TASK_STACK_SIZE
+                int "MQTT command task stack size"
+                default 4096
 
-        config MQTT_COMMAND_TASK_PRIORITY
-            int "MQTT command task priority"
-            default 10
+            config MQTT_COMMAND_TASK_PRIORITY
+                int "MQTT command task priority"
+                default 10
 
-        config MQTT_TELEMETRY_TASK_STACK_SIZE
-            int "MQTT telemetry task stack size"
-            default 4096
+            config MQTT_TELEMETRY_TASK_STACK_SIZE
+                int "MQTT telemetry task stack size"
+                default 4096
 
-        config MQTT_TELEMETRY_TASK_PRIORITY
-            int "MQTT telemetry task priority"
-            default 5
+            config MQTT_TELEMETRY_TASK_PRIORITY
+                int "MQTT telemetry task priority"
+                default 5
+        endif
 
         config TCP_OTA_TASK_STACK_SIZE
             int "TCP OTA task stack size"
@@ -101,6 +102,38 @@ menu "IDF-node Application Configuration"
         config UDP_MONITOR_TASK_PRIORITY
             int "UDP monitor task priority"
             default 5
+
+        config WIFI_STA_CONNECTION_TASK_STACK_SIZE
+            int "WiFi STA connection task stack size"
+            default 2048
+            range 1024 8192
+            help
+                Stack size (in bytes) for the WiFi STA connection management task.
+                Typical: 2048.
+
+        config WIFI_STA_CONNECTION_TASK_PRIORITY
+            int "WiFi STA connection task priority"
+            default 1
+            range 0 10
+            help
+                Priority for the WiFi STA connection management task.
+                Typical: 1.
+
+        config WIFI_AP_TIMEOUT_TASK_STACK_SIZE
+            int "WiFi AP timeout task stack size"
+            default 3072
+            range 1024 8192
+            help
+                Stack size (in bytes) for the WiFi AP timeout management task.
+                Typical: 3072.
+
+        config WIFI_AP_TIMEOUT_TASK_PRIORITY
+            int "WiFi AP timeout task priority"
+            default 1
+            range 0 10
+            help
+                Priority for the WiFi AP timeout management task.
+                Typical: 1.
 
     endmenu
 
