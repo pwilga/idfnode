@@ -71,11 +71,11 @@ void debug_info_task(void *args) {
             strcat(bits_str, "MQTT ");
         if (bits & HTTPS_SHUTDOWN_INITIATED_BIT)
             strcat(bits_str, "HTTPS_SHUT ");
-        if (bits & TELEMETRY_TRIGGER_BIT)
+        if (bits & MQTT_TELEMETRY_TRIGGER_BIT)
             strcat(bits_str, "TEL ");
         if (bits & MQTT_OFFLINE_PUBLISHED_BIT)
             strcat(bits_str, "MQTT_OFF ");
-        if (bits & MQTT_SHUTDOWN_INITIATED_BIT)
+        if (bits & MQTT_TASKS_SHUTDOWN_BIT)
             strcat(bits_str, "MQTT_SHUT ");
         if (bits & HTTPS_SERVER_STARTED_BIT)
             strcat(bits_str, "HTTPS ");

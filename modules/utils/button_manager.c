@@ -16,7 +16,8 @@ static void button_event_handler(void *button_handle, void *usr_data) {
     switch (event) {
     case BUTTON_SINGLE_CLICK:
         // ESP_LOGI(TAG, "Button %d: SINGLE CLICK", idx);
-        supervisor_process_command_payload("{\"help\":1}");
+        // supervisor_process_command_payload("{\"help\":1}");
+        supervisor_process_command_payload("{\"sta\":1}");
 
         break;
     case BUTTON_DOUBLE_CLICK:
@@ -51,7 +52,7 @@ void button_manager_init(uint8_t gpio_num) {
     };
     button_gpio_config_t gpio_cfg = {
         .gpio_num = gpio_num,
-        .active_level = 0, // 0 = aktywny stan niski
+        .active_level = 0, // 0 = active low state
         .enable_power_save = false,
         .disable_pull = false,
     };

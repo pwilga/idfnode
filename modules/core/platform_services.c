@@ -69,6 +69,7 @@ void esp_safe_restart() {
 
 /* also to avoid error during shutdown */
 #if CONFIG_MQTT_ENABLE
+    mqtt_publish_offline_state();
     mqtt_shutdown();
 #endif
 

@@ -10,6 +10,7 @@
 #include "cJSON.h"
 
 #include "mqtt.h"
+#include "net.h"
 #include "platform_services.h"
 #include "supervisor.h"
 
@@ -20,12 +21,11 @@
 #define TAG "cikon-mqtt"
 #define TOPIC_BUF_SIZE 128
 
-TaskHandle_t mqtt_command_task_handle, mqtt_telemetry_task_handle;
+static TaskHandle_t mqtt_command_task_handle, mqtt_telemetry_task_handle;
 
-esp_mqtt_client_handle_t mqtt_client;
-QueueHandle_t mqtt_queue;
+static esp_mqtt_client_handle_t mqtt_client;
+static QueueHandle_t mqtt_queue;
 
-static uint8_t mqtt_retry_counter = 0;
 static bool mqtt_skip_current_msg = false;
 
 extern const uint8_t ca_crt_start[] asm("_binary_ca_crt_start");
@@ -37,27 +37,172 @@ static void mqtt_shutdown_task(void *args) {
     vTaskDelete(NULL);
 }
 
-static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_t event_id,
-                               void *event_data) {
-    switch ((esp_mqtt_event_id_t)event_id) {
-    case MQTT_EVENT_CONNECTED:
+void mqtt_publish_telemetry(void) {
 
-        mqtt_retry_counter = 0;
-        xEventGroupSetBits(app_event_group, MQTT_CONNECTED_BIT);
+    if (!(xEventGroupGetBits(app_event_group) & MQTT_CONNECTED_BIT)) {
+        // Prevent console spam on repeated connection failures.
+        static int not_connected_counter = 0;
+        not_connected_counter++;
+        if (not_connected_counter >= 5) {
+            ESP_LOGW(TAG, "MQTT not connected, skipping telemetry publish");
+            not_connected_counter = 0;
+        }
+        return;
+    }
 
-        ESP_LOGI(TAG, "Connected to MQTT Broker: %s", config_get()->mqtt_broker);
+    cJSON *json = cJSON_CreateObject();
+    supervisor_state_to_json(json);
 
+    char *json_str = cJSON_PrintUnformatted(json);
+
+    char topic[TOPIC_BUF_SIZE];
+    MQTT_TELEMETRY_TOPIC(topic);
+
+    esp_mqtt_client_publish(mqtt_client, topic, json_str, 0, MQTT_QOS, false);
+
+    free(json_str);
+    cJSON_Delete(json);
+}
+
+void mqtt_publish_offline_state(void) {
+
+    if (!(xEventGroupGetBits(app_event_group) & MQTT_CONNECTED_BIT)) {
+
+        ESP_LOGW(TAG, "Client not connected, skipping offline state publish");
+        return;
+    }
+
+    char aval_buf_topic[TOPIC_BUF_SIZE];
+    MQTT_AVAILABILITY_TOPIC(aval_buf_topic);
+
+    esp_mqtt_client_publish(mqtt_client, aval_buf_topic, "offline", 0, 1, true);
+
+    EventBits_t bits = xEventGroupWaitBits(app_event_group, MQTT_OFFLINE_PUBLISHED_BIT, pdTRUE,
+                                           pdFALSE, pdMS_TO_TICKS(1000));
+
+    if (bits & MQTT_OFFLINE_PUBLISHED_BIT) {
+        ESP_LOGI(TAG, "Offline message confirmed published.");
+    } else {
+        ESP_LOGW(TAG, "Timeout waiting for offline publish.");
+    }
+}
+
+void mqtt_telemetry_task(void *args) {
+
+    // Birth message
+    {
+        char topic[TOPIC_BUF_SIZE];
+
+        MQTT_AVAILABILITY_TOPIC(topic);
+        esp_mqtt_client_publish(mqtt_client, topic, "online", 0, MQTT_QOS, true);
+    }
+
+    while (!(xEventGroupGetBits(app_event_group) & MQTT_TASKS_SHUTDOWN_BIT)) {
+
+        mqtt_publish_telemetry();
+
+        EventBits_t bits = xEventGroupWaitBits(
+            app_event_group, MQTT_TELEMETRY_TRIGGER_BIT | MQTT_TASKS_SHUTDOWN_BIT, pdFALSE, pdFALSE,
+            pdMS_TO_TICKS(TELEMETRY_INTERVAL_MS));
+
+        if (bits & MQTT_TELEMETRY_TRIGGER_BIT) {
+            xEventGroupClearBits(app_event_group, MQTT_TELEMETRY_TRIGGER_BIT);
+        }
+
+        if (bits & MQTT_TASKS_SHUTDOWN_BIT) {
+            break;
+        }
+    }
+
+    ESP_LOGE(TAG, "telemetry_task: exiting");
+    xEventGroupClearBits(app_event_group, MQTT_TELEMETRY_TRIGGER_BIT);
+    mqtt_telemetry_task_handle = NULL;
+    vTaskDelete(NULL);
+}
+
+void mqtt_command_task(void *args) {
+
+    // Command topic subscription
+    {
         char topic[TOPIC_BUF_SIZE];
         MQTT_COMMAND_TOPIC(topic);
 
         if (esp_mqtt_client_subscribe(mqtt_client, topic, MQTT_QOS) < 0) {
             ESP_LOGE(TAG, "Unable to subscribe to MQTT topic '%s'", topic);
+            vTaskDelete(NULL);
+        }
+    }
+
+    char *msg = NULL; // ensure safe free() even if xQueueReceive fails
+
+    while (!(xEventGroupGetBits(app_event_group) & MQTT_TASKS_SHUTDOWN_BIT)) {
+
+        if (xQueueReceive(mqtt_queue, &msg, pdMS_TO_TICKS(100)) == pdFALSE)
+            goto cleanup;
+
+        char *topic = msg;
+        char *payload = msg + strlen(topic) + 1;
+
+        char commmand_topic[40];
+        MQTT_COMMAND_TOPIC(commmand_topic);
+
+        if (strcmp(topic, commmand_topic))
+            goto cleanup;
+
+        supervisor_process_command_payload(payload);
+        xEventGroupSetBits(app_event_group, MQTT_TELEMETRY_TRIGGER_BIT);
+
+    cleanup:
+        if (msg) {
+            free(msg);
+            msg = NULL;
+        }
+    }
+
+    ESP_LOGE(TAG, "command_task: exiting and cleaning mqtt_queue");
+
+    if (mqtt_queue) {
+        vQueueDelete(mqtt_queue);
+        mqtt_queue = NULL;
+    }
+
+    mqtt_command_task_handle = NULL;
+    vTaskDelete(NULL);
+}
+
+void mqtt_publish(const char *topic, const char *payload, int qos, bool retain) {
+    esp_mqtt_client_publish(mqtt_client, topic, payload, 0, qos, retain);
+}
+
+static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_t event_id,
+                               void *event_data) {
+
+    static uint8_t mqtt_retry_counter = 0;
+
+    switch ((esp_mqtt_event_id_t)event_id) {
+    case MQTT_EVENT_CONNECTED:
+
+        mqtt_retry_counter = 0;
+        xEventGroupSetBits(app_event_group, MQTT_CONNECTED_BIT);
+        xEventGroupClearBits(app_event_group, MQTT_TASKS_SHUTDOWN_BIT);
+
+        mqtt_queue = xQueueCreate(8, sizeof(void *));
+        assert(mqtt_queue != NULL);
+
+        uint8_t timeout = 100;
+        while ((mqtt_command_task_handle != NULL || mqtt_telemetry_task_handle != NULL) &&
+               timeout--) {
+            vTaskDelay(pdMS_TO_TICKS(10));
         }
 
-        // Birth message
-        MQTT_AVAILABILITY_TOPIC(topic);
-        esp_mqtt_client_publish(mqtt_client, topic, "online", 0, MQTT_QOS, true);
-        xEventGroupSetBits(app_event_group, TELEMETRY_TRIGGER_BIT);
+        xTaskCreate(mqtt_command_task, "mqtt_command", CONFIG_MQTT_COMMAND_TASK_STACK_SIZE, NULL,
+                    CONFIG_MQTT_COMMAND_TASK_PRIORITY, &mqtt_command_task_handle);
+
+        xTaskCreate(mqtt_telemetry_task, "mqtt_telemetry", CONFIG_MQTT_TELEMETRY_TASK_STACK_SIZE,
+                    NULL, CONFIG_MQTT_TELEMETRY_TASK_PRIORITY, &mqtt_telemetry_task_handle);
+
+        ESP_LOGI(TAG, "Connected to MQTT Broker: %s", config_get()->mqtt_broker);
+
         break;
     case MQTT_EVENT_ERROR:
         xEventGroupClearBits(app_event_group, MQTT_CONNECTED_BIT);
@@ -65,18 +210,23 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
     case MQTT_EVENT_DISCONNECTED:
 
         xEventGroupClearBits(app_event_group, MQTT_CONNECTED_BIT);
+        xEventGroupSetBits(app_event_group, MQTT_TASKS_SHUTDOWN_BIT);
 
         if (mqtt_retry_counter < config_get()->mqtt_max_retry) {
-            mqtt_retry_counter++;
-            ESP_LOGI(TAG, "Retry to connect to the MQTT Broker (%d/%d)", mqtt_retry_counter,
+            ESP_LOGW(TAG, "MQTT disconnected, retrying connection (%d/%d)", mqtt_retry_counter + 1,
                      config_get()->mqtt_max_retry);
+            mqtt_retry_counter++;
         } else {
             ESP_LOGE(TAG,
                      "Failed to connect to MQTT Broker '%s' after %d retries, shutting down MQTT "
                      "subsystem...",
                      config_get()->mqtt_broker, config_get()->mqtt_max_retry);
+            mqtt_retry_counter = 0;
 
-            // From this context, starting a new task is the only way to destroy MQTT.
+            // We create a separate task for MQTT shutdown because ESP-IDF does not allow
+            // esp_mqtt_client_stop() or esp_mqtt_client_destroy() to be called from the MQTT event
+            // handler or any MQTT-related task. This avoids runtime errors and ensures proper
+            // resource cleanup.
             xTaskCreate(mqtt_shutdown_task, "mqtt_shutdown", 2048, NULL, 10, NULL);
         }
         break;
@@ -123,7 +273,7 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
         message_buf[message_len - 1] = '\0';
 
         if (mqtt_queue != NULL &&
-            !(xEventGroupGetBits(app_event_group) & MQTT_SHUTDOWN_INITIATED_BIT)) {
+            !(xEventGroupGetBits(app_event_group) & MQTT_TASKS_SHUTDOWN_BIT)) {
 
             if (xQueueSend(mqtt_queue, &message_buf, portMAX_DELAY) != pdTRUE) {
                 ESP_LOGW(TAG, "Queue limit exceeded — message not enqueued");
@@ -140,9 +290,21 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
     }
 }
 
-void mqtt_init(bool secure) {
+void mqtt_init() {
 
-    xEventGroupWaitBits(app_event_group, WIFI_STA_CONNECTED_BIT, pdFALSE, pdFALSE, portMAX_DELAY);
+    if (mqtt_client != NULL) {
+        ESP_LOGW(TAG, "MQTT client already initialized, skipping re-initialization.");
+        return;
+    }
+
+    if (is_network_connected() == false) {
+        ESP_LOGE(TAG, "No network connection, cannot initialize MQTT client.");
+        return;
+    }
+
+    ESP_LOGW(TAG, "Initializing MQTT client...");
+
+    bool secure = config_get()->mqtt_mtls_en;
 
     static char avail_topic_buf[TOPIC_BUF_SIZE];
     MQTT_AVAILABILITY_TOPIC(avail_topic_buf);
@@ -178,159 +340,23 @@ void mqtt_init(bool secure) {
             },
     };
 
-    mqtt_queue = xQueueCreate(8, sizeof(void *));
-    assert(mqtt_queue != NULL);
-
     mqtt_client = esp_mqtt_client_init(&mqtt_cfg);
     esp_mqtt_client_register_event(mqtt_client, ESP_EVENT_ANY_ID, mqtt_event_handler, mqtt_client);
     esp_mqtt_client_start(mqtt_client);
-
-    xTaskCreate(command_task, "mqtt_command", CONFIG_MQTT_COMMAND_TASK_STACK_SIZE, NULL,
-                CONFIG_MQTT_COMMAND_TASK_PRIORITY, &mqtt_command_task_handle);
-    xTaskCreate(telemetry_task, "mqtt_telemetry", CONFIG_MQTT_TELEMETRY_TASK_STACK_SIZE, NULL,
-                CONFIG_MQTT_TELEMETRY_TASK_PRIORITY, &mqtt_telemetry_task_handle);
 }
 
 void mqtt_shutdown() {
 
-    if (mqtt_command_task_handle == NULL && mqtt_telemetry_task_handle == NULL) {
-        // ESP_LOGE(TAG, "MQTT tasks already stopped, nothing to do.");
+    if (mqtt_client == NULL)
         return;
-    }
 
-    xEventGroupSetBits(app_event_group, MQTT_SHUTDOWN_INITIATED_BIT);
+    xEventGroupSetBits(app_event_group, MQTT_TASKS_SHUTDOWN_BIT);
 
-    uint8_t timeout = 100;
-    while ((mqtt_command_task_handle != NULL || mqtt_telemetry_task_handle != NULL) && timeout--) {
-        vTaskDelay(pdMS_TO_TICKS(10));
-    }
+    ESP_ERROR_CHECK(esp_mqtt_client_stop(mqtt_client));
+    ESP_ERROR_CHECK(esp_mqtt_client_destroy(mqtt_client));
+    mqtt_client = NULL;
 
-    if (mqtt_command_task_handle != NULL && mqtt_telemetry_task_handle != NULL) {
-        ESP_LOGW(TAG, "Timeout waiting for both command and telemetry tasks to finish!");
-    }
-    // else {
-    //     ESP_LOGI(TAG, "All tasks finished cleanly.");
-    // }
-
-    char aval_buf_topic[TOPIC_BUF_SIZE];
-    MQTT_AVAILABILITY_TOPIC(aval_buf_topic);
-
-    if (mqtt_client != NULL) {
-        esp_mqtt_client_publish(mqtt_client, aval_buf_topic, "offline", 0, 1, true);
-
-        EventBits_t bits = xEventGroupWaitBits(app_event_group, MQTT_OFFLINE_PUBLISHED_BIT, pdTRUE,
-                                               pdFALSE, pdMS_TO_TICKS(2000));
-
-        if (bits & MQTT_OFFLINE_PUBLISHED_BIT) {
-            ESP_LOGI(TAG, "Offline message confirmed published.");
-        } else {
-            ESP_LOGW(TAG, "Timeout waiting for offline publish.");
-        }
-    }
-
-    if (mqtt_client != NULL) {
-        ESP_ERROR_CHECK(esp_mqtt_client_stop(mqtt_client));
-        ESP_ERROR_CHECK(esp_mqtt_client_destroy(mqtt_client));
-        mqtt_client = NULL;
-    }
-
-    xEventGroupClearBits(app_event_group, MQTT_CONNECTED_BIT | MQTT_SHUTDOWN_INITIATED_BIT);
-
-    vTaskDelay(pdMS_TO_TICKS(100));
-}
-
-void publish_telemetry(void) {
-
-    if (!(xEventGroupGetBits(app_event_group) & MQTT_CONNECTED_BIT)) {
-        // Prevent console spam on repeated connection failures.
-        static int not_connected_counter = 0;
-        not_connected_counter++;
-        if (not_connected_counter >= 5) {
-            ESP_LOGW(TAG, "MQTT not connected, skipping telemetry publish");
-            not_connected_counter = 0;
-        }
-        return;
-    }
-
-    cJSON *json = cJSON_CreateObject();
-    supervisor_state_to_json(json);
-
-    char *json_str = cJSON_PrintUnformatted(json);
-
-    char topic[TOPIC_BUF_SIZE];
-    MQTT_TELEMETRY_TOPIC(topic);
-
-    esp_mqtt_client_publish(mqtt_client, topic, json_str, 0, MQTT_QOS, false);
-
-    free(json_str);
-    cJSON_Delete(json);
-}
-
-void telemetry_task(void *args) {
-
-    while (!(xEventGroupGetBits(app_event_group) & MQTT_SHUTDOWN_INITIATED_BIT)) {
-
-        publish_telemetry();
-
-        EventBits_t bits = xEventGroupWaitBits(
-            app_event_group, TELEMETRY_TRIGGER_BIT | MQTT_SHUTDOWN_INITIATED_BIT, pdFALSE, pdFALSE,
-            pdMS_TO_TICKS(TELEMETRY_INTERVAL_MS));
-
-        if (bits & TELEMETRY_TRIGGER_BIT) {
-            xEventGroupClearBits(app_event_group, TELEMETRY_TRIGGER_BIT);
-        }
-
-        if (bits & MQTT_SHUTDOWN_INITIATED_BIT) {
-            break;
-        }
-    }
-
-    ESP_LOGE(TAG, "telemetry_task: exiting");
-    mqtt_telemetry_task_handle = NULL;
-    vTaskDelete(NULL);
-}
-
-void command_task(void *args) {
-
-    char *msg = NULL; // ensure safe free() even if xQueueReceive fails
-
-    while (!(xEventGroupGetBits(app_event_group) & MQTT_SHUTDOWN_INITIATED_BIT)) {
-
-        if (xQueueReceive(mqtt_queue, &msg, pdMS_TO_TICKS(100)) == pdFALSE)
-            goto cleanup;
-
-        char *topic = msg;
-        char *payload = msg + strlen(topic) + 1;
-
-        char commmand_topic[40];
-        MQTT_COMMAND_TOPIC(commmand_topic);
-
-        if (strcmp(topic, commmand_topic))
-            goto cleanup;
-
-        supervisor_process_command_payload(payload);
-        xEventGroupSetBits(app_event_group, TELEMETRY_TRIGGER_BIT);
-
-    cleanup:
-        if (msg) {
-            free(msg);
-            msg = NULL;
-        }
-    }
-
-    ESP_LOGE(TAG, "command_task: exiting and cleaning mqtt_queue");
-
-    if (mqtt_queue) {
-        vQueueDelete(mqtt_queue);
-        mqtt_queue = NULL;
-    }
-
-    mqtt_command_task_handle = NULL;
-    vTaskDelete(NULL);
-}
-
-void mqtt_publish(const char *topic, const char *payload, int qos, bool retain) {
-    esp_mqtt_client_publish(mqtt_client, topic, payload, 0, qos, retain);
+    xEventGroupClearBits(app_event_group, MQTT_CONNECTED_BIT);
 }
 
 #endif // CONFIG_MQTT_ENABLE

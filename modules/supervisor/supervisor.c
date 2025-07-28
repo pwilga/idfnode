@@ -31,6 +31,7 @@ typedef enum {
     SUPERVISOR_INTERVAL_1S,
     SUPERVISOR_INTERVAL_5S,
     SUPERVISOR_INTERVAL_60S,
+    SUPERVISOR_INTERVAL_5M,
     SUPERVISOR_INTERVAL_10M,
     SUPERVISOR_INTERVAL_2H,
     SUPERVISOR_INTERVAL_12H,
@@ -41,6 +42,7 @@ static const uint32_t supervisor_intervals_ms[SUPERVISOR_INTERVAL_COUNT] = {
     [SUPERVISOR_INTERVAL_1S] = 1000,
     [SUPERVISOR_INTERVAL_5S] = 5000,
     [SUPERVISOR_INTERVAL_60S] = 60000,
+    [SUPERVISOR_INTERVAL_5M] = 5 * 60 * 1000,
     [SUPERVISOR_INTERVAL_10M] = 10 * 60 * 1000,
     [SUPERVISOR_INTERVAL_2H] = 2 * 60 * 60 * 1000,
     [SUPERVISOR_INTERVAL_12H] = 12 * 60 * 60 * 1000};
@@ -51,23 +53,24 @@ static supervisor_state_t state = {
 #undef TELE
 };
 
-void supervisor_start_services_for_wifi_mode(wifi_mode_t mode) {
-    switch (mode) {
-    case WIFI_MODE_STA:
-#if CONFIG_MQTT_ENABLE
-        mqtt_init(config_get()->mqtt_mtls_en);
-#endif
-        break;
-    case WIFI_MODE_AP:
-        https_init();
-        break;
-    default:
-        break;
-    }
-}
+// void supervisor_start_services_for_wifi_mode(wifi_mode_t mode) {
+//     switch (mode) {
+//     case WIFI_MODE_STA:
+// #if CONFIG_MQTT_ENABLE
+//         mqtt_init();
+// #endif
+//         break;
+//     case WIFI_MODE_AP:
+//         https_init();
+//         break;
+//     default:
+//         break;
+//     }
+// }
 
 void supervisor_shutdown_all_wifi_services() {
 #if CONFIG_MQTT_ENABLE
+    mqtt_publish_offline_state();
     mqtt_shutdown();
 #endif
     https_shutdown();
@@ -214,11 +217,13 @@ static void supervisor_execute_stage(supervisor_interval_stage_t stage) {
 
     switch (stage) {
     case SUPERVISOR_INTERVAL_1S:
+
         state.uptime = esp_timer_get_time() / 1000000ULL;
         break;
 
     case SUPERVISOR_INTERVAL_5S:
         state.tempreture = random_float(20.5f, 25.9f);
+
         is_internet_reachable() ? xEventGroupSetBits(app_event_group, INTERNET_REACHABLE_BIT)
                                 : xEventGroupClearBits(app_event_group, INTERNET_REACHABLE_BIT);
         break;
@@ -227,6 +232,9 @@ static void supervisor_execute_stage(supervisor_interval_stage_t stage) {
 
         break;
     case SUPERVISOR_INTERVAL_10M:
+#if CONFIG_MQTT_ENABLE
+        mqtt_init();
+#endif
         break;
     case SUPERVISOR_INTERVAL_2H:
         break;
@@ -412,7 +420,7 @@ void supervisor_set_onboard_led_state(bool new_state) {
     if (state.onboard_led == new_state)
         return;
     state.onboard_led = new_state;
-    xEventGroupSetBits(app_event_group, TELEMETRY_TRIGGER_BIT);
+    xEventGroupSetBits(app_event_group, MQTT_TELEMETRY_TRIGGER_BIT);
 }
 
 /**
@@ -427,7 +435,7 @@ static void supervisor_wifi_event_handler(void *arg, esp_event_base_t event_base
     if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
         // supervisor_start_services_for_wifi_mode(WIFI_MODE_STA);
 #if CONFIG_MQTT_ENABLE
-        mqtt_init(config_get()->mqtt_mtls_en);
+        mqtt_init();
 #endif
     }
 
@@ -460,10 +468,6 @@ void supervisor_init() {
     xTaskCreate(debug_info_task, "debug_info", 4096, NULL, 0, NULL);
 
     button_manager_init(0);
-
-    // xTaskCreate(heartbeat_task, "heartbeat_task", 4096, NULL, 0, NULL);
-    // xTaskCreate(led_blink_task, "led_blink_task", 2048, NULL, 0,
-    //             &ledBlinkTaskHandle);
 }
 
 #if CONFIG_MQTT_ENABLE

@@ -255,8 +255,6 @@ void wifi_ensure_ap_mode() {
 
 void wifi_ensure_sta_mode() {
 
-    // wifi_mode_t mode;
-
     if (sta_netif != NULL) {
         ignore_sta_disconnect_event = true;
     } else {
