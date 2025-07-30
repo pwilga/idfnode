@@ -1,6 +1,10 @@
 #ifndef CONFIG_MANAGER_H
 #define CONFIG_MANAGER_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdint.h>
 #include <stdbool.h>
 
@@ -16,12 +20,6 @@
  * This enables automatic generation of the config struct, setters, and NVS integration.
  *
  * IMPORTANT: Each field/key name MUST be max 15 characters (NVS key limit in ESP-IDF).
- *
- * Usage:
- *   - Call config_manager_init() at startup to load config from NVS or set defaults.
- *   - Use config_set_<field>() to update and save a single field to NVS.
- *   - Use config_manager_get() to access the current config (read-only pointer).
- *   - Use config_manager_log_all_keys() to log all NVS keys in the config namespace.
  */
 
 /**
@@ -86,5 +84,11 @@ void config_manager_log_all_keys(void);
  * If the key is unknown, a warning is logged.
  */
 void config_manager_set_from_json(const cJSON *json);
+
+const char *get_or_generate_ap_ssid(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // CONFIG_MANAGER_H

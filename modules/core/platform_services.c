@@ -87,14 +87,20 @@ esp_err_t nvs_flash_safe_init() {
 }
 
 esp_err_t init_mdns_service() {
-    esp_err_t ret =
-        (mdns_init() != ESP_OK || mdns_hostname_set(config_get()->mdns_host) != ESP_OK ||
-         mdns_instance_name_set(config_get()->mdns_instance) != ESP_OK)
-            ? ESP_FAIL
-            : ESP_OK;
+
+    const char *hostname = config_get()->mdns_host;
+
+    if (strlen(hostname) == 0) {
+        hostname = config_get()->dev_name;
+    }
+
+    esp_err_t ret = (mdns_init() != ESP_OK || mdns_hostname_set(hostname) != ESP_OK ||
+                     mdns_instance_name_set(config_get()->mdns_instance) != ESP_OK)
+                        ? ESP_FAIL
+                        : ESP_OK;
 
     if (ret == ESP_OK)
-        ESP_LOGI("mdns", "mDNS started with hostname: %s.local", config_get()->mdns_host);
+        ESP_LOGI("mdns", "mDNS started with hostname: %s.local", hostname);
 
     return ret;
 }

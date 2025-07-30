@@ -63,9 +63,8 @@ static void wifi_sta_connection_task(void *args) {
         bool connected = false;
         for (int i = 0; i < CONFIG_WIFI_STA_BURST_RETRY_COUNT; ++i) {
 
-            ESP_LOGI(TAG_STA, "Connection attempt %d/%d in group (delay: %.2f s)", i + 1,
-                     CONFIG_WIFI_STA_BURST_RETRY_COUNT,
-                     CONFIG_WIFI_STA_BURST_RETRY_DELAY_MS / 1000.0);
+            ESP_LOGI(TAG_STA, "WIFI Connection retry (%d/%d).", i + 1,
+                     CONFIG_WIFI_STA_BURST_RETRY_COUNT);
             ESP_ERROR_CHECK(esp_wifi_disconnect());
             ESP_ERROR_CHECK(esp_wifi_connect());
 
@@ -243,7 +242,7 @@ void wifi_ensure_ap_mode() {
                                       .max_connection = 1,
                                       .authmode = WIFI_AUTH_OPEN}};
 
-    strncpy((char *)ap_config.ap.ssid, config_get()->wifi_ap_ssid, sizeof(ap_config.ap.ssid));
+    strncpy((char *)ap_config.ap.ssid, get_or_generate_ap_ssid(), sizeof(ap_config.ap.ssid) - 1);
 
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_AP));
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_AP, &ap_config));
