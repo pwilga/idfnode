@@ -81,6 +81,8 @@ void debug_info_task(void *args) {
             strcat(bits_str, "HTTPS ");
         if (bits & INTERNET_REACHABLE_BIT)
             strcat(bits_str, "INET ");
+        if (bits & SNTP_SYNCED_BIT)
+            strcat(bits_str, "SNTP ");
 
         ESP_LOGI(TAG, "Set bits: %s", bits_str[0] ? bits_str : "(none)");
 
@@ -88,7 +90,6 @@ void debug_info_task(void *args) {
         ESP_LOGI(TAG, "IP: %s", get_device_ip());
 
         debug_print_tasks_summary();
-        // debug_print_config_summary();
 
         ESP_LOGI(TAG, "=====================");
 
@@ -96,7 +97,7 @@ void debug_info_task(void *args) {
     }
 }
 
-void print_sys_info_task(void *args) {
+void debug_print_sys_info() {
 
     /* Print chip information */
     esp_chip_info_t chip_info;
@@ -111,21 +112,15 @@ void print_sys_info_task(void *args) {
         return;
     }
 
-    while (1) {
+    ESP_LOGI(TAG, "This is %s chip with %d CPU core(s), %s%s%s%s, ", CONFIG_IDF_TARGET,
+             chip_info.cores, (chip_info.features & CHIP_FEATURE_WIFI_BGN) ? "WiFi/" : "",
+             (chip_info.features & CHIP_FEATURE_BT) ? "BT" : "",
+             (chip_info.features & CHIP_FEATURE_BLE) ? "BLE" : "",
+             (chip_info.features & CHIP_FEATURE_IEEE802154) ? ", 802.15.4 (Zigbee/Thread)" : "");
+    ESP_LOGI(TAG, "silicon revision v%d.%d, ", major_rev, minor_rev);
 
-        ESP_LOGI(TAG, "This is %s chip with %d CPU core(s), %s%s%s%s, ", CONFIG_IDF_TARGET,
-                 chip_info.cores, (chip_info.features & CHIP_FEATURE_WIFI_BGN) ? "WiFi/" : "",
-                 (chip_info.features & CHIP_FEATURE_BT) ? "BT" : "",
-                 (chip_info.features & CHIP_FEATURE_BLE) ? "BLE" : "",
-                 (chip_info.features & CHIP_FEATURE_IEEE802154) ? ", 802.15.4 (Zigbee/Thread)"
-                                                                : "");
-        ESP_LOGI(TAG, "silicon revision v%d.%d, ", major_rev, minor_rev);
-
-        ESP_LOGI(TAG, "%" PRIu32 "MB %s flash", flash_size / (uint32_t)(1024 * 1024),
-                 (chip_info.features & CHIP_FEATURE_EMB_FLASH) ? "embedded" : "external");
-
-        vTaskDelay(10000 / portTICK_PERIOD_MS);
-    }
+    ESP_LOGI(TAG, "%" PRIu32 "MB %s flash", flash_size / (uint32_t)(1024 * 1024),
+             (chip_info.features & CHIP_FEATURE_EMB_FLASH) ? "embedded" : "external");
 }
 
 void led_blink_task(void *args) {
@@ -139,14 +134,5 @@ void led_blink_task(void *args) {
         ESP_ERROR_CHECK(gpio_set_level(GPIO_NUM_2, state));
         vTaskDelay(1500 / portTICK_PERIOD_MS);
         state = !state;
-    }
-}
-
-void heartbeat_task(void *args) {
-    static const char *TAG = "heartbeatTask";
-
-    while (1) {
-        ESP_LOGW(TAG, "Computer-generated beating of human heart");
-        vTaskDelay(1500 / portTICK_PERIOD_MS);
     }
 }

@@ -16,7 +16,7 @@ extern "C" {
 #include "json_parser.h"
 
 #define WIFI_STA_CONNECTED_BIT BIT0
-// #define WIFI_STA_FAIL_BIT BIT1
+#define SNTP_SYNCED_BIT BIT1
 #define WIFI_AP_STARTED_BIT BIT2
 #define MQTT_CONNECTED_BIT BIT3
 // #define MQTT_FAIL_BIT BIT4
@@ -80,7 +80,9 @@ esp_err_t nvs_flash_safe_init();
  *
  * @return ESP_OK on success, ESP_FAIL on error.
  */
-esp_err_t init_mdns_service();
+esp_err_t mdns_service_init();
+
+void sntp_service_init();
 
 /**
  * @brief Returns the Wi-Fi MAC address as a 12-character uppercase string (no

@@ -6,10 +6,11 @@ extern "C" {
 #endif
 
 void debug_info_task(void *args);
+void debug_print_config_summary();
+void debug_print_sys_info();
+void debug_print_tasks_summary();
+
 void led_blink_task(void *args);
-void heartbeat_task(void *args);
-void print_sys_info_task(void *args);
-void show_task_info(void *args);
 
 #ifdef __cplusplus
 }

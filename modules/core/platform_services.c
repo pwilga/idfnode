@@ -6,6 +6,7 @@
 #include "esp_netif.h"
 #include "esp_mac.h"
 #include "esp_netif_ip_addr.h"
+#include "esp_netif_sntp.h"
 
 #include "driver/gpio.h"
 #include "mdns.h"
@@ -51,7 +52,7 @@ esp_err_t core_system_init(void) {
     wifi_stack_init();
     wifi_ensure_sta_mode();
 
-    ESP_ERROR_CHECK(init_mdns_service());
+    ESP_ERROR_CHECK(mdns_service_init());
 
     return ESP_OK;
 }
@@ -86,7 +87,7 @@ esp_err_t nvs_flash_safe_init() {
     return ret;
 }
 
-esp_err_t init_mdns_service() {
+esp_err_t mdns_service_init() {
 
     const char *hostname = config_get()->mdns_host;
 
@@ -100,9 +101,59 @@ esp_err_t init_mdns_service() {
                         : ESP_OK;
 
     if (ret == ESP_OK)
-        ESP_LOGI("mdns", "mDNS started with hostname: %s.local", hostname);
+        ESP_LOGI(SYSTAG, "mDNS started with hostname: %s.local", hostname);
 
     return ret;
+}
+static void sntp_sync_cb(struct timeval *tv) {
+    xEventGroupSetBits(app_event_group, SNTP_SYNCED_BIT);
+}
+
+void sntp_service_init() {
+
+    const char *sntp1 = config_get()->sntp1;
+    const char *sntp2 = config_get()->sntp2;
+    const char *sntp3 = config_get()->sntp3;
+
+    int num_of_servers = 0;
+    const char *servers[3] = {NULL, NULL, NULL};
+
+    if (sntp1 && strlen(sntp1) > 0) {
+        servers[num_of_servers++] = sntp1;
+    }
+    if (sntp2 && strlen(sntp2) > 0) {
+        servers[num_of_servers++] = sntp2;
+    }
+    if (sntp3 && strlen(sntp3) > 0) {
+        servers[num_of_servers++] = sntp3;
+    }
+    if (num_of_servers == 0) {
+        ESP_LOGW(SYSTAG, "No SNTP servers configured in config, skipping SNTP init.");
+        return;
+    }
+
+    esp_sntp_config_t config = {
+        .smooth_sync = false,
+        .server_from_dhcp = false,
+        .wait_for_sync = true,
+        .start = true,
+        .sync_cb = sntp_sync_cb,
+        .renew_servers_after_new_IP = false,
+        .ip_event_to_renew = IP_EVENT_STA_GOT_IP,
+        .index_of_first_server = 0,
+        .num_of_servers = num_of_servers,
+        .servers = {NULL, NULL, NULL},
+    };
+
+    for (int i = 0; i < num_of_servers; ++i) {
+        config.servers[i] = servers[i];
+    }
+
+    esp_netif_sntp_init(&config);
+    ESP_LOGI(SYSTAG, "SNTP service initialized, current servers: %s, %s, %s",
+             config.servers[0] ? config.servers[0] : "none",
+             config.servers[1] ? config.servers[1] : "none",
+             config.servers[2] ? config.servers[2] : "none");
 }
 
 const char *get_client_id(void) {

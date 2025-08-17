@@ -169,7 +169,7 @@ static void handle_ota(const int client_sock) {
     }
 
     OTA_LOG_STEP(5); // Reboot
-    esp_safe_restart(NULL);
+    esp_safe_restart();
 }
 
 void tcp_ota_task(void *args) {
@@ -223,4 +223,9 @@ void tcp_ota_task(void *args) {
         shutdown(client_sock, 0);
         close(client_sock);
     }
+}
+
+void tcp_ota_init(void) {
+    xTaskCreate(tcp_ota_task, "tcp_ota", CONFIG_TCP_OTA_TASK_STACK_SIZE, NULL,
+                CONFIG_TCP_OTA_TASK_PRIORITY, NULL);
 }

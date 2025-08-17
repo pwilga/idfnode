@@ -20,7 +20,7 @@ typedef enum {
 #define CMND_LIST                                                                                  \
     CMND(CMND_RESTART, "restart", "Restart the system")                                            \
     CMND(CMND_LED_SET, "onboard_led", "Turn onboard LED on/off")                                   \
-    CMND(CMND_LOG_STATUS, "log", "Set internal value")                                             \
+    CMND(CMND_LOG_DEBUG, "log", "Print debug information")                                         \
     CMND(CMND_SET_AP, "ap", "Enable Wi-Fi Access Point (AP) mode")                                 \
     CMND(CMND_SET_MODE, "mode", "Setting modes of something")                                      \
     CMND(CMND_HA_DISCOVERY, "ha", "MQTT Discovery mode")                                           \
@@ -28,7 +28,8 @@ typedef enum {
     CMND(CMND_HELP, "help", "Print help message on the terminal")                                  \
     CMND(CMND_RESET_CONF, "resetconf", "Reset configuration to factory defaults")                  \
     CMND(CMND_SET_STA, "sta", "Enable Wi-Fi Station (STA) mode")                                   \
-    CMND(CMND_HTTPS, "https", "HTTPS server control")
+    CMND(CMND_HTTPS, "https", "HTTPS server control")                                              \
+    CMND(CMND_SNTP, "sntp", "SNTP server control")
 
 typedef char str32_t[32];
 
@@ -73,9 +74,6 @@ void supervisor_publish_mqtt(const char *topic, const char *payload, int qos, bo
 void supervisor_command_print_all(void);
 void supervisor_state_to_json(cJSON *json_root);
 void supervisor_set_onboard_led_state(bool new_state);
-
-// void supervisor_start_services_for_current_wifi_mode(void);
-// void supervisor_stop_services_for_current_wifi_mode(void);
 
 const supervisor_state_t *state_get(void);
 

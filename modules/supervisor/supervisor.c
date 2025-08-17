@@ -1,7 +1,9 @@
 #include <string.h>
+#include <sys/time.h>
 
 #include "esp_log.h"
 #include "esp_random.h"
+#include "esp_netif_sntp.h"
 
 #include "cJSON.h"
 
@@ -52,21 +54,6 @@ static supervisor_state_t state = {
     TELE_LIST
 #undef TELE
 };
-
-// void supervisor_start_services_for_wifi_mode(wifi_mode_t mode) {
-//     switch (mode) {
-//     case WIFI_MODE_STA:
-// #if CONFIG_MQTT_ENABLE
-//         mqtt_init();
-// #endif
-//         break;
-//     case WIFI_MODE_AP:
-//         https_init();
-//         break;
-//     default:
-//         break;
-//     }
-// }
 
 void supervisor_shutdown_all_wifi_services() {
 #if CONFIG_MQTT_ENABLE
@@ -150,9 +137,9 @@ void command_dispatch(supervisor_command_t *cmd) {
 
         break;
 
-    case CMND_LOG_STATUS:
-        ESP_LOGI(TAG, "Logic state: %d", json_str_as_logic_state(cmd->args_json_str));
-        ESP_LOGI(TAG, "System running, heap: %u kB", esp_get_free_heap_size() / 1024);
+    case CMND_LOG_DEBUG:
+        debug_print_sys_info();
+        debug_print_config_summary();
         break;
 
     case CMND_LED_SET:
@@ -203,6 +190,17 @@ void command_dispatch(supervisor_command_t *cmd) {
             https_shutdown();
         }
         break;
+    case CMND_SNTP:
+        logic_state_t sntp_state = json_str_as_logic_state(cmd->args_json_str);
+
+        if (sntp_state == STATE_ON) {
+            esp_netif_sntp_deinit();
+            sntp_service_init();
+        } else if (sntp_state == STATE_OFF) {
+            esp_netif_sntp_deinit();
+        }
+        break;
+
     default:
         ESP_LOGW(TAG, "Unknown command type: %s", supervisor_command_id(cmd->type));
         break;
@@ -245,9 +243,28 @@ static void supervisor_execute_stage(supervisor_interval_stage_t stage) {
     }
 }
 
+void supervisor_time_synced() {
+
+    static bool first_sync = true;
+
+    if (first_sync) {
+        snprintf(state.startup, sizeof(state.startup), "%s", get_boot_time());
+        first_sync = false;
+    }
+
+    struct timeval now = {0};
+    gettimeofday(&now, NULL);
+
+    struct tm tm_now = {0};
+    localtime_r(&now.tv_sec, &tm_now);
+
+    char buf[32];
+    strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", &tm_now);
+    ESP_LOGW(SYSTAG, "Time synced: %s", buf);
+}
+
 void supervisor_task(void *args) {
 
-    supervisor_init();
     ESP_LOGI(TAG, "Supervisor task started.");
 
     TickType_t last_stage[SUPERVISOR_INTERVAL_COUNT];
@@ -255,9 +272,6 @@ void supervisor_task(void *args) {
         last_stage[i] = xTaskGetTickCount();
 
     supervisor_command_t *cmd;
-
-    // SUPERVISOR_INIT_ONLY, no need to update this field later
-    snprintf(state.startup, sizeof(state.startup), "%s", get_boot_time());
 
     while (1) {
         if (xQueueReceive(supervisor_queue, &cmd, pdMS_TO_TICKS(100))) {
@@ -269,6 +283,14 @@ void supervisor_task(void *args) {
                 cmd->args_json_str = NULL;
             }
             free(cmd);
+        }
+
+        // React on envents from the event group.
+        EventBits_t bits = xEventGroupGetBits(app_event_group);
+
+        if (bits & SNTP_SYNCED_BIT) {
+            xEventGroupClearBits(app_event_group, SNTP_SYNCED_BIT);
+            supervisor_time_synced();
         }
 
         // Main cyclic stage execution, for each interval stage.
@@ -423,17 +445,10 @@ void supervisor_set_onboard_led_state(bool new_state) {
     xEventGroupSetBits(app_event_group, MQTT_TELEMETRY_TRIGGER_BIT);
 }
 
-/**
- * @brief Supervisor WiFi/IP event handler for service management.
- *
- * This handler is registered only to start and stop services (e.g., MQTT, HTTPS)
- * depending on the current WiFi mode or connection state. It does not handle any
- * other logic or application events.
- */
-static void supervisor_wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id,
-                                          void *event_data) {
+static void supervisor_netif_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id,
+                                           void *event_data) {
     if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
-        // supervisor_start_services_for_wifi_mode(WIFI_MODE_STA);
+        sntp_service_init();
 #if CONFIG_MQTT_ENABLE
         mqtt_init();
 #endif
@@ -443,11 +458,9 @@ static void supervisor_wifi_event_handler(void *arg, esp_event_base_t event_base
         switch (event_id) {
         case WIFI_EVENT_AP_START:
             https_init();
-            // supervisor_start_services_for_wifi_mode(WIFI_MODE_AP);
             break;
         case WIFI_EVENT_AP_STOP:
             https_shutdown();
-            // supervisor_shutdown_all_wifi_services(WIFI_MODE_AP);
             break;
         }
     }
@@ -456,18 +469,19 @@ static void supervisor_wifi_event_handler(void *arg, esp_event_base_t event_base
 void supervisor_init() {
 
     ESP_ERROR_CHECK(esp_event_handler_instance_register(
-        WIFI_EVENT, ESP_EVENT_ANY_ID, &supervisor_wifi_event_handler, NULL, NULL));
+        WIFI_EVENT, ESP_EVENT_ANY_ID, &supervisor_netif_event_handler, NULL, NULL));
     ESP_ERROR_CHECK(esp_event_handler_instance_register(
-        IP_EVENT, IP_EVENT_STA_GOT_IP, &supervisor_wifi_event_handler, NULL, NULL));
+        IP_EVENT, IP_EVENT_STA_GOT_IP, &supervisor_netif_event_handler, NULL, NULL));
 
-    xTaskCreate(tcp_ota_task, "tcp_ota", CONFIG_TCP_OTA_TASK_STACK_SIZE, NULL,
-                CONFIG_TCP_OTA_TASK_PRIORITY, NULL);
-    xTaskCreate(udp_monitor_task, "udp_monitor", CONFIG_UDP_MONITOR_TASK_STACK_SIZE, NULL,
-                CONFIG_UDP_MONITOR_TASK_PRIORITY, NULL);
-
-    xTaskCreate(debug_info_task, "debug_info", 4096, NULL, 0, NULL);
-
+    tcp_ota_init();
+    udp_monitor_init();
     button_manager_init(0);
+
+    xTaskCreate(supervisor_task, "supervisor", CONFIG_SUPERVISOR_TASK_STACK_SIZE, NULL,
+                CONFIG_SUPERVISOR_TASK_PRIORITY, NULL);
+
+    // Only for debug purposes, not needed in production.
+    xTaskCreate(debug_info_task, "debug_info", 4096, NULL, 0, NULL);
 }
 
 #if CONFIG_MQTT_ENABLE

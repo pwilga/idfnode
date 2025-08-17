@@ -282,7 +282,15 @@ void wifi_ensure_sta_mode() {
 
 esp_err_t safe_wifi_stop() {
 
-    // Make sure the STA connection task is stopped before stopping WiFi
+    // Atomically (thread-safe) detach the task handle from the global variable,
+    // so that no other code can use or delete it at the same time (prevents race conditions).
+    // vTaskDelete is called outside the critical section, because it may block or take time.
+    //
+    // This pattern should be used whenever a task handle can be accessed or deleted
+    // from multiple contexts (e.g. event handlers, timers, other tasks).
+    //
+    // For simple, single-context code (e.g. only one task manages the handle),
+    // a critical section may not be needed.
     TaskHandle_t sta_tmp_handle = NULL;
 
     taskENTER_CRITICAL(&wifi_sta_task_mux);

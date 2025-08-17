@@ -5,7 +5,7 @@
 extern "C" {
 #endif
 
-void tcp_ota_task(void *args);
+void tcp_ota_init(void);
 
 #ifdef __cplusplus
 }

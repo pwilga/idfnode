@@ -104,3 +104,8 @@ void udp_monitor_task(void *arg) {
         vTaskDelay(pdMS_TO_TICKS(200));
     }
 }
+
+void udp_monitor_init(void) {
+    xTaskCreate(udp_monitor_task, "udp_monitor", CONFIG_UDP_MONITOR_TASK_STACK_SIZE, NULL,
+                CONFIG_UDP_MONITOR_TASK_PRIORITY, NULL);
+}

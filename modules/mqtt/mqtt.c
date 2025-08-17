@@ -293,16 +293,16 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 void mqtt_init() {
 
     if (mqtt_client != NULL) {
-        ESP_LOGW(TAG, "MQTT client already initialized, skipping re-initialization.");
+        // ESP_LOGW(TAG, "MQTT client already initialized, skipping re-initialization.");
         return;
     }
 
     if (is_network_connected() == false) {
-        ESP_LOGE(TAG, "No network connection, cannot initialize MQTT client.");
+        ESP_LOGW(TAG, "No network connection, cannot initialize MQTT client.");
         return;
     }
 
-    ESP_LOGW(TAG, "Initializing MQTT client...");
+    ESP_LOGI(TAG, "Initializing MQTT client...");
 
     bool secure = config_get()->mqtt_mtls_en;
 
