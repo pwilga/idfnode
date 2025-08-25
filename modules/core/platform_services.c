@@ -23,8 +23,8 @@
 EventGroupHandle_t app_event_group;
 QueueHandle_t supervisor_queue;
 
-esp_event_handler_instance_t instance_any_id;
-esp_event_handler_instance_t instance_got_ip;
+// esp_event_handler_instance_t instance_any_id;
+// esp_event_handler_instance_t instance_got_ip;
 
 esp_err_t core_system_init(void) {
 
@@ -49,7 +49,13 @@ esp_err_t core_system_init(void) {
 
     config_manager_init();
 
-    wifi_stack_init();
+    wifi_credentials_t creds = {0};
+    strncpy(creds.sta_ssid, config_get()->wifi_ssid, sizeof(creds.sta_ssid) - 1);
+    strncpy(creds.sta_password, config_get()->wifi_pass, sizeof(creds.sta_password) - 1);
+    strncpy(creds.ap_ssid, get_or_generate_ap_ssid(), sizeof(creds.ap_ssid) - 1);
+    // strncpy(creds.ap_password, config_get()->ap_pass, sizeof(creds.ap_password) - 1);
+
+    wifi_stack_init(&creds);
     wifi_ensure_sta_mode();
 
     ESP_ERROR_CHECK(mdns_service_init());
@@ -61,12 +67,14 @@ void esp_safe_restart() {
 
     ESP_LOGI(SYSTAG, "Restart command received - executing restart.");
 
-    /* Just to avoid errors when esp32 close wifi connection */
-    ESP_ERROR_CHECK(
-        esp_event_handler_instance_unregister(IP_EVENT, IP_EVENT_STA_GOT_IP, instance_got_ip));
+    wifi_unregister_event_handlers();
 
-    ESP_ERROR_CHECK(
-        esp_event_handler_instance_unregister(WIFI_EVENT, ESP_EVENT_ANY_ID, instance_any_id));
+    /* Just to avoid errors when esp32 close wifi connection */
+    // ESP_ERROR_CHECK(
+    //     esp_event_handler_instance_unregister(IP_EVENT, IP_EVENT_STA_GOT_IP, instance_got_ip));
+
+    // ESP_ERROR_CHECK(
+    //     esp_event_handler_instance_unregister(WIFI_EVENT, ESP_EVENT_ANY_ID, instance_any_id));
 
 /* also to avoid error during shutdown */
 #if CONFIG_MQTT_ENABLE

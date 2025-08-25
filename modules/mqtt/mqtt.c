@@ -171,7 +171,12 @@ void mqtt_command_task(void *args) {
 }
 
 void mqtt_publish(const char *topic, const char *payload, int qos, bool retain) {
-    esp_mqtt_client_publish(mqtt_client, topic, payload, 0, qos, retain);
+
+    if (xEventGroupGetBits(app_event_group) & MQTT_CONNECTED_BIT) {
+        esp_mqtt_client_publish(mqtt_client, topic, payload, 0, qos, retain);
+    } else {
+        ESP_LOGW(TAG, "No connection to the MQTT broker, skipping publish to topic: %s", topic);
+    }
 }
 
 static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_t event_id,
@@ -297,10 +302,10 @@ void mqtt_init() {
         return;
     }
 
-    if (is_network_connected() == false) {
-        ESP_LOGW(TAG, "No network connection, cannot initialize MQTT client.");
-        return;
-    }
+    // if (is_network_connected() == false) {
+    //     ESP_LOGW(TAG, "No network connection, cannot initialize MQTT client.");
+    //     return;
+    // }
 
     ESP_LOGI(TAG, "Initializing MQTT client...");
 

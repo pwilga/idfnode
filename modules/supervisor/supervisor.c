@@ -222,8 +222,8 @@ static void supervisor_execute_stage(supervisor_interval_stage_t stage) {
     case SUPERVISOR_INTERVAL_5S:
         state.tempreture = random_float(20.5f, 25.9f);
 
-        is_internet_reachable() ? xEventGroupSetBits(app_event_group, INTERNET_REACHABLE_BIT)
-                                : xEventGroupClearBits(app_event_group, INTERNET_REACHABLE_BIT);
+        // is_internet_reachable() ? xEventGroupSetBits(app_event_group, INTERNET_REACHABLE_BIT)
+        //                         : xEventGroupClearBits(app_event_group, INTERNET_REACHABLE_BIT);
         break;
 
     case SUPERVISOR_INTERVAL_60S:
@@ -487,11 +487,7 @@ void supervisor_init() {
 #if CONFIG_MQTT_ENABLE
 void supervisor_publish_mqtt(const char *topic, const char *payload, int qos, bool retain) {
 
-    if (xEventGroupGetBits(app_event_group) & MQTT_CONNECTED_BIT) {
-        mqtt_publish(topic, payload, qos, retain);
-    } else {
-        ESP_LOGW(TAG, "No connection to the MQTT broker, skipping publish to topic: %s", topic);
-    }
+    mqtt_publish(topic, payload, qos, retain);
 }
 #endif
 

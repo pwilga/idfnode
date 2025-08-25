@@ -15,9 +15,9 @@ extern "C" {
 
 #include "json_parser.h"
 
-#define WIFI_STA_CONNECTED_BIT BIT0
+// #define WIFI_STA_CONNECTED_BIT BIT0
 #define SNTP_SYNCED_BIT BIT1
-#define WIFI_AP_STARTED_BIT BIT2
+// #define WIFI_AP_STARTED_BIT BIT2
 #define MQTT_CONNECTED_BIT BIT3
 // #define MQTT_FAIL_BIT BIT4
 #define MQTT_OFFLINE_PUBLISHED_BIT BIT5
@@ -34,8 +34,8 @@ extern "C" {
 extern EventGroupHandle_t app_event_group;
 extern QueueHandle_t supervisor_queue;
 
-extern esp_event_handler_instance_t instance_any_id;
-extern esp_event_handler_instance_t instance_got_ip;
+// extern esp_event_handler_instance_t instance_any_id;
+// extern esp_event_handler_instance_t instance_got_ip;
 
 /**
  * @brief Initializes global system-wide variables such as event groups.

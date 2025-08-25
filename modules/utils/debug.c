@@ -10,6 +10,8 @@
 
 static const char *TAG = "cikon-debug";
 
+extern EventGroupHandle_t wifi_event_group;
+
 void debug_print_config_summary(void) {
     const config_t *cfg = config_get();
     ESP_LOGI(TAG, "| * CONFIG *");
@@ -60,12 +62,14 @@ void debug_info_task(void *args) {
         size_t free_heap = esp_get_free_heap_size();
         EventBits_t bits = xEventGroupGetBits(app_event_group);
 
+        EventBits_t wifi_bits = xEventGroupGetBits(wifi_event_group);
+
         ESP_LOGI(TAG, "Free heap: %.2f KB", free_heap / 1024.0);
 
         char bits_str[128] = "";
-        if (bits & WIFI_STA_CONNECTED_BIT)
+        if (wifi_bits & BIT0)
             strcat(bits_str, "STA ");
-        if (bits & WIFI_AP_STARTED_BIT)
+        if (wifi_bits & BIT1)
             strcat(bits_str, "AP ");
         if (bits & MQTT_CONNECTED_BIT)
             strcat(bits_str, "MQTT ");

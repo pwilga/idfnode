@@ -4,21 +4,21 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <fcntl.h>
-#include "platform_services.h"
+// #include "platform_services.h"
 #include "config_manager.h"
 #include "net.h"
 
-bool is_network_connected(void) {
-    return xEventGroupGetBits(app_event_group) & (WIFI_STA_CONNECTED_BIT | WIFI_AP_STARTED_BIT);
-}
+// bool is_network_connected(void) {
+//     return xEventGroupGetBits(app_event_group) & (WIFI_STA_CONNECTED_BIT | WIFI_AP_STARTED_BIT);
+// }
 
 bool is_internet_reachable(void) { return is_tcp_port_reachable("8.8.8.8", 53); }
 
 bool is_tcp_port_reachable(const char *host, uint16_t port) {
 
-    if (!(xEventGroupGetBits(app_event_group) & WIFI_STA_CONNECTED_BIT)) {
-        return false;
-    }
+    // if (!(xEventGroupGetBits(app_event_group) & WIFI_STA_CONNECTED_BIT)) {
+    //     return false;
+    // }
 
     struct sockaddr_in addr;
     int sock = socket(AF_INET, SOCK_STREAM, 0);

@@ -5,17 +5,22 @@
 #include "esp_mac.h"
 #include "sdkconfig.h"
 
-#include "config_manager.h"
-#include "platform_services.h"
 #include "wifi.h"
+
+#define WIFI_STA_CONNECTED_BIT BIT0
+#define WIFI_AP_STARTED_BIT BIT1
 
 #define TAG "cikon-wifi"
 #define TAG_STA TAG "-sta"
 #define TAG_AP TAG "-ap"
 
+static wifi_credentials_t wifi_creds;
+
 esp_netif_t *sta_netif, *ap_netif;
-bool ignore_sta_disconnect_event = false;
+
+static bool ignore_sta_disconnect_event = false;
 static bool ap_has_client = false;
+
 static TaskHandle_t wifi_sta_connection_task_handle = NULL;
 static TaskHandle_t wifi_ap_task_handle = NULL;
 
@@ -23,6 +28,11 @@ volatile static uint32_t ap_seconds_without_clients = 0;
 
 static portMUX_TYPE wifi_sta_task_mux = portMUX_INITIALIZER_UNLOCKED;
 static portMUX_TYPE wifi_ap_timeout_mux = portMUX_INITIALIZER_UNLOCKED;
+
+static esp_event_handler_instance_t instance_any_id;
+static esp_event_handler_instance_t instance_got_ip;
+
+EventGroupHandle_t wifi_event_group = NULL;
 
 const char *wifi_disconnect_reason_str(uint8_t reason) {
     switch (reason) {
@@ -69,7 +79,7 @@ static void wifi_sta_connection_task(void *args) {
             ESP_ERROR_CHECK(esp_wifi_connect());
 
             EventBits_t bits =
-                xEventGroupWaitBits(app_event_group, WIFI_STA_CONNECTED_BIT, pdFALSE, pdFALSE,
+                xEventGroupWaitBits(wifi_event_group, WIFI_STA_CONNECTED_BIT, pdFALSE, pdFALSE,
                                     pdMS_TO_TICKS(CONFIG_WIFI_STA_BURST_RETRY_DELAY_MS));
 
             if (bits & WIFI_STA_CONNECTED_BIT) {
@@ -109,7 +119,7 @@ static void wifi_ap_timeout_task(void *args) {
 
     const int timeout_seconds = CONFIG_WIFI_AP_INACTIVITY_TIMEOUT_MINUTES * 60;
 
-    while (xEventGroupGetBits(app_event_group) & WIFI_AP_STARTED_BIT) {
+    while (xEventGroupGetBits(wifi_event_group) & WIFI_AP_STARTED_BIT) {
         if (ap_has_client) {
 
             taskENTER_CRITICAL(&wifi_ap_timeout_mux);
@@ -156,7 +166,7 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t e
 
         case WIFI_EVENT_STA_DISCONNECTED:
 
-            xEventGroupClearBits(app_event_group, WIFI_STA_CONNECTED_BIT);
+            xEventGroupClearBits(wifi_event_group, WIFI_STA_CONNECTED_BIT);
 
             wifi_event_sta_disconnected_t *disconn = (wifi_event_sta_disconnected_t *)event_data;
             ESP_LOGI(TAG_STA, "Disconnected, reason: %d (%s)", disconn->reason,
@@ -174,7 +184,7 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t e
             break;
 
         case WIFI_EVENT_AP_START:
-            xEventGroupSetBits(app_event_group, WIFI_AP_STARTED_BIT);
+            xEventGroupSetBits(wifi_event_group, WIFI_AP_STARTED_BIT);
             ap_has_client = false;
 
             if (wifi_ap_task_handle != NULL) {
@@ -192,7 +202,7 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t e
 
         case WIFI_EVENT_AP_STOP:
             ESP_LOGI(TAG_AP, "Access Point (AP) has been stopped.");
-            xEventGroupClearBits(app_event_group, WIFI_AP_STARTED_BIT);
+            xEventGroupClearBits(wifi_event_group, WIFI_AP_STARTED_BIT);
             break;
 
         case WIFI_EVENT_AP_STACONNECTED:
@@ -210,16 +220,34 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t e
 
     } else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
         ESP_LOGI(TAG_STA, "Successfully connected to WiFi network (SSID: %s).",
-                 config_get()->wifi_ssid);
+                 wifi_creds.sta_ssid);
 
-        xEventGroupSetBits(app_event_group, WIFI_STA_CONNECTED_BIT);
+        xEventGroupSetBits(wifi_event_group, WIFI_STA_CONNECTED_BIT);
     }
 }
 
-void wifi_stack_init() {
+void wifi_unregister_event_handlers() {
+    /* Just to avoid errors when esp32 close wifi connection */
+    ESP_ERROR_CHECK(
+        esp_event_handler_instance_unregister(IP_EVENT, IP_EVENT_STA_GOT_IP, instance_got_ip));
+
+    ESP_ERROR_CHECK(
+        esp_event_handler_instance_unregister(WIFI_EVENT, ESP_EVENT_ANY_ID, instance_any_id));
+}
+
+bool is_wifi_network_connected(void) {
+    return xEventGroupGetBits(wifi_event_group) & (WIFI_STA_CONNECTED_BIT | WIFI_AP_STARTED_BIT);
+}
+
+void wifi_stack_init(const wifi_credentials_t *creds) {
+
+    if (creds) {
+        wifi_creds = *creds;
+    }
+
+    static StaticEventGroup_t event_group_storage;
 
     ESP_ERROR_CHECK(esp_netif_init());
-
     ESP_ERROR_CHECK(esp_event_loop_create_default());
 
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
@@ -229,6 +257,15 @@ void wifi_stack_init() {
         WIFI_EVENT, ESP_EVENT_ANY_ID, &wifi_event_handler, NULL, &instance_any_id));
     ESP_ERROR_CHECK(esp_event_handler_instance_register(
         IP_EVENT, IP_EVENT_STA_GOT_IP, &wifi_event_handler, NULL, &instance_got_ip));
+
+    if (wifi_event_group == NULL) {
+        wifi_event_group = xEventGroupCreateStatic(&event_group_storage);
+        // wifi_event_group = xEventGroupCreate();
+    }
+
+    if (!wifi_event_group) {
+        ESP_LOGE(TAG, "Failed to create wifi event group!");
+    }
 }
 
 void wifi_ensure_ap_mode() {
@@ -242,7 +279,7 @@ void wifi_ensure_ap_mode() {
                                       .max_connection = 1,
                                       .authmode = WIFI_AUTH_OPEN}};
 
-    strncpy((char *)ap_config.ap.ssid, get_or_generate_ap_ssid(), sizeof(ap_config.ap.ssid) - 1);
+    strncpy((char *)ap_config.ap.ssid, wifi_creds.ap_ssid, sizeof(ap_config.ap.ssid) - 1);
 
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_AP));
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_AP, &ap_config));
@@ -264,9 +301,9 @@ void wifi_ensure_sta_mode() {
 
     wifi_config_t sta_config = {0};
 
-    strncpy((char *)sta_config.sta.ssid, config_get()->wifi_ssid, sizeof(sta_config.sta.ssid));
-    strncpy((char *)sta_config.sta.password, config_get()->wifi_pass,
-            sizeof(sta_config.sta.password));
+    strncpy((char *)sta_config.sta.ssid, wifi_creds.sta_ssid, sizeof(sta_config.sta.ssid) - 1);
+    strncpy((char *)sta_config.sta.password, wifi_creds.sta_password,
+            sizeof(sta_config.sta.password) - 1);
 
     sta_config.sta.threshold.authmode = WIFI_AUTH_WPA2_PSK;
 
@@ -309,7 +346,7 @@ esp_err_t safe_wifi_stop() {
     esp_wifi_disconnect();
     esp_err_t err = esp_wifi_stop();
 
-    xEventGroupClearBits(app_event_group, WIFI_STA_CONNECTED_BIT | WIFI_AP_STARTED_BIT);
+    xEventGroupClearBits(wifi_event_group, WIFI_STA_CONNECTED_BIT | WIFI_AP_STARTED_BIT);
 
     if (sta_netif) {
         esp_netif_destroy(sta_netif);
