@@ -7,10 +7,10 @@
 #include "string.h"
 #include "supervisor.h"
 #include "config_manager.h"
+#include "mqtt.h"
+#include "wifi.h"
 
 static const char *TAG = "cikon-debug";
-
-extern EventGroupHandle_t wifi_event_group;
 
 void debug_print_config_summary(void) {
     const config_t *cfg = config_get();
@@ -60,38 +60,16 @@ void debug_info_task(void *args) {
     while (1) {
 
         size_t free_heap = esp_get_free_heap_size();
-        EventBits_t bits = xEventGroupGetBits(app_event_group);
-
-        EventBits_t wifi_bits = xEventGroupGetBits(wifi_event_group);
-
         ESP_LOGI(TAG, "Free heap: %.2f KB", free_heap / 1024.0);
 
-        char bits_str[128] = "";
-        if (wifi_bits & BIT0)
-            strcat(bits_str, "STA ");
-        if (wifi_bits & BIT1)
-            strcat(bits_str, "AP ");
-        if (bits & MQTT_CONNECTED_BIT)
-            strcat(bits_str, "MQTT ");
-        if (bits & HTTPS_SHUTDOWN_INITIATED_BIT)
-            strcat(bits_str, "HTTPS_SHUT ");
-        if (bits & MQTT_TELEMETRY_TRIGGER_BIT)
-            strcat(bits_str, "TEL ");
-        if (bits & MQTT_OFFLINE_PUBLISHED_BIT)
-            strcat(bits_str, "MQTT_OFF ");
-        if (bits & MQTT_TASKS_SHUTDOWN_BIT)
-            strcat(bits_str, "MQTT_SHUT ");
-        if (bits & HTTPS_SERVER_STARTED_BIT)
-            strcat(bits_str, "HTTPS ");
-        if (bits & INTERNET_REACHABLE_BIT)
-            strcat(bits_str, "INET ");
-        if (bits & SNTP_SYNCED_BIT)
-            strcat(bits_str, "SNTP ");
-
-        ESP_LOGI(TAG, "Set bits: %s", bits_str[0] ? bits_str : "(none)");
+        wifi_log_event_group_bits();
+        mqtt_log_event_group_bits();
 
         ESP_LOGI(TAG, "Uptime: %lu s", (unsigned long)state_get()->uptime);
-        ESP_LOGI(TAG, "IP: %s", get_device_ip());
+
+        char ip[16];
+        wifi_get_interface_ip(ip, sizeof(ip));
+        ESP_LOGI(TAG, "IP: %s", ip);
 
         debug_print_tasks_summary();
 

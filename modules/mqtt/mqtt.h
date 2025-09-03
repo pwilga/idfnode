@@ -6,18 +6,16 @@ extern "C" {
 #endif
 
 #include "config_manager.h"
-#include "mqtt_client.h"
-#include "platform_services.h"
 
-#define TELEMETRY_INTERVAL_MS 5000
-#define MQTT_RX_BUFFER_SIZE 1024
-#define MQTT_QOS 0
+#include "platform_services.h"
 
 void mqtt_init(void);
 void mqtt_shutdown(void);
 void mqtt_publish_offline_state(void);
 
 void mqtt_publish(const char *topic, const char *payload, int qos, bool retain);
+void mqtt_trigger_telemetry(void);
+void mqtt_log_event_group_bits(void);
 
 static inline void get_mqtt_topic(char *buf, size_t buf_size, const char *suffix) {
     snprintf(buf, buf_size, "%s/%s/%s", config_get()->mqtt_node, get_client_id(), suffix);

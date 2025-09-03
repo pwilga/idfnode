@@ -29,6 +29,10 @@
 
 const char *TAG = "cikon-supervisor";
 
+#define SNTP_SYNCED_BIT BIT0
+
+static QueueHandle_t supervisor_queue;
+static EventGroupHandle_t supervisor_event_group;
 typedef enum {
     SUPERVISOR_INTERVAL_1S,
     SUPERVISOR_INTERVAL_5S,
@@ -54,6 +58,16 @@ static supervisor_state_t state = {
     TELE_LIST
 #undef TELE
 };
+
+static void supervisor_sntp_sync_cb(struct timeval *tv) {
+    xEventGroupSetBits(supervisor_event_group, SNTP_SYNCED_BIT);
+}
+
+static void supervisor_restart_cb() {
+    wifi_unregister_event_handlers();
+    mqtt_publish_offline_state();
+    mqtt_shutdown();
+}
 
 void supervisor_shutdown_all_wifi_services() {
 #if CONFIG_MQTT_ENABLE
@@ -144,22 +158,31 @@ void command_dispatch(supervisor_command_t *cmd) {
 
     case CMND_LED_SET:
         logic_state_t state = json_str_as_logic_state(cmd->args_json_str);
-        onboard_led_set_state(state);
+
+        bool new_state;
+
+        if (state == STATE_TOGGLE)
+            new_state = !get_onboard_led_state();
+        else
+            new_state = state == STATE_ON ? true : false;
+
+        onboard_led_set_state(new_state);
+        supervisor_set_onboard_led_state(new_state);
         break;
 
     case CMND_SET_AP:
         supervisor_shutdown_all_wifi_services();
-        wifi_ensure_ap_mode();
+        wifi_init_ap_mode();
 
         break;
     case CMND_SET_STA:
         supervisor_shutdown_all_wifi_services();
-        wifi_ensure_sta_mode();
+        wifi_init_sta_mode();
 
         break;
 
     case CMND_HELP:
-        supervisor_command_print_all();
+        supervisor_print_help();
         break;
 
     case CMND_SET_CONF:
@@ -260,7 +283,7 @@ void supervisor_time_synced() {
 
     char buf[32];
     strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", &tm_now);
-    ESP_LOGW(SYSTAG, "Time synced: %s", buf);
+    ESP_LOGW(TAG, "Time synced: %s", buf);
 }
 
 void supervisor_task(void *args) {
@@ -286,10 +309,10 @@ void supervisor_task(void *args) {
         }
 
         // React on envents from the event group.
-        EventBits_t bits = xEventGroupGetBits(app_event_group);
+        EventBits_t bits = xEventGroupGetBits(supervisor_event_group);
 
         if (bits & SNTP_SYNCED_BIT) {
-            xEventGroupClearBits(app_event_group, SNTP_SYNCED_BIT);
+            xEventGroupClearBits(supervisor_event_group, SNTP_SYNCED_BIT);
             supervisor_time_synced();
         }
 
@@ -305,7 +328,7 @@ void supervisor_task(void *args) {
     }
 }
 
-void supervisor_command_print_all(void) {
+void supervisor_print_help(void) {
 
     ESP_LOGI(TAG, "Available supervisor commands:");
 
@@ -442,7 +465,8 @@ void supervisor_set_onboard_led_state(bool new_state) {
     if (state.onboard_led == new_state)
         return;
     state.onboard_led = new_state;
-    xEventGroupSetBits(app_event_group, MQTT_TELEMETRY_TRIGGER_BIT);
+    mqtt_trigger_telemetry();
+    // xEventGroupSetBits(app_event_group, MQTT_TELEMETRY_TRIGGER_BIT);
 }
 
 static void supervisor_netif_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id,
@@ -466,7 +490,44 @@ static void supervisor_netif_event_handler(void *arg, esp_event_base_t event_bas
     }
 }
 
+void supervisor_init_platform_services() {
+
+    ESP_ERROR_CHECK(nvs_flash_safe_init());
+
+    config_manager_init();
+
+    wifi_credentials_t creds = {0};
+    strncpy(creds.sta_ssid, config_get()->wifi_ssid, sizeof(creds.sta_ssid) - 1);
+    strncpy(creds.sta_password, config_get()->wifi_pass, sizeof(creds.sta_password) - 1);
+    strncpy(creds.ap_ssid, get_or_generate_ap_ssid(), sizeof(creds.ap_ssid) - 1);
+    // strncpy(creds.ap_password, config_get()->ap_pass, sizeof(creds.ap_password) - 1);
+
+    wifi_configure(&creds);
+    wifi_init_sta_mode();
+
+    const char *hostname = config_get()->mdns_host;
+
+    if (strlen(hostname) == 0) {
+        hostname = config_get()->dev_name;
+    }
+    mdns_service_configure(hostname, config_get()->mdns_instance);
+    mdns_service_init();
+
+    core_system_init();
+
+    /* Configure platform services */
+    state.onboard_led = get_onboard_led_state();
+
+    set_restart_callback(supervisor_restart_cb);
+
+    sntp_service_configure(
+        (const char *[]){config_get()->sntp1, config_get()->sntp2, config_get()->sntp3},
+        supervisor_sntp_sync_cb);
+}
+
 void supervisor_init() {
+
+    supervisor_init_platform_services();
 
     ESP_ERROR_CHECK(esp_event_handler_instance_register(
         WIFI_EVENT, ESP_EVENT_ANY_ID, &supervisor_netif_event_handler, NULL, NULL));
@@ -476,6 +537,30 @@ void supervisor_init() {
     tcp_ota_init();
     udp_monitor_init();
     button_manager_init(0);
+
+    static StaticQueue_t supervisor_queue_storage;
+    static uint8_t
+        supervisor_queue_buffer[CONFIG_SUPERVISOR_QUEUE_LENGTH * sizeof(supervisor_command_t *)];
+
+    supervisor_queue =
+        xQueueCreateStatic(CONFIG_SUPERVISOR_QUEUE_LENGTH, sizeof(supervisor_command_t *),
+                           supervisor_queue_buffer, &supervisor_queue_storage);
+
+    if (!supervisor_queue) {
+        ESP_LOGE(TAG, "Failed to create supervisor dispatcher queue!");
+        return;
+    }
+
+    static StaticEventGroup_t supervisor_event_group_storage;
+
+    if (supervisor_event_group == NULL) {
+        supervisor_event_group = xEventGroupCreateStatic(&supervisor_event_group_storage);
+    }
+
+    if (!supervisor_event_group) {
+        ESP_LOGE(TAG, "Failed to create supervisor event group!");
+        return;
+    }
 
     xTaskCreate(supervisor_task, "supervisor", CONFIG_SUPERVISOR_TASK_STACK_SIZE, NULL,
                 CONFIG_SUPERVISOR_TASK_PRIORITY, NULL);

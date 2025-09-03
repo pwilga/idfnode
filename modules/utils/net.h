@@ -23,7 +23,7 @@ bool is_mqtt_broker_reachable(void);
  *
  * @return true if any network interface is connected, false otherwise.
  */
-bool is_network_connected(void);
+// bool is_network_connected(void);
 
 #ifdef __cplusplus
 }

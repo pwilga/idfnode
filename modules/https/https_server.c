@@ -11,11 +11,13 @@
 #include <esp_system.h>
 
 #include "config_manager.h"
-#include "platform_services.h"
 #include "supervisor.h"
 
 #define TAG "cikon-https"
 #define HTTPS_INACTIVITY_TIMEOUT_MS 60000
+
+#define HTTPS_SHUTDOWN_INITIATED_BIT BIT0
+#define HTTPS_SERVER_STARTED_BIT BIT1
 
 extern const uint8_t ca_crt_start[] asm("_binary_ca_crt_start");
 extern const uint8_t ca_crt_end[] asm("_binary_ca_crt_end");
@@ -24,8 +26,9 @@ extern const uint8_t cikonesp_crt_end[] asm("_binary_cikonesp_crt_end");
 extern const uint8_t cikonesp_key_start[] asm("_binary_cikonesp_key_start");
 extern const uint8_t cikonesp_key_end[] asm("_binary_cikonesp_key_end");
 
-static httpd_handle_t https_server_handle = NULL;
 static TimerHandle_t https_inactivity_timer = NULL;
+static EventGroupHandle_t https_event_group = NULL;
+static httpd_handle_t https_server_handle = NULL;
 
 static void https_inactivity_timer_callback(TimerHandle_t xTimer) {
     ESP_LOGW(TAG, "HTTPS inactivity timer: %.1f s timeout, restarting server",
@@ -54,6 +57,18 @@ static void https_restart_inactivity_timer(void) {
 }
 
 void https_init(void) {
+
+    static StaticEventGroup_t http_event_group_storage;
+
+    if (https_event_group == NULL) {
+        https_event_group = xEventGroupCreateStatic(&http_event_group_storage);
+    }
+
+    if (!https_event_group) {
+        ESP_LOGE(TAG, "Failed to create supervisor event group!");
+        return;
+    }
+
     if (!https_inactivity_timer) {
         // Set timer period to 1 tick (minimum, will be changed on use)
         https_inactivity_timer =
@@ -67,7 +82,7 @@ void https_shutdown(void) {
     if (https_server_handle == NULL)
         return;
 
-    xEventGroupSetBits(app_event_group, HTTPS_SHUTDOWN_INITIATED_BIT);
+    xEventGroupSetBits(https_event_group, HTTPS_SHUTDOWN_INITIATED_BIT);
 
     uint8_t timeout = 100;
     while (https_server_handle != NULL && timeout--)
@@ -200,16 +215,17 @@ void https_server_stop(void) {
 void https_server_task(void *args) {
 
     https_server_start();
-    xEventGroupSetBits(app_event_group, HTTPS_SERVER_STARTED_BIT);
+    xEventGroupSetBits(https_event_group, HTTPS_SERVER_STARTED_BIT);
 
-    while (!(xEventGroupGetBits(app_event_group) & HTTPS_SHUTDOWN_INITIATED_BIT)) {
+    while (!(xEventGroupGetBits(https_event_group) & HTTPS_SHUTDOWN_INITIATED_BIT)) {
         vTaskDelay(pdMS_TO_TICKS(100));
     }
 
     https_server_stop();
     // ESP_LOGE(TAG, "HTTPS server task exiting");
 
-    xEventGroupClearBits(app_event_group, HTTPS_SHUTDOWN_INITIATED_BIT | HTTPS_SERVER_STARTED_BIT);
+    xEventGroupClearBits(https_event_group,
+                         HTTPS_SHUTDOWN_INITIATED_BIT | HTTPS_SERVER_STARTED_BIT);
     https_server_handle = NULL;
     vTaskDelete(NULL);
 }

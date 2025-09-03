@@ -6,6 +6,7 @@
 
 #include "esp_event_base.h"
 #include "esp_log.h"
+#include "mqtt_client.h"
 
 #include "cJSON.h"
 
@@ -21,9 +22,15 @@
 #define TAG "cikon-mqtt"
 #define TOPIC_BUF_SIZE 128
 
+#define MQTT_CONNECTED_BIT BIT0
+#define MQTT_OFFLINE_PUBLISHED_BIT BIT1
+#define MQTT_TASKS_SHUTDOWN_BIT BIT2
+#define MQTT_TELEMETRY_TRIGGER_BIT BIT3
+
 static TaskHandle_t mqtt_command_task_handle, mqtt_telemetry_task_handle;
 
 static esp_mqtt_client_handle_t mqtt_client;
+static EventGroupHandle_t mqtt_event_group;
 static QueueHandle_t mqtt_queue;
 
 static bool mqtt_skip_current_msg = false;
@@ -39,7 +46,8 @@ static void mqtt_shutdown_task(void *args) {
 
 void mqtt_publish_telemetry(void) {
 
-    if (!(xEventGroupGetBits(app_event_group) & MQTT_CONNECTED_BIT)) {
+    // To be removed ? Analyze this !!!
+    if (!(xEventGroupGetBits(mqtt_event_group) & MQTT_CONNECTED_BIT)) {
         // Prevent console spam on repeated connection failures.
         static int not_connected_counter = 0;
         not_connected_counter++;
@@ -58,7 +66,7 @@ void mqtt_publish_telemetry(void) {
     char topic[TOPIC_BUF_SIZE];
     MQTT_TELEMETRY_TOPIC(topic);
 
-    esp_mqtt_client_publish(mqtt_client, topic, json_str, 0, MQTT_QOS, false);
+    esp_mqtt_client_publish(mqtt_client, topic, json_str, 0, CONFIG_MQTT_QOS, false);
 
     free(json_str);
     cJSON_Delete(json);
@@ -66,7 +74,7 @@ void mqtt_publish_telemetry(void) {
 
 void mqtt_publish_offline_state(void) {
 
-    if (!(xEventGroupGetBits(app_event_group) & MQTT_CONNECTED_BIT)) {
+    if (!(xEventGroupGetBits(mqtt_event_group) & MQTT_CONNECTED_BIT)) {
 
         ESP_LOGW(TAG, "Client not connected, skipping offline state publish");
         return;
@@ -77,7 +85,7 @@ void mqtt_publish_offline_state(void) {
 
     esp_mqtt_client_publish(mqtt_client, aval_buf_topic, "offline", 0, 1, true);
 
-    EventBits_t bits = xEventGroupWaitBits(app_event_group, MQTT_OFFLINE_PUBLISHED_BIT, pdTRUE,
+    EventBits_t bits = xEventGroupWaitBits(mqtt_event_group, MQTT_OFFLINE_PUBLISHED_BIT, pdTRUE,
                                            pdFALSE, pdMS_TO_TICKS(1000));
 
     if (bits & MQTT_OFFLINE_PUBLISHED_BIT) {
@@ -94,19 +102,19 @@ void mqtt_telemetry_task(void *args) {
         char topic[TOPIC_BUF_SIZE];
 
         MQTT_AVAILABILITY_TOPIC(topic);
-        esp_mqtt_client_publish(mqtt_client, topic, "online", 0, MQTT_QOS, true);
+        esp_mqtt_client_publish(mqtt_client, topic, "online", 0, CONFIG_MQTT_QOS, true);
     }
 
-    while (!(xEventGroupGetBits(app_event_group) & MQTT_TASKS_SHUTDOWN_BIT)) {
+    while (!(xEventGroupGetBits(mqtt_event_group) & MQTT_TASKS_SHUTDOWN_BIT)) {
 
         mqtt_publish_telemetry();
 
         EventBits_t bits = xEventGroupWaitBits(
-            app_event_group, MQTT_TELEMETRY_TRIGGER_BIT | MQTT_TASKS_SHUTDOWN_BIT, pdFALSE, pdFALSE,
-            pdMS_TO_TICKS(TELEMETRY_INTERVAL_MS));
+            mqtt_event_group, MQTT_TELEMETRY_TRIGGER_BIT | MQTT_TASKS_SHUTDOWN_BIT, pdFALSE,
+            pdFALSE, pdMS_TO_TICKS(CONFIG_MQTT_TELEMETRY_INTERVAL_MS));
 
         if (bits & MQTT_TELEMETRY_TRIGGER_BIT) {
-            xEventGroupClearBits(app_event_group, MQTT_TELEMETRY_TRIGGER_BIT);
+            xEventGroupClearBits(mqtt_event_group, MQTT_TELEMETRY_TRIGGER_BIT);
         }
 
         if (bits & MQTT_TASKS_SHUTDOWN_BIT) {
@@ -115,7 +123,7 @@ void mqtt_telemetry_task(void *args) {
     }
 
     ESP_LOGE(TAG, "telemetry_task: exiting");
-    xEventGroupClearBits(app_event_group, MQTT_TELEMETRY_TRIGGER_BIT);
+    xEventGroupClearBits(mqtt_event_group, MQTT_TELEMETRY_TRIGGER_BIT);
     mqtt_telemetry_task_handle = NULL;
     vTaskDelete(NULL);
 }
@@ -127,7 +135,7 @@ void mqtt_command_task(void *args) {
         char topic[TOPIC_BUF_SIZE];
         MQTT_COMMAND_TOPIC(topic);
 
-        if (esp_mqtt_client_subscribe(mqtt_client, topic, MQTT_QOS) < 0) {
+        if (esp_mqtt_client_subscribe(mqtt_client, topic, CONFIG_MQTT_QOS) < 0) {
             ESP_LOGE(TAG, "Unable to subscribe to MQTT topic '%s'", topic);
             vTaskDelete(NULL);
         }
@@ -135,7 +143,7 @@ void mqtt_command_task(void *args) {
 
     char *msg = NULL; // ensure safe free() even if xQueueReceive fails
 
-    while (!(xEventGroupGetBits(app_event_group) & MQTT_TASKS_SHUTDOWN_BIT)) {
+    while (!(xEventGroupGetBits(mqtt_event_group) & MQTT_TASKS_SHUTDOWN_BIT)) {
 
         if (xQueueReceive(mqtt_queue, &msg, pdMS_TO_TICKS(100)) == pdFALSE)
             goto cleanup;
@@ -150,7 +158,7 @@ void mqtt_command_task(void *args) {
             goto cleanup;
 
         supervisor_process_command_payload(payload);
-        xEventGroupSetBits(app_event_group, MQTT_TELEMETRY_TRIGGER_BIT);
+        xEventGroupSetBits(mqtt_event_group, MQTT_TELEMETRY_TRIGGER_BIT);
 
     cleanup:
         if (msg) {
@@ -172,7 +180,7 @@ void mqtt_command_task(void *args) {
 
 void mqtt_publish(const char *topic, const char *payload, int qos, bool retain) {
 
-    if (xEventGroupGetBits(app_event_group) & MQTT_CONNECTED_BIT) {
+    if (xEventGroupGetBits(mqtt_event_group) & MQTT_CONNECTED_BIT) {
         esp_mqtt_client_publish(mqtt_client, topic, payload, 0, qos, retain);
     } else {
         ESP_LOGW(TAG, "No connection to the MQTT broker, skipping publish to topic: %s", topic);
@@ -188,8 +196,8 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
     case MQTT_EVENT_CONNECTED:
 
         mqtt_retry_counter = 0;
-        xEventGroupSetBits(app_event_group, MQTT_CONNECTED_BIT);
-        xEventGroupClearBits(app_event_group, MQTT_TASKS_SHUTDOWN_BIT);
+        xEventGroupSetBits(mqtt_event_group, MQTT_CONNECTED_BIT);
+        xEventGroupClearBits(mqtt_event_group, MQTT_TASKS_SHUTDOWN_BIT);
 
         mqtt_queue = xQueueCreate(8, sizeof(void *));
         assert(mqtt_queue != NULL);
@@ -210,12 +218,12 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 
         break;
     case MQTT_EVENT_ERROR:
-        xEventGroupClearBits(app_event_group, MQTT_CONNECTED_BIT);
+        xEventGroupClearBits(mqtt_event_group, MQTT_CONNECTED_BIT);
         break;
     case MQTT_EVENT_DISCONNECTED:
 
-        xEventGroupClearBits(app_event_group, MQTT_CONNECTED_BIT);
-        xEventGroupSetBits(app_event_group, MQTT_TASKS_SHUTDOWN_BIT);
+        xEventGroupClearBits(mqtt_event_group, MQTT_CONNECTED_BIT);
+        xEventGroupSetBits(mqtt_event_group, MQTT_TASKS_SHUTDOWN_BIT);
 
         if (mqtt_retry_counter < config_get()->mqtt_max_retry) {
             ESP_LOGW(TAG, "MQTT disconnected, retrying connection (%d/%d)", mqtt_retry_counter + 1,
@@ -242,9 +250,9 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
         if (event->current_data_offset == 0) {
             mqtt_skip_current_msg = false;
 
-            if (event->total_data_len > MQTT_RX_BUFFER_SIZE - 14) {
+            if (event->total_data_len > CONFIG_MQTT_RX_BUFFER_SIZE - 14) {
                 ESP_LOGW(TAG, "Skipping oversized payload (%d > %d)", event->total_data_len,
-                         MQTT_RX_BUFFER_SIZE - 14);
+                         CONFIG_MQTT_RX_BUFFER_SIZE - 14);
                 mqtt_skip_current_msg = true;
                 break;
             }
@@ -278,7 +286,7 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
         message_buf[message_len - 1] = '\0';
 
         if (mqtt_queue != NULL &&
-            !(xEventGroupGetBits(app_event_group) & MQTT_TASKS_SHUTDOWN_BIT)) {
+            !(xEventGroupGetBits(mqtt_event_group) & MQTT_TASKS_SHUTDOWN_BIT)) {
 
             if (xQueueSend(mqtt_queue, &message_buf, portMAX_DELAY) != pdTRUE) {
                 ESP_LOGW(TAG, "Queue limit exceeded — message not enqueued");
@@ -288,7 +296,7 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 
         break;
     case MQTT_EVENT_PUBLISHED:
-        xEventGroupSetBits(app_event_group, MQTT_OFFLINE_PUBLISHED_BIT);
+        xEventGroupSetBits(mqtt_event_group, MQTT_OFFLINE_PUBLISHED_BIT);
         break;
     default:
         break;
@@ -308,6 +316,17 @@ void mqtt_init() {
     // }
 
     ESP_LOGI(TAG, "Initializing MQTT client...");
+
+    static StaticEventGroup_t mqtt_event_group_storage;
+
+    if (mqtt_event_group == NULL) {
+        mqtt_event_group = xEventGroupCreateStatic(&mqtt_event_group_storage);
+    }
+
+    if (!mqtt_event_group) {
+        ESP_LOGE(TAG, "Failed to create MQTT event group!");
+        return;
+    }
 
     bool secure = config_get()->mqtt_mtls_en;
 
@@ -331,7 +350,7 @@ void mqtt_init() {
                         .key = secure ? (const char *)cikonesp_key_start : NULL,
                     },
             },
-        .buffer.size = MQTT_RX_BUFFER_SIZE,
+        .buffer.size = CONFIG_MQTT_RX_BUFFER_SIZE,
         .session =
             {
                 .keepalive = 15,
@@ -355,13 +374,31 @@ void mqtt_shutdown() {
     if (mqtt_client == NULL)
         return;
 
-    xEventGroupSetBits(app_event_group, MQTT_TASKS_SHUTDOWN_BIT);
+    xEventGroupSetBits(mqtt_event_group, MQTT_TASKS_SHUTDOWN_BIT);
 
     ESP_ERROR_CHECK(esp_mqtt_client_stop(mqtt_client));
     ESP_ERROR_CHECK(esp_mqtt_client_destroy(mqtt_client));
     mqtt_client = NULL;
 
-    xEventGroupClearBits(app_event_group, MQTT_CONNECTED_BIT);
+    xEventGroupClearBits(mqtt_event_group, MQTT_CONNECTED_BIT);
+}
+
+void mqtt_trigger_telemetry(void) {
+    if (mqtt_event_group) {
+        xEventGroupSetBits(mqtt_event_group, MQTT_TELEMETRY_TRIGGER_BIT);
+    }
+}
+
+void mqtt_log_event_group_bits(void) {
+
+    if (!mqtt_event_group)
+        return;
+
+    EventBits_t bits = xEventGroupGetBits(mqtt_event_group);
+    ESP_LOGI(TAG, "MQTT bits: %s%s%s%s", (bits & MQTT_CONNECTED_BIT) ? "CONNECTED " : "",
+             (bits & MQTT_OFFLINE_PUBLISHED_BIT) ? "OFFLINE " : "",
+             (bits & MQTT_TASKS_SHUTDOWN_BIT) ? "SHUTDOWN " : "",
+             (bits & MQTT_TELEMETRY_TRIGGER_BIT) ? "TELE_TRIG " : "");
 }
 
 #endif // CONFIG_MQTT_ENABLE

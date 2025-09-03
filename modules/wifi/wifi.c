@@ -15,8 +15,7 @@
 #define TAG_AP TAG "-ap"
 
 static wifi_credentials_t wifi_creds;
-
-esp_netif_t *sta_netif, *ap_netif;
+static esp_netif_t *sta_netif, *ap_netif;
 
 static bool ignore_sta_disconnect_event = false;
 static bool ap_has_client = false;
@@ -32,7 +31,7 @@ static portMUX_TYPE wifi_ap_timeout_mux = portMUX_INITIALIZER_UNLOCKED;
 static esp_event_handler_instance_t instance_any_id;
 static esp_event_handler_instance_t instance_got_ip;
 
-EventGroupHandle_t wifi_event_group = NULL;
+static EventGroupHandle_t wifi_event_group = NULL;
 
 const char *wifi_disconnect_reason_str(uint8_t reason) {
     switch (reason) {
@@ -148,7 +147,7 @@ static void wifi_ap_timeout_task(void *args) {
 
     if (esp_wifi_get_mode(&mode) != ESP_OK || mode != WIFI_MODE_STA) {
         ESP_LOGI(TAG_AP, "Switching to STA mode.");
-        wifi_ensure_sta_mode();
+        wifi_init_sta_mode();
     } else {
         ESP_LOGI(TAG_AP, "Already in STA mode, no need to switch.");
     }
@@ -239,13 +238,11 @@ bool is_wifi_network_connected(void) {
     return xEventGroupGetBits(wifi_event_group) & (WIFI_STA_CONNECTED_BIT | WIFI_AP_STARTED_BIT);
 }
 
-void wifi_stack_init(const wifi_credentials_t *creds) {
+void wifi_configure(const wifi_credentials_t *creds) {
 
     if (creds) {
         wifi_creds = *creds;
     }
-
-    static StaticEventGroup_t event_group_storage;
 
     ESP_ERROR_CHECK(esp_netif_init());
     ESP_ERROR_CHECK(esp_event_loop_create_default());
@@ -258,17 +255,19 @@ void wifi_stack_init(const wifi_credentials_t *creds) {
     ESP_ERROR_CHECK(esp_event_handler_instance_register(
         IP_EVENT, IP_EVENT_STA_GOT_IP, &wifi_event_handler, NULL, &instance_got_ip));
 
+    static StaticEventGroup_t event_group_storage;
+
     if (wifi_event_group == NULL) {
         wifi_event_group = xEventGroupCreateStatic(&event_group_storage);
         // wifi_event_group = xEventGroupCreate();
     }
 
     if (!wifi_event_group) {
-        ESP_LOGE(TAG, "Failed to create wifi event group!");
+        ESP_LOGE(TAG, "Failed to create WiFi event group!");
     }
 }
 
-void wifi_ensure_ap_mode() {
+void wifi_init_ap_mode() {
 
     ignore_sta_disconnect_event = true;
     ESP_ERROR_CHECK(safe_wifi_stop());
@@ -289,7 +288,7 @@ void wifi_ensure_ap_mode() {
     ESP_ERROR_CHECK(esp_wifi_start());
 }
 
-void wifi_ensure_sta_mode() {
+void wifi_init_sta_mode() {
 
     if (sta_netif != NULL) {
         ignore_sta_disconnect_event = true;
@@ -359,4 +358,33 @@ esp_err_t safe_wifi_stop() {
     }
 
     return err;
+}
+
+void wifi_get_interface_ip(char *buf, size_t buflen) {
+
+    esp_netif_ip_info_t ip_info;
+    esp_netif_t *active = NULL;
+
+    if (sta_netif && esp_netif_get_ip_info(sta_netif, &ip_info) == ESP_OK && ip_info.ip.addr != 0) {
+        active = sta_netif;
+    } else if (ap_netif && esp_netif_get_ip_info(ap_netif, &ip_info) == ESP_OK &&
+               ip_info.ip.addr != 0) {
+        active = ap_netif;
+    }
+    if (active) {
+        snprintf(buf, buflen, "%d.%d.%d.%d", esp_ip4_addr1(&ip_info.ip), esp_ip4_addr2(&ip_info.ip),
+                 esp_ip4_addr3(&ip_info.ip), esp_ip4_addr4(&ip_info.ip));
+    } else {
+        snprintf(buf, buflen, "0.0.0.0");
+    }
+}
+
+void wifi_log_event_group_bits(void) {
+
+    if (!wifi_event_group)
+        return;
+
+    EventBits_t bits = xEventGroupGetBits(wifi_event_group);
+    ESP_LOGI(TAG, "WiFi bits: %s%s", (bits & WIFI_STA_CONNECTED_BIT) ? "STA " : "",
+             (bits & WIFI_AP_STARTED_BIT) ? "AP " : "");
 }

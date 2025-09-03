@@ -1,5 +1,13 @@
 menu "IDF-node Application Configuration"
 
+    config SUPERVISOR_QUEUE_LENGTH
+        int "Supervisor command queue length"
+        default 8
+        range 1 20
+        help
+            Length of the supervisor command queue.
+            Typical: 8.
+
     config WIFI_AP_INACTIVITY_TIMEOUT_MINUTES
         int "WiFi AP inactivity timeout (minutes)"
         default 1
@@ -39,6 +47,32 @@ menu "IDF-node Application Configuration"
             Delay between individual attempts within a burst of WiFi STA connection retries.
             Typical: 5000 (5 sec).
 
+
+    config MQTT_TELEMETRY_INTERVAL_MS
+        int "Telemetry interval (ms)"
+        default 5000
+        range 1000 60000
+        help
+            Interval for publishing telemetry data.
+            Typical: 5000 (5 sec).
+
+    config MQTT_RX_BUFFER_SIZE
+        int "MQTT RX buffer size"
+        default 1024
+        range 256 8192
+        help
+            Size of the MQTT receive buffer.
+            Typical: 1024.
+
+    config MQTT_QOS
+        int "MQTT Quality of Service"
+        default 0
+        range 0 2
+        help
+            MQTT Quality of Service level.
+            0: At most once (fire and forget)
+            1: At least once (acknowledged)
+            2: Exactly once (guaranteed delivery)
 
     menuconfig MQTT_ENABLE
         bool "Enable MQTT"

@@ -5,7 +5,6 @@
 #include "esp_log.h"
 #include "esp_ota_ops.h"
 #include "esp_partition.h"
-#include "esp_wifi.h"
 
 #include "lwip/sockets.h"
 #include "mbedtls/md5.h"

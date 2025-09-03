@@ -5,55 +5,11 @@
 extern "C" {
 #endif
 
-#include <strings.h>
+#include <esp_netif_sntp.h>
 
-#include "freertos/FreeRTOS.h"
-#include "freertos/event_groups.h"
-#include "freertos/queue.h"
+void core_system_init(void);
 
-#include "esp_event_base.h"
-
-#include "json_parser.h"
-
-// #define WIFI_STA_CONNECTED_BIT BIT0
-#define SNTP_SYNCED_BIT BIT1
-// #define WIFI_AP_STARTED_BIT BIT2
-#define MQTT_CONNECTED_BIT BIT3
-// #define MQTT_FAIL_BIT BIT4
-#define MQTT_OFFLINE_PUBLISHED_BIT BIT5
-#define MQTT_TASKS_SHUTDOWN_BIT BIT6
-#define HTTPS_SHUTDOWN_INITIATED_BIT BIT7
-#define MQTT_TELEMETRY_TRIGGER_BIT BIT8
-#define HTTPS_SERVER_STARTED_BIT BIT9
-#define INTERNET_REACHABLE_BIT BIT10
-
-#define DEFAULT_QUEUE_LEN 8
-#define SYSTAG "cikon-systems"
-
-/* FreeRTOS event group to signal application state */
-extern EventGroupHandle_t app_event_group;
-extern QueueHandle_t supervisor_queue;
-
-// extern esp_event_handler_instance_t instance_any_id;
-// extern esp_event_handler_instance_t instance_got_ip;
-
-/**
- * @brief Initializes global system-wide variables such as event groups.
- *
- * Must be called during application startup before any task attempts
- * to use `app_event_group` or register related event bits.
- *
- * @return
- *      - ESP_OK on success
- *      - ESP_FAIL if event group creation failed
- */
-esp_err_t core_system_init(void);
-
-/**
- * @brief Unregisters network-related event handlers and performs a full ESP
- * restart.
- *
- */
+void set_restart_callback(void (*cb)(void));
 void esp_safe_restart();
 
 /**
@@ -72,30 +28,40 @@ void esp_safe_restart();
  */
 esp_err_t nvs_flash_safe_init();
 
-/**
- * @brief Initializes and configures the mDNS service.
- *
- * Initializes the mDNS stack, sets the hostname and instance name
- * from Kconfig values, and starts the mDNS service.
- *
- * @return ESP_OK on success, ESP_FAIL on error.
- */
-esp_err_t mdns_service_init();
+void mdns_service_configure(const char *hostname, const char *instance_name);
+void mdns_service_init();
 
+/**
+ * @brief Configure SNTP servers and synchronization callback.
+ *
+ * This function sets the SNTP server addresses and the callback for time synchronization.
+ *
+ * @param servers Array of pointers to NTP server address strings.
+ *                Must be of length CONFIG_LWIP_SNTP_MAX_SERVERS.
+ *                @warning The array must contain at least one valid,
+ *                         non-NULL server address string.
+ *
+ * @param cb      Callback function to be called on time sync (can be NULL).
+ *
+ * @note The strings pointed to by servers[] must remain valid for the lifetime of SNTP usage.
+ *       Do not free or overwrite them while SNTP is active.
+ */
+void sntp_service_configure(const char **servers, esp_sntp_time_cb_t cb);
 void sntp_service_init();
 
 /**
- * @brief Returns the Wi-Fi MAC address as a 12-character uppercase string (no
- * colons).
+ * @brief Returns the built-in (factory) MAC address from eFUSE as a portable 12-character uppercase
+ * string (no colons).
  *
- * This function reads the MAC address once (on first call) and caches it in a
- * static buffer. Subsequent calls return the same pointer without re-reading
- * the hardware.
+ * This function reads the factory-programmed MAC address using esp_efuse_mac_get_default() once (on
+ * first call) and caches it in a static buffer. The returned string is always in a portable,
+ * platform-independent format: 12 uppercase hexadecimal digits, no separators.
  *
  * Example return value: "A1B2C3D4E5F6"
  *
- * @return const char* Pointer to a static null-terminated string, or NULL on
- * error.
+ * @note The returned MAC is the unique, hardware-assigned address (not user-overridable).
+ *
+ * @return const char* Pointer to a static null-terminated string, or NULL on error.
  */
 const char *get_client_id();
 
@@ -109,7 +75,7 @@ const char *get_client_id();
  */
 const char *get_boot_time(void);
 
-void onboard_led_set_state(logic_state_t state);
+void onboard_led_set_state(bool state);
 bool get_onboard_led_state(void);
 
 /**
@@ -117,12 +83,6 @@ bool get_onboard_led_state(void);
  * storage). After this call, NVS is ready for use.
  */
 void reset_nvs_partition(void);
-
-/**
- * @brief Returns active IPv4 address as string (STA first, then AP).
- * @return Static string with IP or "0.0.0.0" if none.
- */
-const char *get_device_ip(void);
 
 #ifdef __cplusplus
 }
