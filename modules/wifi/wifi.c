@@ -14,8 +14,8 @@
 #define TAG_STA TAG "-sta"
 #define TAG_AP TAG "-ap"
 
-static wifi_credentials_t wifi_creds;
-static esp_netif_t *sta_netif, *ap_netif;
+static wifi_credentials_t wifi_creds = {NULL};
+static esp_netif_t *sta_netif = NULL, *ap_netif = NULL;
 
 static bool ignore_sta_disconnect_event = false;
 static bool ap_has_client = false;
@@ -269,6 +269,11 @@ void wifi_configure(const wifi_credentials_t *creds) {
 
 void wifi_init_ap_mode() {
 
+    if (!wifi_creds.ap_ssid || strlen(wifi_creds.ap_ssid) == 0) {
+        ESP_LOGW(TAG_AP, "AP SSID is NULL or empty, cannot start WiFi AP mode!");
+        return;
+    }
+
     ignore_sta_disconnect_event = true;
     ESP_ERROR_CHECK(safe_wifi_stop());
 
@@ -289,6 +294,11 @@ void wifi_init_ap_mode() {
 }
 
 void wifi_init_sta_mode() {
+
+    if (!wifi_creds.sta_ssid || strlen(wifi_creds.sta_ssid) == 0) {
+        ESP_LOGW(TAG_STA, "STA SSID is NULL or empty, cannot start WiFi STA mode!");
+        return;
+    }
 
     if (sta_netif != NULL) {
         ignore_sta_disconnect_event = true;

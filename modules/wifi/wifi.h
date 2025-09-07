@@ -6,10 +6,10 @@ extern "C" {
 #endif
 
 typedef struct {
-    char sta_ssid[32];
-    char sta_password[32];
-    char ap_ssid[32];
-    char ap_password[32]; // for future use
+    const char *sta_ssid;
+    const char *sta_password;
+    const char *ap_ssid;
+    const char *ap_password;
 } wifi_credentials_t;
 
 void wifi_configure(const wifi_credentials_t *creds);

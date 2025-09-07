@@ -490,17 +490,32 @@ static void supervisor_netif_event_handler(void *arg, esp_event_base_t event_bas
     }
 }
 
+const char *get_or_generate_ap_ssid(void) {
+
+    const char *cfg_ssid = config_get()->wifi_ap_ssid;
+    if (cfg_ssid && strlen(cfg_ssid) > 0) {
+        return cfg_ssid;
+    }
+
+    static char ssid[33];
+
+    const char *mac_str = get_client_id();
+    const char *mac_last6 = mac_str + 6;
+
+    snprintf(ssid, sizeof(ssid), "%s_%s", config_get()->dev_name, mac_last6);
+    return ssid;
+}
+
 void supervisor_init_platform_services() {
 
     ESP_ERROR_CHECK(nvs_flash_safe_init());
 
     config_manager_init();
 
-    wifi_credentials_t creds = {0};
-    strncpy(creds.sta_ssid, config_get()->wifi_ssid, sizeof(creds.sta_ssid) - 1);
-    strncpy(creds.sta_password, config_get()->wifi_pass, sizeof(creds.sta_password) - 1);
-    strncpy(creds.ap_ssid, get_or_generate_ap_ssid(), sizeof(creds.ap_ssid) - 1);
-    // strncpy(creds.ap_password, config_get()->ap_pass, sizeof(creds.ap_password) - 1);
+    wifi_credentials_t creds = {.sta_ssid = config_get()->wifi_ssid,
+                                .sta_password = config_get()->wifi_pass,
+                                .ap_ssid = get_or_generate_ap_ssid(),
+                                .ap_password = NULL};
 
     wifi_configure(&creds);
     wifi_init_sta_mode();
@@ -510,14 +525,13 @@ void supervisor_init_platform_services() {
     if (strlen(hostname) == 0) {
         hostname = config_get()->dev_name;
     }
+
     mdns_service_configure(hostname, config_get()->mdns_instance);
     mdns_service_init();
 
     core_system_init();
 
-    /* Configure platform services */
     state.onboard_led = get_onboard_led_state();
-
     set_restart_callback(supervisor_restart_cb);
 
     sntp_service_configure(

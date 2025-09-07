@@ -75,7 +75,7 @@ const config_t *config_get(void);
 /**
  * @brief Log all NVS keys in the configuration namespace (for diagnostics).
  */
-void config_manager_log_all_keys(void);
+void config_manager_print_all_keys(void);
 
 /**
  * @brief Set configuration fields from a cJSON object.
@@ -84,8 +84,6 @@ void config_manager_log_all_keys(void);
  * If the key is unknown, a warning is logged.
  */
 void config_manager_set_from_json(const cJSON *json);
-
-const char *get_or_generate_ap_ssid(void);
 
 #ifdef __cplusplus
 }

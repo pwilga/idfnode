@@ -6,8 +6,6 @@
 #include "esp_log.h"
 #include "cJSON.h"
 
-#include "platform_services.h"
-
 #include "config_manager.h"
 
 #define TAG "cikon-config-manager"
@@ -140,7 +138,7 @@ void config_manager_init(void) {
 
 const config_t *config_get(void) { return &config_data; }
 
-void config_manager_log_all_keys(void) {
+void config_manager_print_all_keys(void) {
 
     nvs_iterator_t it = NULL;
     esp_err_t err = nvs_entry_find("nvs", CONFIG_MANAGER_NAMESPACE, NVS_TYPE_ANY, &it);
@@ -200,20 +198,4 @@ void config_manager_set_from_json(const cJSON *json) {
             ESP_LOGW(TAG, "Unknown configuration key: %s", item->string);
         }
     }
-}
-
-const char *get_or_generate_ap_ssid(void) {
-
-    const char *cfg_ssid = config_get()->wifi_ap_ssid;
-    if (cfg_ssid && strlen(cfg_ssid) > 0) {
-        return cfg_ssid;
-    }
-
-    static char ssid[33];
-
-    const char *mac_str = get_client_id();
-    const char *mac_last6 = mac_str + 6;
-
-    snprintf(ssid, sizeof(ssid), "%s_%s", config_get()->dev_name, mac_last6);
-    return ssid;
 }
