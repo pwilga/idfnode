@@ -4,6 +4,7 @@
 #include "esp_log.h"
 #include "esp_random.h"
 #include "esp_netif_sntp.h"
+#include "esp_wifi.h"
 
 #include "cJSON.h"
 
@@ -12,7 +13,7 @@
 #include "debug.h"
 #include "https_server.h"
 #include "json_parser.h"
-#include "net.h"
+// #include "net.h"
 #include "ota.h"
 #include "supervisor.h"
 #include "platform_services.h"
@@ -64,16 +65,18 @@ static void supervisor_sntp_sync_cb(struct timeval *tv) {
 }
 
 static void supervisor_restart_cb() {
+
     wifi_unregister_event_handlers();
+
     mqtt_publish_offline_state();
     mqtt_shutdown();
 }
 
 void supervisor_shutdown_all_wifi_services() {
-#if CONFIG_MQTT_ENABLE
+
     mqtt_publish_offline_state();
     mqtt_shutdown();
-#endif
+
     https_shutdown();
 }
 
@@ -128,7 +131,7 @@ bool supervisor_schedule_command(supervisor_command_t *cmd) {
     return true;
 }
 
-void command_dispatch(supervisor_command_t *cmd) {
+void supervisor_command_dispatch(supervisor_command_t *cmd) {
 
     const char *TAG = "supervisor-command-dispatcher";
 
@@ -192,11 +195,6 @@ void command_dispatch(supervisor_command_t *cmd) {
             return;
         }
         config_manager_set_from_json(json_args);
-
-        // char *json_str = cJSON_Print(json_args);
-        // ESP_LOGI(TAG, "Setting configuration from JSON: %s", json_str);
-        // free(json_str);
-
         cJSON_Delete(json_args);
 
         break;
@@ -299,7 +297,7 @@ void supervisor_task(void *args) {
     while (1) {
         if (xQueueReceive(supervisor_queue, &cmd, pdMS_TO_TICKS(100))) {
             ESP_LOGI(TAG, "Received command: %s", supervisor_command_id(cmd->type));
-            command_dispatch(cmd);
+            supervisor_command_dispatch(cmd);
 
             if (cmd->args_json_str) {
                 free(cmd->args_json_str);
@@ -543,6 +541,18 @@ void supervisor_init() {
 
     supervisor_init_platform_services();
 
+    mqtt_config_t mqtt_cfg = {.client_id = get_client_id(),
+                              .mqtt_node = config_get()->mqtt_node,
+                              .mqtt_broker = config_get()->mqtt_broker,
+                              .mqtt_user = config_get()->mqtt_user,
+                              .mqtt_pass = config_get()->mqtt_pass,
+                              .mqtt_mtls_en = config_get()->mqtt_mtls_en,
+                              .mqtt_max_retry = config_get()->mqtt_max_retry,
+                              .command_cb = supervisor_execute_commands,
+                              .telemetry_cb = supervisor_state_to_json};
+
+    mqtt_configure(&mqtt_cfg);
+
     ESP_ERROR_CHECK(esp_event_handler_instance_register(
         WIFI_EVENT, ESP_EVENT_ANY_ID, &supervisor_netif_event_handler, NULL, NULL));
     ESP_ERROR_CHECK(esp_event_handler_instance_register(
@@ -590,7 +600,7 @@ void supervisor_publish_mqtt(const char *topic, const char *payload, int qos, bo
 }
 #endif
 
-void supervisor_process_command_payload(const char *payload) {
+void supervisor_execute_commands(const char *payload) {
 
     cJSON *json_root = cJSON_Parse(payload);
 

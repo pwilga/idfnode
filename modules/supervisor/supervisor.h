@@ -6,7 +6,6 @@ extern "C" {
 #endif
 
 #include "stdbool.h"
-#include "esp_wifi.h"
 #include "cJSON.h"
 
 typedef enum {
@@ -60,13 +59,13 @@ typedef struct {
 } supervisor_state_t;
 
 void supervisor_init();
-void supervisor_task(void *args);
-bool supervisor_schedule_command(supervisor_command_t *cmd);
+// void supervisor_task(void *args);
+// bool supervisor_schedule_command(supervisor_command_t *cmd);
 
-const char *supervisor_command_id(supervisor_command_type_t cmd);
-const char *supervisor_command_description(supervisor_command_type_t cmd);
-supervisor_command_type_t supervisor_command_from_id(const char *id);
-void supervisor_process_command_payload(const char *payload);
+// const char *supervisor_command_id(supervisor_command_type_t cmd);
+// const char *supervisor_command_description(supervisor_command_type_t cmd);
+// supervisor_command_type_t supervisor_command_from_id(const char *id);
+void supervisor_execute_commands(const char *payload);
 
 #if CONFIG_MQTT_ENABLE
 void supervisor_publish_mqtt(const char *topic, const char *payload, int qos, bool retain);

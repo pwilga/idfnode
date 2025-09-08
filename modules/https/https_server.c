@@ -65,7 +65,7 @@ void https_init(void) {
     }
 
     if (!https_event_group) {
-        ESP_LOGE(TAG, "Failed to create supervisor event group!");
+        ESP_LOGE(TAG, "Failed to create https event group!");
         return;
     }
 
@@ -159,7 +159,7 @@ static esp_err_t cmnd_post_handler(httpd_req_t *req) {
     }
     buf[received] = '\0';
 
-    supervisor_process_command_payload(buf);
+    supervisor_execute_commands(buf);
     free(buf);
     httpd_resp_send(req, "OK", HTTPD_RESP_USE_STRLEN);
     return ESP_OK;

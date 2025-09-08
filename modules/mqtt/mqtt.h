@@ -5,26 +5,30 @@
 extern "C" {
 #endif
 
-#include "config_manager.h"
+typedef void (*mqtt_command_callback_t)(const char *payload);
+typedef void (*mqtt_telemetry_callback_t)(cJSON *json_root);
 
-#include "platform_services.h"
+typedef struct {
+    const char *client_id;
+    const char *mqtt_node;
+    const char *mqtt_broker;
+    const char *mqtt_user;
+    const char *mqtt_pass;
+    uint8_t mqtt_mtls_en;
+    uint8_t mqtt_max_retry;
+    mqtt_command_callback_t command_cb;
+    mqtt_telemetry_callback_t telemetry_cb;
+} mqtt_config_t;
 
+void mqtt_configure(const mqtt_config_t *cfg);
 void mqtt_init(void);
 void mqtt_shutdown(void);
-void mqtt_publish_offline_state(void);
 
 void mqtt_publish(const char *topic, const char *payload, int qos, bool retain);
+void mqtt_publish_offline_state(void);
 void mqtt_trigger_telemetry(void);
+
 void mqtt_log_event_group_bits(void);
-
-static inline void get_mqtt_topic(char *buf, size_t buf_size, const char *suffix) {
-    snprintf(buf, buf_size, "%s/%s/%s", config_get()->mqtt_node, get_client_id(), suffix);
-}
-
-#define MQTT_COMMAND_TOPIC(buf) get_mqtt_topic((buf), sizeof(buf), "cmnd")
-#define MQTT_STATUS_TOPIC(buf) get_mqtt_topic((buf), sizeof(buf), "stat")
-#define MQTT_TELEMETRY_TOPIC(buf) get_mqtt_topic((buf), sizeof(buf), "tele")
-#define MQTT_AVAILABILITY_TOPIC(buf) get_mqtt_topic((buf), sizeof(buf), "aval")
 
 #ifdef __cplusplus
 }

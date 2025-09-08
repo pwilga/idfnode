@@ -16,12 +16,12 @@ static void button_event_handler(void *button_handle, void *usr_data) {
     switch (event) {
     case BUTTON_SINGLE_CLICK:
         // ESP_LOGI(TAG, "Button %d: SINGLE CLICK", idx);
-        // supervisor_process_command_payload("{\"help\":1}");
-        supervisor_process_command_payload("{\"sta\":1}");
+        // supervisor_execute_commands("{\"help\":1}");
+        supervisor_execute_commands("{\"sta\":1}");
 
         break;
     case BUTTON_DOUBLE_CLICK:
-        supervisor_process_command_payload("{\"log\":1}");
+        supervisor_execute_commands("{\"log\":1}");
 
         break;
     // case BUTTON_MULTIPLE_CLICK:
@@ -29,7 +29,7 @@ static void button_event_handler(void *button_handle, void *usr_data) {
     //     break;
     case BUTTON_LONG_PRESS_START:
         // ESP_LOGI(TAG, "Button %d: LONG PRESS", idx);
-        supervisor_process_command_payload("{\"ap\":1}");
+        supervisor_execute_commands("{\"ap\":1}");
 
         break;
     // case BUTTON_PRESS_DOWN:

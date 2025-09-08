@@ -11,13 +11,6 @@
 #include "cJSON.h"
 
 #include "mqtt.h"
-#include "net.h"
-#include "platform_services.h"
-#include "supervisor.h"
-
-#if CONFIG_HOME_ASSISTANT_MQTT_DISCOVERY_ENABLE
-#include "ha.h"
-#endif
 
 #define TAG "cikon-mqtt"
 #define TOPIC_BUF_SIZE 128
@@ -27,6 +20,7 @@
 #define MQTT_TASKS_SHUTDOWN_BIT BIT2
 #define MQTT_TELEMETRY_TRIGGER_BIT BIT3
 
+static mqtt_config_t mqtt_config = {NULL};
 static TaskHandle_t mqtt_command_task_handle, mqtt_telemetry_task_handle;
 
 static esp_mqtt_client_handle_t mqtt_client;
@@ -39,6 +33,19 @@ extern const uint8_t ca_crt_start[] asm("_binary_ca_crt_start");
 extern const uint8_t cikonesp_crt_start[] asm("_binary_cikonesp_crt_start");
 extern const uint8_t cikonesp_key_start[] asm("_binary_cikonesp_key_start");
 
+void mqtt_command_topic(char *buf, size_t buf_size) {
+    snprintf(buf, buf_size, "%s/%s/cmnd", mqtt_config.mqtt_node, mqtt_config.client_id);
+}
+// void mqtt_status_topic(char *buf, size_t buf_size) {
+//     snprintf(buf, buf_size, "%s/%s/stat", mqtt_config.mqtt_node, mqtt_config.client_id);
+// }
+void mqtt_telemetry_topic(char *buf, size_t buf_size) {
+    snprintf(buf, buf_size, "%s/%s/tele", mqtt_config.mqtt_node, mqtt_config.client_id);
+}
+void mqtt_availability_topic(char *buf, size_t buf_size) {
+    snprintf(buf, buf_size, "%s/%s/aval", mqtt_config.mqtt_node, mqtt_config.client_id);
+}
+
 static void mqtt_shutdown_task(void *args) {
     mqtt_shutdown();
     vTaskDelete(NULL);
@@ -47,24 +54,27 @@ static void mqtt_shutdown_task(void *args) {
 void mqtt_publish_telemetry(void) {
 
     // To be removed ? Analyze this !!!
-    if (!(xEventGroupGetBits(mqtt_event_group) & MQTT_CONNECTED_BIT)) {
-        // Prevent console spam on repeated connection failures.
-        static int not_connected_counter = 0;
-        not_connected_counter++;
-        if (not_connected_counter >= 5) {
-            ESP_LOGW(TAG, "MQTT not connected, skipping telemetry publish");
-            not_connected_counter = 0;
-        }
+    // if (!(xEventGroupGetBits(mqtt_event_group) & MQTT_CONNECTED_BIT)) {
+    //     // Prevent console spam on repeated connection failures.
+    //     static int not_connected_counter = 0;
+    //     not_connected_counter++;
+    //     if (not_connected_counter >= 5) {
+    //         ESP_LOGW(TAG, "MQTT not connected, skipping telemetry publish");
+    //         not_connected_counter = 0;
+    //     }
+    //     return;
+    // }
+
+    if (!mqtt_config.telemetry_cb)
         return;
-    }
 
     cJSON *json = cJSON_CreateObject();
-    supervisor_state_to_json(json);
+    mqtt_config.telemetry_cb(json);
 
     char *json_str = cJSON_PrintUnformatted(json);
 
     char topic[TOPIC_BUF_SIZE];
-    MQTT_TELEMETRY_TOPIC(topic);
+    mqtt_telemetry_topic(topic, sizeof(topic));
 
     esp_mqtt_client_publish(mqtt_client, topic, json_str, 0, CONFIG_MQTT_QOS, false);
 
@@ -81,7 +91,7 @@ void mqtt_publish_offline_state(void) {
     }
 
     char aval_buf_topic[TOPIC_BUF_SIZE];
-    MQTT_AVAILABILITY_TOPIC(aval_buf_topic);
+    mqtt_availability_topic(aval_buf_topic, sizeof(aval_buf_topic));
 
     esp_mqtt_client_publish(mqtt_client, aval_buf_topic, "offline", 0, 1, true);
 
@@ -101,7 +111,7 @@ void mqtt_telemetry_task(void *args) {
     {
         char topic[TOPIC_BUF_SIZE];
 
-        MQTT_AVAILABILITY_TOPIC(topic);
+        mqtt_availability_topic(topic, sizeof(topic));
         esp_mqtt_client_publish(mqtt_client, topic, "online", 0, CONFIG_MQTT_QOS, true);
     }
 
@@ -133,7 +143,7 @@ void mqtt_command_task(void *args) {
     // Command topic subscription
     {
         char topic[TOPIC_BUF_SIZE];
-        MQTT_COMMAND_TOPIC(topic);
+        mqtt_command_topic(topic, sizeof(topic));
 
         if (esp_mqtt_client_subscribe(mqtt_client, topic, CONFIG_MQTT_QOS) < 0) {
             ESP_LOGE(TAG, "Unable to subscribe to MQTT topic '%s'", topic);
@@ -151,13 +161,15 @@ void mqtt_command_task(void *args) {
         char *topic = msg;
         char *payload = msg + strlen(topic) + 1;
 
-        char commmand_topic[40];
-        MQTT_COMMAND_TOPIC(commmand_topic);
+        char commmand_topic[TOPIC_BUF_SIZE];
+        mqtt_command_topic(commmand_topic, sizeof(commmand_topic));
 
         if (strcmp(topic, commmand_topic))
             goto cleanup;
 
-        supervisor_process_command_payload(payload);
+        if (mqtt_config.command_cb) {
+            mqtt_config.command_cb(payload);
+        }
         xEventGroupSetBits(mqtt_event_group, MQTT_TELEMETRY_TRIGGER_BIT);
 
     cleanup:
@@ -214,7 +226,7 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
         xTaskCreate(mqtt_telemetry_task, "mqtt_telemetry", CONFIG_MQTT_TELEMETRY_TASK_STACK_SIZE,
                     NULL, CONFIG_MQTT_TELEMETRY_TASK_PRIORITY, &mqtt_telemetry_task_handle);
 
-        ESP_LOGI(TAG, "Connected to MQTT Broker: %s", config_get()->mqtt_broker);
+        ESP_LOGI(TAG, "Connected to MQTT Broker: %s", mqtt_config.mqtt_broker);
 
         break;
     case MQTT_EVENT_ERROR:
@@ -225,15 +237,15 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
         xEventGroupClearBits(mqtt_event_group, MQTT_CONNECTED_BIT);
         xEventGroupSetBits(mqtt_event_group, MQTT_TASKS_SHUTDOWN_BIT);
 
-        if (mqtt_retry_counter < config_get()->mqtt_max_retry) {
+        if (mqtt_retry_counter < mqtt_config.mqtt_max_retry) {
             ESP_LOGW(TAG, "MQTT disconnected, retrying connection (%d/%d)", mqtt_retry_counter + 1,
-                     config_get()->mqtt_max_retry);
+                     mqtt_config.mqtt_max_retry);
             mqtt_retry_counter++;
         } else {
             ESP_LOGE(TAG,
                      "Failed to connect to MQTT Broker '%s' after %d retries, shutting down MQTT "
                      "subsystem...",
-                     config_get()->mqtt_broker, config_get()->mqtt_max_retry);
+                     mqtt_config.mqtt_broker, mqtt_config.mqtt_max_retry);
             mqtt_retry_counter = 0;
 
             // We create a separate task for MQTT shutdown because ESP-IDF does not allow
@@ -305,15 +317,15 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 
 void mqtt_init() {
 
+    if (!mqtt_config.mqtt_broker || strlen(mqtt_config.mqtt_broker) == 0) {
+        ESP_LOGE(TAG, "MQTT broker address is not set!");
+        return;
+    }
+
     if (mqtt_client != NULL) {
         // ESP_LOGW(TAG, "MQTT client already initialized, skipping re-initialization.");
         return;
     }
-
-    // if (is_network_connected() == false) {
-    //     ESP_LOGW(TAG, "No network connection, cannot initialize MQTT client.");
-    //     return;
-    // }
 
     ESP_LOGI(TAG, "Initializing MQTT client...");
 
@@ -328,24 +340,24 @@ void mqtt_init() {
         return;
     }
 
-    bool secure = config_get()->mqtt_mtls_en;
+    bool secure = mqtt_config.mqtt_mtls_en;
 
     static char avail_topic_buf[TOPIC_BUF_SIZE];
-    MQTT_AVAILABILITY_TOPIC(avail_topic_buf);
+    mqtt_availability_topic(avail_topic_buf, sizeof(avail_topic_buf));
 
-    esp_mqtt_client_config_t mqtt_cfg = {
+    esp_mqtt_client_config_t esp_mqtt_cfg = {
         .broker =
             {
-                .address.uri = config_get()->mqtt_broker,
+                .address.uri = mqtt_config.mqtt_broker,
                 .verification.certificate = secure ? (const char *)ca_crt_start : NULL,
             },
         .credentials =
             {
-                .client_id = get_client_id(),
-                .username = secure ? NULL : config_get()->mqtt_user,
+                .client_id = mqtt_config.client_id,
+                .username = secure ? NULL : mqtt_config.mqtt_user,
                 .authentication =
                     {
-                        .password = secure ? NULL : config_get()->mqtt_pass,
+                        .password = secure ? NULL : mqtt_config.mqtt_pass,
                         .certificate = secure ? (const char *)cikonesp_crt_start : NULL,
                         .key = secure ? (const char *)cikonesp_key_start : NULL,
                     },
@@ -364,7 +376,7 @@ void mqtt_init() {
             },
     };
 
-    mqtt_client = esp_mqtt_client_init(&mqtt_cfg);
+    mqtt_client = esp_mqtt_client_init(&esp_mqtt_cfg);
     esp_mqtt_client_register_event(mqtt_client, ESP_EVENT_ANY_ID, mqtt_event_handler, mqtt_client);
     esp_mqtt_client_start(mqtt_client);
 }
@@ -401,4 +413,12 @@ void mqtt_log_event_group_bits(void) {
              (bits & MQTT_TELEMETRY_TRIGGER_BIT) ? "TELE_TRIG " : "");
 }
 
+void mqtt_configure(const mqtt_config_t *cfg) {
+
+    if (!cfg) {
+        ESP_LOGE(TAG, "Invalid MQTT config");
+        return;
+    }
+    mqtt_config = *cfg;
+}
 #endif // CONFIG_MQTT_ENABLE
