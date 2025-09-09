@@ -7,6 +7,7 @@
 #include "esp_mac.h"
 #include "mdns.h"
 #include "nvs_flash.h"
+#include "esp_timer.h"
 
 #include "platform_services.h"
 
@@ -24,8 +25,8 @@ static bool onboard_led_state = true;
 
 void core_system_init(void) {
     // onbard_led
-    ESP_ERROR_CHECK(gpio_reset_pin(GPIO_NUM_2));
-    ESP_ERROR_CHECK(gpio_set_direction(GPIO_NUM_2, GPIO_MODE_OUTPUT));
+    ESP_ERROR_CHECK(gpio_reset_pin(CONFIG_BOARD_STATUS_LED_GPIO));
+    ESP_ERROR_CHECK(gpio_set_direction(CONFIG_BOARD_STATUS_LED_GPIO, GPIO_MODE_OUTPUT));
 }
 
 void set_restart_callback(void (*cb)(void)) { restart_callback = cb; }
@@ -146,7 +147,7 @@ bool get_onboard_led_state(void) { return onboard_led_state; }
 void onboard_led_set_state(bool state) {
 
     if (onboard_led_state != state) {
-        ESP_ERROR_CHECK(gpio_set_level(GPIO_NUM_2, !state));
+        ESP_ERROR_CHECK(gpio_set_level(CONFIG_BOARD_STATUS_LED_GPIO, !state));
         onboard_led_state = state;
     }
 }

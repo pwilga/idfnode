@@ -1,5 +1,13 @@
 menu "IDF-node Application Configuration"
 
+    config BOARD_STATUS_LED_GPIO
+        int "Status LED GPIO"
+        default 2
+        range 0 39
+        help
+            GPIO number for the status LED. Set to -1 to disable.
+            Indicates device status (booting, WiFi connection, errors, etc.)
+
     config SUPERVISOR_QUEUE_LENGTH
         int "Supervisor command queue length"
         default 8
