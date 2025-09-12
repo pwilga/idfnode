@@ -27,7 +27,9 @@ idf_component_register(
         "../modules/config"
         "../modules/https"
     EMBED_TXTFILES
-        "certs/ca.crt"
-        "certs/cikonesp.crt"
+        "certs/ca.pem"
+        "certs/cikonesp.pem"
         "certs/cikonesp.key"
+        "certs/https.pem"
+        "certs/https.key"
 )

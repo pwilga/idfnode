@@ -1,6 +1,3 @@
-#include "sdkconfig.h"
-
-#if CONFIG_MQTT_ENABLE
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
 
@@ -29,8 +26,8 @@ static QueueHandle_t mqtt_queue;
 
 static bool mqtt_skip_current_msg = false;
 
-extern const uint8_t ca_crt_start[] asm("_binary_ca_crt_start");
-extern const uint8_t cikonesp_crt_start[] asm("_binary_cikonesp_crt_start");
+extern const uint8_t ca_pem_start[] asm("_binary_ca_pem_start");
+extern const uint8_t cikonesp_pem_start[] asm("_binary_cikonesp_pem_start");
 extern const uint8_t cikonesp_key_start[] asm("_binary_cikonesp_key_start");
 
 void mqtt_command_topic(char *buf, size_t buf_size) {
@@ -86,7 +83,7 @@ void mqtt_publish_offline_state(void) {
 
     if (!(xEventGroupGetBits(mqtt_event_group) & MQTT_CONNECTED_BIT)) {
 
-        ESP_LOGW(TAG, "Client not connected, skipping offline state publish");
+        // ESP_LOGW(TAG, "Client not connected, skipping offline state publish");
         return;
     }
 
@@ -349,7 +346,7 @@ void mqtt_init() {
         .broker =
             {
                 .address.uri = mqtt_config.mqtt_broker,
-                .verification.certificate = secure ? (const char *)ca_crt_start : NULL,
+                .verification.certificate = secure ? (const char *)ca_pem_start : NULL,
             },
         .credentials =
             {
@@ -358,7 +355,7 @@ void mqtt_init() {
                 .authentication =
                     {
                         .password = secure ? NULL : mqtt_config.mqtt_pass,
-                        .certificate = secure ? (const char *)cikonesp_crt_start : NULL,
+                        .certificate = secure ? (const char *)cikonesp_pem_start : NULL,
                         .key = secure ? (const char *)cikonesp_key_start : NULL,
                     },
             },
@@ -421,4 +418,3 @@ void mqtt_configure(const mqtt_config_t *cfg) {
     }
     mqtt_config = *cfg;
 }
-#endif // CONFIG_MQTT_ENABLE

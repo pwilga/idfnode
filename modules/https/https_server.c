@@ -19,12 +19,12 @@
 #define HTTPS_SHUTDOWN_INITIATED_BIT BIT0
 #define HTTPS_SERVER_STARTED_BIT BIT1
 
-extern const uint8_t ca_crt_start[] asm("_binary_ca_crt_start");
-extern const uint8_t ca_crt_end[] asm("_binary_ca_crt_end");
-extern const uint8_t cikonesp_crt_start[] asm("_binary_cikonesp_crt_start");
-extern const uint8_t cikonesp_crt_end[] asm("_binary_cikonesp_crt_end");
-extern const uint8_t cikonesp_key_start[] asm("_binary_cikonesp_key_start");
-extern const uint8_t cikonesp_key_end[] asm("_binary_cikonesp_key_end");
+// extern const uint8_t ca_pem_start[] asm("_binary_ca_pem_start");
+// extern const uint8_t ca_pem_end[] asm("_binary_ca_pem_end");
+extern const uint8_t https_pem_start[] asm("_binary_https_pem_start");
+extern const uint8_t https_pem_end[] asm("_binary_https_pem_end");
+extern const uint8_t https_key_start[] asm("_binary_https_key_start");
+extern const uint8_t https_key_end[] asm("_binary_https_key_end");
 
 static TimerHandle_t https_inactivity_timer = NULL;
 static EventGroupHandle_t https_event_group = NULL;
@@ -174,12 +174,12 @@ static const httpd_uri_t tele_get_uri = {
 void https_server_start(void) {
     httpd_ssl_config_t conf = HTTPD_SSL_CONFIG_DEFAULT();
 
-    conf.servercert = cikonesp_crt_start;
-    conf.servercert_len = cikonesp_crt_end - cikonesp_crt_start;
-    conf.prvtkey_pem = cikonesp_key_start;
-    conf.prvtkey_len = cikonesp_key_end - cikonesp_key_start;
-    // conf.cacert_pem = ca_crt_start;
-    // conf.cacert_len = ca_crt_end - ca_crt_start;
+    conf.servercert = https_pem_start;
+    conf.servercert_len = https_pem_end - https_pem_start;
+    conf.prvtkey_pem = https_key_start;
+    conf.prvtkey_len = https_key_end - https_key_start;
+    // conf.cacert_pem = ca_pem_start;
+    // conf.cacert_len = ca_pem_end - ca_pem_start;
 
     // Limit HTTPS server to only one connection at a time
     httpd_config_t httpd_conf = HTTPD_DEFAULT_CONFIG();
