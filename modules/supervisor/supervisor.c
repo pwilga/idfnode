@@ -2,8 +2,8 @@
 #include <sys/time.h>
 
 #include "esp_log.h"
-#include "esp_random.h"
 #include "esp_netif_sntp.h"
+#include "esp_random.h"
 #include "esp_wifi.h"
 
 #include "cJSON.h"
@@ -15,8 +15,8 @@
 #include "json_parser.h"
 // #include "net.h"
 #include "ota.h"
-#include "supervisor.h"
 #include "platform_services.h"
+#include "supervisor.h"
 #include "udp_monitor.h"
 #include "wifi.h"
 
@@ -82,152 +82,6 @@ void supervisor_shutdown_all_wifi_services() {
 
 const supervisor_state_t *state_get(void) { return &state; }
 
-const char *supervisor_command_id(supervisor_command_type_t cmd) {
-    switch (cmd) {
-#define CMND(enum_id, id_str, desc)                                                                \
-    case enum_id:                                                                                  \
-        return id_str;
-        CMND_LIST
-#undef CMND
-    default:
-        return "<unknown>";
-    }
-}
-
-const char *supervisor_command_description(supervisor_command_type_t cmd) {
-    switch (cmd) {
-#define CMND(enum_id, id_str, desc)                                                                \
-    case enum_id:                                                                                  \
-        return desc;
-        CMND_LIST
-#undef CMND
-    default:
-        return "<unknown>";
-    }
-}
-
-supervisor_command_type_t supervisor_command_from_id(const char *id) {
-#define CMND(enum_id, id_str, desc)                                                                \
-    if (strcmp(id, id_str) == 0)                                                                   \
-        return enum_id;
-    CMND_LIST
-#undef CMND
-    return CMND_UNKNOWN;
-}
-
-bool supervisor_schedule_command(supervisor_command_t *cmd) {
-
-    if (!supervisor_queue)
-        return false;
-
-    if (xQueueSend(supervisor_queue, &cmd, pdMS_TO_TICKS(100)) != pdTRUE) {
-        ESP_LOGW(TAG, "supervisor_schedule_command: queue full, freeing cmd=%p args_json_str=%p",
-                 cmd, cmd->args_json_str);
-        if (cmd->args_json_str)
-            free(cmd->args_json_str);
-        free(cmd);
-        return false;
-    }
-    return true;
-}
-
-void supervisor_command_dispatch(supervisor_command_t *cmd) {
-
-    const char *TAG = "supervisor-command-dispatcher";
-
-    switch (cmd->type) {
-#if CONFIG_MQTT_ENABLE
-    case CMND_HA_DISCOVERY:
-        logic_state_t force_empty_payload = json_str_as_logic_state(cmd->args_json_str);
-        if (force_empty_payload == STATE_TOGGLE) {
-            ESP_LOGE(TAG, "Toggling is not permitted for this module.");
-            return;
-        }
-        publish_ha_mqtt_discovery(force_empty_payload == STATE_OFF);
-        break;
-#endif
-    case CMND_RESTART:
-        esp_safe_restart();
-        break;
-
-    case CMND_SET_MODE:
-
-        break;
-
-    case CMND_LOG_DEBUG:
-        debug_print_sys_info();
-        debug_print_config_summary();
-        break;
-
-    case CMND_LED_SET:
-        logic_state_t state = json_str_as_logic_state(cmd->args_json_str);
-
-        bool new_state;
-
-        if (state == STATE_TOGGLE)
-            new_state = !get_onboard_led_state();
-        else
-            new_state = state == STATE_ON ? true : false;
-
-        onboard_led_set_state(new_state);
-        supervisor_set_onboard_led_state(new_state);
-        break;
-
-    case CMND_SET_AP:
-        supervisor_shutdown_all_wifi_services();
-        wifi_init_ap_mode();
-
-        break;
-    case CMND_SET_STA:
-        supervisor_shutdown_all_wifi_services();
-        wifi_init_sta_mode();
-
-        break;
-
-    case CMND_HELP:
-        supervisor_print_help();
-        break;
-
-    case CMND_SET_CONF:
-        cJSON *json_args = json_str_as_object(cmd->args_json_str);
-        if (!json_args) {
-            ESP_LOGW(TAG, "Command aborted: invalid JSON arguments: %s", cmd->args_json_str);
-            return;
-        }
-        config_manager_set_from_json(json_args);
-        cJSON_Delete(json_args);
-
-        break;
-    case CMND_RESET_CONF:
-        reset_nvs_partition();
-        esp_safe_restart();
-        break;
-    case CMND_HTTPS:
-        logic_state_t https_state = json_str_as_logic_state(cmd->args_json_str);
-
-        if (https_state == STATE_ON) {
-            https_init();
-        } else if (https_state == STATE_OFF) {
-            https_shutdown();
-        }
-        break;
-    case CMND_SNTP:
-        logic_state_t sntp_state = json_str_as_logic_state(cmd->args_json_str);
-
-        if (sntp_state == STATE_ON) {
-            esp_netif_sntp_deinit();
-            sntp_service_init();
-        } else if (sntp_state == STATE_OFF) {
-            esp_netif_sntp_deinit();
-        }
-        break;
-
-    default:
-        ESP_LOGW(TAG, "Unknown command type: %s", supervisor_command_id(cmd->type));
-        break;
-    }
-}
-
 float random_float(float min, float max) {
     return min + ((float)esp_random() / UINT32_MAX) * (max - min);
 }
@@ -292,18 +146,16 @@ void supervisor_task(void *args) {
     for (int i = 0; i < SUPERVISOR_INTERVAL_COUNT; ++i)
         last_stage[i] = xTaskGetTickCount();
 
-    supervisor_command_t *cmd;
+    command_job_t *job;
 
     while (1) {
-        if (xQueueReceive(supervisor_queue, &cmd, pdMS_TO_TICKS(100))) {
-            ESP_LOGI(TAG, "Received command: %s", supervisor_command_id(cmd->type));
-            supervisor_command_dispatch(cmd);
+        if (xQueueReceive(supervisor_queue, &job, pdMS_TO_TICKS(100))) {
+            ESP_LOGI(TAG, "Received command: %s", job->cmnd->command_id);
 
-            if (cmd->args_json_str) {
-                free(cmd->args_json_str);
-                cmd->args_json_str = NULL;
-            }
-            free(cmd);
+            job->cmnd->handler(job->args_json_str);
+
+            free(job->args_json_str);
+            free(job);
         }
 
         // React on envents from the event group.
@@ -323,19 +175,6 @@ void supervisor_task(void *args) {
                 last_stage[interval_idx] = now;
             }
         }
-    }
-}
-
-void supervisor_print_help(void) {
-
-    ESP_LOGI(TAG, "Available supervisor commands:");
-
-    for (supervisor_command_type_t cmd = 0; cmd < CMND_COUNT; cmd++) {
-
-        const char *id = supervisor_command_id(cmd);
-        const char *desc = supervisor_command_description(cmd);
-
-        ESP_LOGI(TAG, "  %-15s - %s", id, desc);
     }
 }
 
@@ -471,9 +310,7 @@ static void supervisor_netif_event_handler(void *arg, esp_event_base_t event_bas
                                            void *event_data) {
     if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
         sntp_service_init();
-#if CONFIG_MQTT_ENABLE
         mqtt_init();
-#endif
     }
 
     if (event_base == WIFI_EVENT) {
@@ -548,7 +385,8 @@ void supervisor_init() {
                               .mqtt_pass = config_get()->mqtt_pass,
                               .mqtt_mtls_en = config_get()->mqtt_mtls_en,
                               .mqtt_max_retry = config_get()->mqtt_max_retry,
-                              .command_cb = supervisor_execute_commands,
+                              .mqtt_disc_pref = config_get()->mqtt_disc_pref,
+                              .command_cb = cmnd_process_json,
                               .telemetry_cb = supervisor_state_to_json};
 
     mqtt_configure(&mqtt_cfg);
@@ -564,16 +402,17 @@ void supervisor_init() {
 
     static StaticQueue_t supervisor_queue_storage;
     static uint8_t
-        supervisor_queue_buffer[CONFIG_SUPERVISOR_QUEUE_LENGTH * sizeof(supervisor_command_t *)];
+        supervisor_queue_buffer[CONFIG_SUPERVISOR_QUEUE_LENGTH * sizeof(command_job_t *)];
 
-    supervisor_queue =
-        xQueueCreateStatic(CONFIG_SUPERVISOR_QUEUE_LENGTH, sizeof(supervisor_command_t *),
-                           supervisor_queue_buffer, &supervisor_queue_storage);
+    supervisor_queue = xQueueCreateStatic(CONFIG_SUPERVISOR_QUEUE_LENGTH, sizeof(command_job_t *),
+                                          supervisor_queue_buffer, &supervisor_queue_storage);
 
     if (!supervisor_queue) {
         ESP_LOGE(TAG, "Failed to create supervisor dispatcher queue!");
         return;
     }
+
+    cmnd_init(supervisor_queue);
 
     static StaticEventGroup_t supervisor_event_group_storage;
 
@@ -591,57 +430,4 @@ void supervisor_init() {
 
     // Only for debug purposes, not needed in production.
     xTaskCreate(debug_info_task, "debug_info", 4096, NULL, 0, NULL);
-}
-
-#if CONFIG_MQTT_ENABLE
-void supervisor_publish_mqtt(const char *topic, const char *payload, int qos, bool retain) {
-
-    mqtt_publish(topic, payload, qos, retain);
-}
-#endif
-
-void supervisor_execute_commands(const char *payload) {
-
-    cJSON *json_root = cJSON_Parse(payload);
-
-    if (!json_root || !cJSON_IsObject(json_root)) {
-        ESP_LOGW(TAG, "Invalid JSON: Rejecting message.");
-        cJSON_Delete(json_root);
-        return;
-    }
-
-    for (cJSON *item = json_root->child; item != NULL; item = item->next) {
-        if (!item->string) {
-            continue;
-        }
-
-        supervisor_command_type_t cmd_type = supervisor_command_from_id(item->string);
-
-        if (cmd_type == CMND_UNKNOWN) {
-            ESP_LOGW(TAG, "Unknown command: %s", item->string);
-            continue;
-        }
-
-        const char *desc = supervisor_command_description(cmd_type);
-
-        ESP_LOGI(TAG, "Dispatching command: %s - %s", item->string, desc);
-
-        supervisor_command_t *cmd = malloc(sizeof(supervisor_command_t));
-        if (!cmd) {
-            ESP_LOGE(TAG, "Failed to allocate supervisor_command_t");
-            continue;
-        }
-        cmd->type = cmd_type;
-        cmd->args_json_str = NULL;
-
-        char *json_val = cJSON_PrintUnformatted(item);
-        if (json_val) {
-            cmd->args_json_str = strdup(json_val);
-            free(json_val);
-        }
-
-        supervisor_schedule_command(cmd);
-    }
-
-    cJSON_Delete(json_root);
 }

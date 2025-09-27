@@ -1,9 +1,11 @@
 #include "button_manager.h"
-#include "iot_button.h"
 #include "button_gpio.h"
 #include "esp_log.h"
+#include "iot_button.h"
 #include <stdint.h>
-#include <supervisor.h>
+// #include <supervisor.h>
+
+#include "cmnd.h"
 
 static const char *TAG = "cikon-button-manager";
 static button_handle_t button_handles[MAX_BUTTONS] = {0};
@@ -15,21 +17,19 @@ static void button_event_handler(void *button_handle, void *usr_data) {
 
     switch (event) {
     case BUTTON_SINGLE_CLICK:
-        // ESP_LOGI(TAG, "Button %d: SINGLE CLICK", idx);
-        // supervisor_execute_commands("{\"help\":1}");
-        supervisor_execute_commands("{\"sta\":1}");
+        cmnd_submit("onboard_led", "\"toggle\"");
 
         break;
     case BUTTON_DOUBLE_CLICK:
-        supervisor_execute_commands("{\"log\":1}");
+        cmnd_submit("sta", NULL);
 
         break;
     // case BUTTON_MULTIPLE_CLICK:
     //     ESP_LOGI(TAG, "Button %d: MULTI CLICK (>=3)", idx);
     //     break;
     case BUTTON_LONG_PRESS_START:
-        // ESP_LOGI(TAG, "Button %d: LONG PRESS", idx);
-        supervisor_execute_commands("{\"ap\":1}");
+
+        cmnd_submit("ap", NULL);
 
         break;
     // case BUTTON_PRESS_DOWN:

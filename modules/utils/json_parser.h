@@ -1,13 +1,14 @@
 #ifndef JSON_PARSER_H
 #define JSON_PARSER_H
 
+#include <stdbool.h>
+#include <stddef.h>
+
+#include "cJSON.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#include <stdbool.h>
-#include <stddef.h>
-#include "cJSON.h"
 
 typedef enum { STATE_OFF = 0, STATE_ON, STATE_TOGGLE } logic_state_t;
 

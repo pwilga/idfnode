@@ -30,6 +30,8 @@ extern const uint8_t ca_pem_start[] asm("_binary_ca_pem_start");
 extern const uint8_t cikonesp_pem_start[] asm("_binary_cikonesp_pem_start");
 extern const uint8_t cikonesp_key_start[] asm("_binary_cikonesp_key_start");
 
+const mqtt_config_t *mqtt_get_config(void) { return &mqtt_config; }
+
 void mqtt_command_topic(char *buf, size_t buf_size) {
     snprintf(buf, buf_size, "%s/%s/cmnd", mqtt_config.mqtt_node, mqtt_config.client_id);
 }

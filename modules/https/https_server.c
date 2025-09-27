@@ -3,13 +3,14 @@
 #include <string.h>
 
 #include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
 #include "freertos/event_groups.h"
+#include "freertos/task.h"
 
 #include <esp_https_server.h>
 #include <esp_log.h>
 #include <esp_system.h>
 
+#include "cmnd.h"
 #include "config_manager.h"
 #include "supervisor.h"
 
@@ -159,7 +160,8 @@ static esp_err_t cmnd_post_handler(httpd_req_t *req) {
     }
     buf[received] = '\0';
 
-    supervisor_execute_commands(buf);
+    cmnd_process_json(buf);
+
     free(buf);
     httpd_resp_send(req, "OK", HTTPD_RESP_USE_STRLEN);
     return ESP_OK;

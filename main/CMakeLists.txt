@@ -8,6 +8,8 @@ idf_component_register(
         "../modules/mqtt/mqtt.c"
         "../modules/mqtt/ha.c"
         "../modules/supervisor/supervisor.c"
+        "../modules/supervisor/cmnd.c"
+        "../modules/supervisor/cmnd_handlers.c"
         "../modules/utils/json_parser.c"
         "../modules/utils/button_manager.c"
         "../modules/config/config_manager.c"
