@@ -6,13 +6,10 @@
 #include "cJSON.h"
 
 #include "cmnd.h"
-#include "cmnd_handlers.h"
 
-static const char *TAG = "supervisor-cmnd";
+#define TAG "supervisor-cmnd"
 
-#define MAX_COMMANDS 32
-
-static command_t command_registry[MAX_COMMANDS];
+static command_t command_registry[CONFIG_MAX_COMMANDS];
 static size_t command_count = 0;
 static bool cmnd_initialized = false;
 
@@ -30,15 +27,18 @@ const command_t *cmnd_get_registry(size_t *out_count) {
     return command_registry; // read-only;
 }
 
-void cmnd_register_command(const char *command_id, const char *description,
-                           command_handler_t handler) {
+void cmnd_register(const char *command_id, const char *description, command_handler_t handler) {
     if (!command_id || !handler) {
         ESP_LOGE(TAG, "Invalid command registration parameters");
         return;
     }
 
-    if (command_count >= MAX_COMMANDS) {
-        ESP_LOGE(TAG, "Command registry is full (%d commands)", MAX_COMMANDS);
+    // if (!cmnd_initialized) {
+    //     cmnd_init(NULL);
+    // }
+
+    if (command_count >= CONFIG_MAX_COMMANDS) {
+        ESP_LOGE(TAG, "Command registry is full (%d commands)", CONFIG_MAX_COMMANDS);
         return;
     }
 
@@ -54,11 +54,9 @@ void cmnd_register_command(const char *command_id, const char *description,
     command_registry[command_count].description = description ? description : "No description";
     command_registry[command_count].handler = handler;
     command_count++;
-
-    // ESP_LOGD(TAG, "Registered command: %s", command_id);
 }
 
-const command_t *cmnd_find_command(const char *command_id) {
+const command_t *cmnd_find(const char *command_id) {
 
     if (!cmnd_initialized) {
         ESP_LOGE(TAG, "Command system not initialized");
@@ -95,8 +93,6 @@ void cmnd_init(QueueHandle_t queue) {
     memset(command_registry, 0, sizeof(command_registry));
     command_count = 0;
 
-    cmnd_handlers_register();
-
     cmnd_initialized = true;
 
     ESP_LOGI(TAG, "Command system initialized: %zu commands, mode: %s%s", command_count,
@@ -126,7 +122,7 @@ void cmnd_enqueue_job(command_job_t *job) {
 
 void cmnd_submit(const char *command_id, const char *args_json_str) {
 
-    const command_t *cmnd = cmnd_find_command(command_id);
+    const command_t *cmnd = cmnd_find(command_id);
 
     if (!cmnd) {
         ESP_LOGW(TAG, "Unknown command: %s", command_id);

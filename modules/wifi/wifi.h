@@ -1,6 +1,8 @@
 #ifndef WIFI_H
 #define WIFI_H
 
+#include "esp_err.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif

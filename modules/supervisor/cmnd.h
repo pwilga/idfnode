@@ -23,11 +23,10 @@ typedef struct {
 
 void cmnd_init(QueueHandle_t queue);
 void cmnd_process_json(const char *json_string);
-void cmnd_register_command(const char *command_id, const char *description,
-                           command_handler_t handler);
+void cmnd_register(const char *command_id, const char *description, command_handler_t handler);
 void cmnd_submit(const char *command_id, const char *args_json_str);
 
-const command_t *cmnd_find_command(const char *command_id);
+const command_t *cmnd_find(const char *command_id);
 const command_t *cmnd_get_registry(size_t *out_count);
 
 #ifdef __cplusplus

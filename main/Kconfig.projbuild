@@ -16,6 +16,20 @@ menu "IDF-node Application Configuration"
             Length of the supervisor command queue.
             Typical: 8.
 
+    config MAX_COMMANDS
+        int "Maximum number of commands"
+        default 20
+        range 1 100
+        help
+            Maximum number of commands that can be queued for execution.
+
+    config MAX_TELE
+        int "Maximum number of telemetry appenders"
+        default 20
+        range 1 100
+        help
+            Maximum number of telemetry appenders that can be registered.
+
     config WIFI_AP_INACTIVITY_TIMEOUT_MINUTES
         int "WiFi AP inactivity timeout (minutes)"
         default 1

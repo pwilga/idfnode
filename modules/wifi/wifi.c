@@ -2,8 +2,6 @@
 
 #include "esp_log.h"
 #include "esp_wifi.h"
-#include "esp_mac.h"
-#include "sdkconfig.h"
 
 #include "wifi.h"
 

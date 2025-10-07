@@ -1,13 +1,13 @@
 #include <string.h>
-#include <sys/time.h>
+#include <time.h>
 
 #include "driver/gpio.h"
 #include "esp_err.h"
 #include "esp_log.h"
 #include "esp_mac.h"
+#include "esp_timer.h"
 #include "mdns.h"
 #include "nvs_flash.h"
-#include "esp_timer.h"
 
 #include "platform_services.h"
 
@@ -128,14 +128,23 @@ const char *get_boot_time(void) {
     static char iso8601[32] = {0};
     static bool initialized = false;
 
-    if (!initialized) {
-        struct timeval now;
-        gettimeofday(&now, NULL);
+    if (initialized) {
+        return iso8601;
+    }
 
-        int64_t uptime_us = esp_timer_get_time();
-        time_t boot_time = now.tv_sec - (uptime_us / 1000000);
+    time_t now_sec = 0;
+    struct tm tm_now = {0};
+    time(&now_sec);
+    gmtime_r(&now_sec, &tm_now);
+    int calendar_year = tm_now.tm_year + 1900;
 
-        strftime(iso8601, sizeof(iso8601), "%Y-%m-%dT%H:%M:%SZ", gmtime(&boot_time));
+    int64_t uptime_us = esp_timer_get_time();
+    time_t boot_time = now_sec - (uptime_us / 1000000);
+
+    strftime(iso8601, sizeof(iso8601), "%Y-%m-%dT%H:%M:%SZ", gmtime(&boot_time));
+
+    // treat time as unsynced until year >= 2020 (likely after SNTP)
+    if (calendar_year > 2020) {
         initialized = true;
     }
 
@@ -146,10 +155,12 @@ bool get_onboard_led_state(void) { return onboard_led_state; }
 
 void onboard_led_set_state(bool state) {
 
-    if (onboard_led_state != state) {
-        ESP_ERROR_CHECK(gpio_set_level(CONFIG_BOARD_STATUS_LED_GPIO, !state));
-        onboard_led_state = state;
+    if (onboard_led_state == state) {
+        return;
     }
+
+    ESP_ERROR_CHECK(gpio_set_level(CONFIG_BOARD_STATUS_LED_GPIO, !state));
+    onboard_led_state = state;
 }
 
 esp_err_t nvs_flash_safe_init() {

@@ -1,5 +1,3 @@
-#include "https_server.h"
-
 #include <string.h>
 
 #include "freertos/FreeRTOS.h"
@@ -12,7 +10,8 @@
 
 #include "cmnd.h"
 #include "config_manager.h"
-#include "supervisor.h"
+#include "https_server.h"
+#include "tele.h"
 
 #define TAG "cikon-https"
 #define HTTPS_INACTIVITY_TIMEOUT_MS 60000
@@ -123,7 +122,9 @@ static esp_err_t tele_get_handler(httpd_req_t *req) {
     https_restart_inactivity_timer();
 
     cJSON *json = cJSON_CreateObject();
-    supervisor_state_to_json(json);
+
+    tele_append_all(json);
+
     char *json_str = cJSON_PrintUnformatted(json);
     httpd_resp_set_type(req, "application/json");
     httpd_resp_send(req, json_str, HTTPD_RESP_USE_STRLEN);

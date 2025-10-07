@@ -1,16 +1,14 @@
+#include "config_manager.h"
 #include "driver/gpio.h"
 #include "esp_chip_info.h"
 #include "esp_flash.h"
 #include "esp_log.h"
-#include "freertos/FreeRTOS.h"
-#include "platform_services.h"
-#include "string.h"
-#include "supervisor.h"
-#include "config_manager.h"
+#include "freertos/idf_additions.h"
 #include "mqtt.h"
+#include "string.h"
 #include "wifi.h"
 
-static const char *TAG = "cikon-debug";
+#define TAG "cikon-debug"
 
 void debug_print_config_summary(void) {
     const config_t *cfg = config_get();
@@ -65,7 +63,8 @@ void debug_info_task(void *args) {
         wifi_log_event_group_bits();
         mqtt_log_event_group_bits();
 
-        ESP_LOGI(TAG, "Uptime: %lu s", (unsigned long)state_get()->uptime);
+        uint32_t uptime = esp_timer_get_time() / 1000000ULL;
+        ESP_LOGI(TAG, "Uptime: %" PRIu32 " s", uptime);
 
         char ip[16];
         wifi_get_interface_ip(ip, sizeof(ip));

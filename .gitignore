@@ -12,16 +12,20 @@
 /sdkconfig.old
 
 # IDE and tools
+.DS_Store
 .vscode/
 *.code-workspace
 CMakeFiles/
 CMakeCache.txt
 Makefile
+.cache/
 
 # Python
 __pycache__/
 *.pyc
 .env/
-main/certs/
 
+# Project specific
+main/certs/
 modules/config/config_fields_private.h
+

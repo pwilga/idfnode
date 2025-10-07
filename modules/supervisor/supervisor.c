@@ -1,34 +1,27 @@
 #include <string.h>
-#include <sys/time.h>
+#include <time.h>
 
+#include "esp_event.h"
 #include "esp_log.h"
-#include "esp_netif_sntp.h"
-#include "esp_random.h"
-#include "esp_wifi.h"
-
-#include "cJSON.h"
+#include "esp_wifi_types_generic.h"
 
 #include "button_manager.h"
 #include "config_manager.h"
 #include "debug.h"
 #include "https_server.h"
-#include "json_parser.h"
 // #include "net.h"
+#include "cmnd.h"
+#include "cmnd_basic_handlers.h"
+#include "mqtt.h"
 #include "ota.h"
 #include "platform_services.h"
 #include "supervisor.h"
+#include "tele.h"
+#include "tele_basic_appenders.h"
 #include "udp_monitor.h"
 #include "wifi.h"
 
-#if CONFIG_MQTT_ENABLE
-#include "mqtt.h"
-#endif
-
-#if CONFIG_MQTT_ENABLE && CONFIG_HOME_ASSISTANT_MQTT_DISCOVERY_ENABLE
-#include "ha.h"
-#endif
-
-const char *TAG = "cikon-supervisor";
+#define TAG "cikon-supervisor"
 
 #define SNTP_SYNCED_BIT BIT0
 
@@ -54,12 +47,6 @@ static const uint32_t supervisor_intervals_ms[SUPERVISOR_INTERVAL_COUNT] = {
     [SUPERVISOR_INTERVAL_2H] = 2 * 60 * 60 * 1000,
     [SUPERVISOR_INTERVAL_12H] = 12 * 60 * 60 * 1000};
 
-static supervisor_state_t state = {
-#define TELE(name, generic_type, telemetry_field_type_t, default_val) .name = default_val,
-    TELE_LIST
-#undef TELE
-};
-
 static void supervisor_sntp_sync_cb(struct timeval *tv) {
     xEventGroupSetBits(supervisor_event_group, SNTP_SYNCED_BIT);
 }
@@ -72,31 +59,13 @@ static void supervisor_restart_cb() {
     mqtt_shutdown();
 }
 
-void supervisor_shutdown_all_wifi_services() {
-
-    mqtt_publish_offline_state();
-    mqtt_shutdown();
-
-    https_shutdown();
-}
-
-const supervisor_state_t *state_get(void) { return &state; }
-
-float random_float(float min, float max) {
-    return min + ((float)esp_random() / UINT32_MAX) * (max - min);
-}
-
 static void supervisor_execute_stage(supervisor_interval_stage_t stage) {
 
     switch (stage) {
     case SUPERVISOR_INTERVAL_1S:
-
-        state.uptime = esp_timer_get_time() / 1000000ULL;
         break;
 
     case SUPERVISOR_INTERVAL_5S:
-        state.tempreture = random_float(20.5f, 25.9f);
-
         // is_internet_reachable() ? xEventGroupSetBits(app_event_group, INTERNET_REACHABLE_BIT)
         //                         : xEventGroupClearBits(app_event_group, INTERNET_REACHABLE_BIT);
         break;
@@ -105,9 +74,7 @@ static void supervisor_execute_stage(supervisor_interval_stage_t stage) {
 
         break;
     case SUPERVISOR_INTERVAL_10M:
-#if CONFIG_MQTT_ENABLE
         mqtt_init();
-#endif
         break;
     case SUPERVISOR_INTERVAL_2H:
         break;
@@ -120,18 +87,11 @@ static void supervisor_execute_stage(supervisor_interval_stage_t stage) {
 
 void supervisor_time_synced() {
 
-    static bool first_sync = true;
-
-    if (first_sync) {
-        snprintf(state.startup, sizeof(state.startup), "%s", get_boot_time());
-        first_sync = false;
-    }
-
-    struct timeval now = {0};
-    gettimeofday(&now, NULL);
+    time_t now_sec = 0;
+    time(&now_sec);
 
     struct tm tm_now = {0};
-    localtime_r(&now.tv_sec, &tm_now);
+    localtime_r(&now_sec, &tm_now);
 
     char buf[32];
     strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", &tm_now);
@@ -176,134 +136,6 @@ void supervisor_task(void *args) {
             }
         }
     }
-}
-
-void supervisor_add_json_field(cJSON *json_root, const char *name, const void *value,
-                               telemetry_field_type_t type) {
-    if (value == NULL || type == TELE_TYPE_NULL) {
-        cJSON_AddNullToObject(json_root, name);
-        return;
-    }
-
-    switch (type) {
-    case TELE_TYPE_BOOL:
-        cJSON_AddBoolToObject(json_root, name, *(const bool *)value);
-        break;
-    case TELE_TYPE_STRING:
-        cJSON_AddStringToObject(json_root, name, (const char *)value);
-        break;
-    case TELE_TYPE_INT:
-        cJSON_AddNumberToObject(json_root, name, (double)(*(const uint32_t *)value));
-        break;
-    case TELE_TYPE_FLOAT:
-        cJSON_AddNumberToObject(json_root, name, (double)(*(const float *)value));
-        break;
-    default:
-        cJSON_AddStringToObject(json_root, name, "<unsupported>");
-    }
-}
-
-/**
- * @brief Generates a JSON object describing current FreeRTOS tasks.
- *
- * This function collects runtime information about all currently active
- * FreeRTOS tasks and serializes it into a JSON dictionary using cJSON.
- * Each task is represented as a sub-object with fields such as priority,
- * stack watermark, runtime counter, task number, state, and core affinity
- * (if supported).
- *
- * @note Intended for diagnostic/debug use — prioritizes clarity over
- * efficiency.
- *
- * @return cJSON* Root JSON object representing the task dictionary,
- *                or NULL on allocation failure.
- */
-
-void supervisor_append_task_info(cJSON *json_root) {
-
-    if (!json_root)
-        return;
-
-    UBaseType_t num_tasks = uxTaskGetNumberOfTasks();
-    TaskStatus_t *task_status_array = calloc(num_tasks, sizeof(TaskStatus_t));
-    if (!task_status_array)
-        return;
-
-    cJSON *task_dict = cJSON_CreateObject();
-    if (!task_dict) {
-        free(task_status_array);
-        return;
-    }
-
-    uint32_t total_runtime = 0;
-    UBaseType_t real_task_count =
-        uxTaskGetSystemState(task_status_array, num_tasks, &total_runtime);
-
-    for (UBaseType_t i = 0; i < real_task_count; i++) {
-        cJSON *json_task = cJSON_CreateObject();
-        if (!json_task)
-            continue;
-
-        cJSON_AddNumberToObject(json_task, "prio", task_status_array[i].uxCurrentPriority);
-        cJSON_AddNumberToObject(json_task, "stack", task_status_array[i].usStackHighWaterMark);
-        cJSON_AddNumberToObject(json_task, "runtime_ticks", task_status_array[i].ulRunTimeCounter);
-        cJSON_AddNumberToObject(json_task, "task_number", task_status_array[i].xTaskNumber);
-
-        const char *state_str = "unknown";
-        switch (task_status_array[i].eCurrentState) {
-        case eRunning:
-            state_str = "running";
-            break;
-        case eReady:
-            state_str = "ready";
-            break;
-        case eBlocked:
-            state_str = "blocked";
-            break;
-        case eSuspended:
-            state_str = "suspended";
-            break;
-        case eDeleted:
-            state_str = "deleted";
-            break;
-        default:
-            break;
-        }
-        cJSON_AddStringToObject(json_task, "state", state_str);
-
-#if (INCLUDE_xTaskGetAffinity == 1)
-        cJSON_AddNumberToObject(json_task, "core", task_status_array[i].xCoreID);
-#endif
-
-        cJSON_AddItemToObject(task_dict, task_status_array[i].pcTaskName, json_task);
-    }
-
-    free(task_status_array);
-    cJSON_AddItemToObject(json_root, "tasks_dict", task_dict);
-}
-
-void supervisor_state_to_json(cJSON *json_root) {
-#define TELE(name, generic_type, telemetry_field_type_t, default_val)                              \
-    supervisor_add_json_field(json_root, #name, &state.name, telemetry_field_type_t);
-    TELE_LIST
-#undef TELE
-    /**
-     * Handling of pointers to JSON structures must be done manually,
-     * because automatic parsing is not flexible enough.
-     * If you need to add more pointers to JSON structures,
-     * do it explicitly in this section to maintain full
-     * control over the data structure.
-     */
-    supervisor_append_task_info(json_root);
-}
-
-void supervisor_set_onboard_led_state(bool new_state) {
-
-    if (state.onboard_led == new_state)
-        return;
-    state.onboard_led = new_state;
-    mqtt_trigger_telemetry();
-    // xEventGroupSetBits(app_event_group, MQTT_TELEMETRY_TRIGGER_BIT);
 }
 
 static void supervisor_netif_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id,
@@ -366,7 +198,6 @@ void supervisor_init_platform_services() {
 
     core_system_init();
 
-    state.onboard_led = get_onboard_led_state();
     set_restart_callback(supervisor_restart_cb);
 
     sntp_service_configure(
@@ -387,7 +218,7 @@ void supervisor_init() {
                               .mqtt_max_retry = config_get()->mqtt_max_retry,
                               .mqtt_disc_pref = config_get()->mqtt_disc_pref,
                               .command_cb = cmnd_process_json,
-                              .telemetry_cb = supervisor_state_to_json};
+                              .telemetry_cb = tele_append_all};
 
     mqtt_configure(&mqtt_cfg);
 
@@ -413,6 +244,10 @@ void supervisor_init() {
     }
 
     cmnd_init(supervisor_queue);
+    cmnd_basic_handlers_register();
+
+    tele_init();
+    tele_basic_appenders_register();
 
     static StaticEventGroup_t supervisor_event_group_storage;
 
