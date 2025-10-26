@@ -6,6 +6,7 @@ extern "C" {
 #endif
 
 void tcp_ota_init(void);
+void tcp_ota_shutdown(void);
 
 #ifdef __cplusplus
 }

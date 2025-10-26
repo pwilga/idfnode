@@ -26,8 +26,10 @@ volatile static uint32_t ap_seconds_without_clients = 0;
 static portMUX_TYPE wifi_sta_task_mux = portMUX_INITIALIZER_UNLOCKED;
 static portMUX_TYPE wifi_ap_timeout_mux = portMUX_INITIALIZER_UNLOCKED;
 
-static esp_event_handler_instance_t instance_any_id;
-static esp_event_handler_instance_t instance_got_ip;
+static esp_event_handler_instance_t instance_any_id = NULL;
+static esp_event_handler_instance_t instance_got_ip = NULL;
+
+static wifi_ap_timeout_callback_t ap_timeout_callback = NULL;
 
 static EventGroupHandle_t wifi_event_group = NULL;
 
@@ -144,7 +146,10 @@ static void wifi_ap_timeout_task(void *args) {
     wifi_mode_t mode;
 
     if (esp_wifi_get_mode(&mode) != ESP_OK || mode != WIFI_MODE_STA) {
-        ESP_LOGI(TAG_AP, "Switching to STA mode.");
+        ESP_LOGI(TAG_AP, "AP timeout - switching to STA mode");
+        if (ap_timeout_callback) {
+            ap_timeout_callback();
+        }
         wifi_init_sta_mode();
     } else {
         ESP_LOGI(TAG_AP, "Already in STA mode, no need to switch.");
@@ -224,13 +229,18 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t e
 }
 
 void wifi_unregister_event_handlers() {
-    /* Just to avoid errors when esp32 close wifi connection */
-    ESP_ERROR_CHECK(
-        esp_event_handler_instance_unregister(IP_EVENT, IP_EVENT_STA_GOT_IP, instance_got_ip));
+    if (instance_got_ip) {
+        esp_event_handler_instance_unregister(IP_EVENT, IP_EVENT_STA_GOT_IP, instance_got_ip);
+        instance_got_ip = NULL;
+    }
 
-    ESP_ERROR_CHECK(
-        esp_event_handler_instance_unregister(WIFI_EVENT, ESP_EVENT_ANY_ID, instance_any_id));
+    if (instance_any_id) {
+        esp_event_handler_instance_unregister(WIFI_EVENT, ESP_EVENT_ANY_ID, instance_any_id);
+        instance_any_id = NULL;
+    }
 }
+
+void wifi_set_ap_timeout_callback(wifi_ap_timeout_callback_t cb) { ap_timeout_callback = cb; }
 
 bool is_wifi_network_connected(void) {
     return xEventGroupGetBits(wifi_event_group) & (WIFI_STA_CONNECTED_BIT | WIFI_AP_STARTED_BIT);
@@ -273,7 +283,13 @@ void wifi_init_ap_mode() {
     }
 
     ignore_sta_disconnect_event = true;
-    ESP_ERROR_CHECK(safe_wifi_stop());
+
+    esp_err_t err = safe_wifi_stop();
+    if (err != ESP_OK && err != ESP_ERR_WIFI_STOP_STATE) {
+        // ESP_ERR_WIFI_STOP_STATE means WiFi is already stopping - that's OK
+        ESP_LOGE(TAG_AP, "Failed to stop WiFi: %s", esp_err_to_name(err));
+        return;
+    }
 
     wifi_config_t ap_config = {.ap = {.ssid_len = 0,
                                       .password = "",
@@ -304,7 +320,12 @@ void wifi_init_sta_mode() {
         ignore_sta_disconnect_event = false;
     }
 
-    ESP_ERROR_CHECK(safe_wifi_stop());
+    esp_err_t err = safe_wifi_stop();
+    if (err != ESP_OK && err != ESP_ERR_WIFI_STOP_STATE) {
+        // ESP_ERR_WIFI_STOP_STATE means WiFi is already stopping - that's OK
+        ESP_LOGE(TAG_STA, "Failed to stop WiFi: %s", esp_err_to_name(err));
+        return;
+    }
 
     wifi_config_t sta_config = {0};
 

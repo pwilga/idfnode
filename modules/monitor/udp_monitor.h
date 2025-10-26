@@ -6,6 +6,7 @@ extern "C" {
 #endif
 
 void udp_monitor_init(void);
+void udp_monitor_shutdown(void);
 
 #ifdef __cplusplus
 }

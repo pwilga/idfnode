@@ -14,6 +14,12 @@ typedef struct {
     const char *ap_password;
 } wifi_credentials_t;
 
+// Callback called when AP timeout occurs and system wants to switch to STA
+// Upper layers can use this to cleanup services before switch
+typedef void (*wifi_ap_timeout_callback_t)(void);
+
+void wifi_set_ap_timeout_callback(wifi_ap_timeout_callback_t cb);
+
 void wifi_configure(const wifi_credentials_t *creds);
 void wifi_init_sta_mode();
 void wifi_init_ap_mode();

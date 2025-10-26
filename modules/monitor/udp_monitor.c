@@ -18,16 +18,21 @@
 
 #define TAG "udp-monitor"
 
+static TaskHandle_t monitor_task_handle = NULL;
 static int udp_sock = -1;
 static struct sockaddr_in client_addr;
 static bool client_connected = false;
+static volatile bool monitor_shutdown_requested = false;
 
 int udp_monitor_vprintf(const char *fmt, va_list args) {
     char buffer[512];
-    int len = vsnprintf(buffer, sizeof(buffer), fmt, args);
+    vsnprintf(buffer, sizeof(buffer), fmt, args);
 
-    sendto(udp_sock, buffer, strlen(buffer), 0, (struct sockaddr *)&client_addr,
-           sizeof(client_addr));
+    // Only try to send if socket is valid and client is connected
+    if (udp_sock >= 0 && client_connected) {
+        sendto(udp_sock, buffer, strlen(buffer), 0, (struct sockaddr *)&client_addr,
+               sizeof(client_addr));
+    }
 
     return vprintf(fmt, args); // optional: also keep UART output
 }
@@ -49,6 +54,8 @@ void udp_monitor_task(void *arg) {
     udp_sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_IP);
     if (udp_sock < 0) {
         ESP_LOGE(TAG, "Socket creation failed");
+        udp_sock = -1;
+        monitor_task_handle = NULL;
         vTaskDelete(NULL);
         return;
     }
@@ -57,6 +64,7 @@ void udp_monitor_task(void *arg) {
         ESP_LOGE(TAG, "Socket bind failed");
         close(udp_sock);
         udp_sock = -1;
+        monitor_task_handle = NULL;
         vTaskDelete(NULL);
         return;
     }
@@ -64,7 +72,7 @@ void udp_monitor_task(void *arg) {
     ESP_LOGI(TAG, "Waiting for UDP client on port: %d", config_get()->udp_mon_port);
 
     socklen_t addr_len = sizeof(recv_addr);
-    while (1) {
+    while (!monitor_shutdown_requested) {
         // Non-blocking recvfrom
         int len = recvfrom(udp_sock, dummy_buf, sizeof(dummy_buf), MSG_DONTWAIT,
                            (struct sockaddr *)&recv_addr, &addr_len);
@@ -103,9 +111,59 @@ void udp_monitor_task(void *arg) {
 
         vTaskDelay(pdMS_TO_TICKS(200));
     }
+
+    // Cleanup
+    ESP_LOGI(TAG, "UDP monitor task cleaning up");
+
+    if (client_connected) {
+        esp_log_set_vprintf(&vprintf);
+        client_connected = false;
+    }
+
+    if (udp_sock >= 0) {
+        close(udp_sock);
+        udp_sock = -1;
+    }
+
+    monitor_shutdown_requested = false;
+    monitor_task_handle = NULL;
+    ESP_LOGE(TAG, "UDP monitor task exiting");
+    vTaskDelete(NULL);
 }
 
 void udp_monitor_init(void) {
+    if (monitor_task_handle != NULL) {
+        ESP_LOGW(TAG, "UDP monitor task already running");
+        return;
+    }
+
+    monitor_shutdown_requested = false;
     xTaskCreate(udp_monitor_task, "udp_monitor", CONFIG_UDP_MONITOR_TASK_STACK_SIZE, NULL,
-                CONFIG_UDP_MONITOR_TASK_PRIORITY, NULL);
+                CONFIG_UDP_MONITOR_TASK_PRIORITY, &monitor_task_handle);
+}
+
+void udp_monitor_shutdown(void) {
+    if (monitor_task_handle == NULL) {
+        ESP_LOGW(TAG, "UDP monitor task not running");
+        return;
+    }
+
+    // ESP_LOGI(TAG, "Shutting down UDP monitor service");
+
+    // Restore normal logging IMMEDIATELY before signaling shutdown
+    // This prevents any logs during shutdown from trying to use the UDP socket
+    if (client_connected) {
+        esp_log_set_vprintf(&vprintf);
+        client_connected = false;
+    }
+
+    // Signal task to stop
+    monitor_shutdown_requested = true;
+
+    // Wait for task to finish cleanup and set handle to NULL (max 1 second)
+    int wait_count = 0;
+    while (monitor_task_handle != NULL && wait_count < 100) {
+        vTaskDelay(pdMS_TO_TICKS(10));
+        wait_count++;
+    }
 }

@@ -3,6 +3,8 @@
 #include "cJSON.h"
 #include "esp_random.h"
 #include "esp_timer.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 
 #include "platform_services.h"
 #include "tele.h"

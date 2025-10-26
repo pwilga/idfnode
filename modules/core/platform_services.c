@@ -5,19 +5,13 @@
 #include "esp_err.h"
 #include "esp_log.h"
 #include "esp_mac.h"
+#include "esp_system.h"
 #include "esp_timer.h"
-#include "mdns.h"
 #include "nvs_flash.h"
 
 #include "platform_services.h"
 
 #define TAG "cikon-systems"
-
-static const char *mdns_host = NULL;
-static const char *mdns_instance = NULL;
-
-static const char *sntp_servers[CONFIG_LWIP_SNTP_MAX_SERVERS] = {NULL};
-static esp_sntp_time_cb_t sntp_cb = NULL;
 
 static void (*restart_callback)(void) = NULL;
 
@@ -38,70 +32,6 @@ void esp_safe_restart() {
     }
 
     esp_restart();
-}
-
-void mdns_service_configure(const char *hostname, const char *instance_name) {
-    mdns_host = hostname;
-    mdns_instance = instance_name;
-}
-
-void mdns_service_init() {
-
-    esp_err_t ret = (mdns_init() != ESP_OK || mdns_hostname_set(mdns_host) != ESP_OK ||
-                     mdns_instance_name_set(mdns_instance) != ESP_OK)
-                        ? ESP_FAIL
-                        : ESP_OK;
-
-    if (ret == ESP_OK) {
-        ESP_LOGI(TAG, "mDNS started with hostname: %s.local", mdns_host);
-    } else {
-        ESP_LOGE(TAG, "mDNS init failed: %s", esp_err_to_name(ret));
-    }
-}
-
-void sntp_service_configure(const char **servers, esp_sntp_time_cb_t cb) {
-
-    for (int i = 0; i < CONFIG_LWIP_SNTP_MAX_SERVERS; ++i) {
-        if (servers[i] && strlen(servers[i]) > 0) {
-            sntp_servers[i] = servers[i];
-        } else {
-            sntp_servers[i] = NULL;
-        }
-    }
-    sntp_cb = cb;
-}
-
-void sntp_service_init() {
-
-    if (memcmp(sntp_servers, (const char *[CONFIG_LWIP_SNTP_MAX_SERVERS]){NULL},
-               sizeof(sntp_servers)) == 0) {
-
-        ESP_LOGW(TAG, "No SNTP servers configured, skipping SNTP init.");
-        return;
-    }
-
-    esp_sntp_config_t config = {
-        .smooth_sync = false,
-        .server_from_dhcp = false,
-        .wait_for_sync = true,
-        .start = true,
-        .sync_cb = sntp_cb,
-        .renew_servers_after_new_IP = false,
-        .ip_event_to_renew = IP_EVENT_STA_GOT_IP,
-        .index_of_first_server = 0,
-        .num_of_servers = CONFIG_LWIP_SNTP_MAX_SERVERS,
-        .servers = {NULL},
-    };
-
-    for (int i = 0; i < CONFIG_LWIP_SNTP_MAX_SERVERS; ++i) {
-        config.servers[i] = sntp_servers[i];
-    }
-
-    esp_netif_sntp_init(&config);
-    ESP_LOGI(TAG, "SNTP service initialized, current servers: %s, %s, %s",
-             config.servers[0] ? config.servers[0] : "none",
-             config.servers[1] ? config.servers[1] : "none",
-             config.servers[2] ? config.servers[2] : "none");
 }
 
 const char *get_client_id(void) {

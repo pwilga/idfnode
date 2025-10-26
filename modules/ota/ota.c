@@ -11,6 +11,7 @@
 
 #include "config_manager.h"
 #include "platform_services.h"
+#include <stdint.h>
 
 #define RETURN_IF_FALSE(x)                                                                         \
     do {                                                                                           \
@@ -26,6 +27,11 @@
 #define SW_VERSION_SIZE 2
 
 static const char *TAG = "ota-update";
+
+static TaskHandle_t ota_task_handle = NULL;
+static int ota_listen_sock = -1;
+static volatile bool ota_shutdown_requested = false;
+static volatile bool ota_update_in_progress = false;
 
 static const char *ota_steps[] = {
     "Waiting for OTA magic header", "Receiving firmware metadata (version, size, MD5)",
@@ -70,10 +76,14 @@ static void handle_ota(const int client_sock) {
     uint8_t rx_buffer[RX_BUFFER_SIZE];
     const uint8_t magic_bytes[] = {MAGIC_BYTES};
 
+    // Mark that update is in progress (cannot be interrupted)
+    ota_update_in_progress = true;
+
     OTA_LOG_STEP(0); // Magic header
     if (read_all(client_sock, rx_buffer) == sizeof(magic_bytes)) {
         if (memcmp(rx_buffer, magic_bytes, sizeof(magic_bytes))) {
             ESP_LOGE(TAG, "Invalid OTA magic header");
+            ota_update_in_progress = false;
             return;
         }
         RETURN_IF_FALSE(send_ack(client_sock));
@@ -164,8 +174,11 @@ static void handle_ota(const int client_sock) {
     err = esp_ota_set_boot_partition(update_partition);
     if (err != ESP_OK) {
         ESP_LOGE(TAG, "Setting new boot partition failed: %s", esp_err_to_name(err));
+        ota_update_in_progress = false;
         return;
     }
+
+    ota_update_in_progress = false;
 
     OTA_LOG_STEP(5); // Reboot
     esp_safe_restart();
@@ -180,9 +193,11 @@ void tcp_ota_task(void *args) {
     dest_addr_ip4->sin_family = AF_INET;
     dest_addr_ip4->sin_port = htons(config_get()->ota_tcp_port);
 
-    int listen_sock = socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
-    if (listen_sock < 0) {
+    ota_listen_sock = socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
+    if (ota_listen_sock < 0) {
         ESP_LOGE(TAG, "Unable to create socket. System error code: %d", errno);
+        ota_listen_sock = -1;
+        ota_task_handle = NULL;
         vTaskDelete(NULL);
         return;
     }
@@ -192,24 +207,33 @@ void tcp_ota_task(void *args) {
         if they were recently used and are still in the TIME_WAIT state.
     */
     int opt = 1;
-    setsockopt(listen_sock, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
+    setsockopt(ota_listen_sock, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
 
-    if (bind(listen_sock, (struct sockaddr *)&dest_addr, sizeof(dest_addr)) ||
-        listen(listen_sock, 1)) {
+    if (bind(ota_listen_sock, (struct sockaddr *)&dest_addr, sizeof(dest_addr)) ||
+        listen(ota_listen_sock, 1)) {
         ESP_LOGE(TAG, "Socket setup failed. Step: %s, Error code: %d",
                  (errno == EADDRINUSE || errno == EADDRNOTAVAIL) ? "bind" : "listen", errno);
-        close(listen_sock);
+        close(ota_listen_sock);
+        ota_listen_sock = -1;
+        ota_task_handle = NULL;
         vTaskDelete(NULL);
+        return;
     }
 
-    while (1) {
+    while (!ota_shutdown_requested) {
         ESP_LOGI(TAG, "Listening for connections, port: %d.", config_get()->ota_tcp_port);
 
         struct sockaddr_storage source_addr;
         socklen_t addr_len = sizeof(source_addr);
-        int client_sock = accept(listen_sock, (struct sockaddr *)&source_addr, &addr_len);
+        int client_sock = accept(ota_listen_sock, (struct sockaddr *)&source_addr, &addr_len);
+
         if (client_sock < 0) {
-            ESP_LOGE(TAG, "Error accepting incoming connection: errno %d", errno);
+            // Socket was closed from shutdown, this is expected
+            if (ota_shutdown_requested) {
+                ESP_LOGI(TAG, "OTA shutdown requested");
+            } else {
+                ESP_LOGE(TAG, "Error accepting incoming connection: errno %d", errno);
+            }
             break;
         }
 
@@ -219,12 +243,62 @@ void tcp_ota_task(void *args) {
 
         handle_ota(client_sock);
 
-        shutdown(client_sock, 0);
+        shutdown(client_sock, SHUT_RDWR);
         close(client_sock);
     }
+
+    if (ota_listen_sock >= 0) {
+        close(ota_listen_sock);
+        ota_listen_sock = -1;
+    }
+
+    ota_shutdown_requested = false;
+    ota_task_handle = NULL;
+    ESP_LOGE(TAG, "OTA task exiting");
+    vTaskDelete(NULL);
 }
 
 void tcp_ota_init(void) {
+    if (ota_task_handle != NULL) {
+        ESP_LOGW(TAG, "OTA task already running");
+        return;
+    }
+
+    ota_shutdown_requested = false;
     xTaskCreate(tcp_ota_task, "tcp_ota", CONFIG_TCP_OTA_TASK_STACK_SIZE, NULL,
-                CONFIG_TCP_OTA_TASK_PRIORITY, NULL);
+                CONFIG_TCP_OTA_TASK_PRIORITY, &ota_task_handle);
+}
+
+void tcp_ota_shutdown(void) {
+    if (ota_task_handle == NULL) {
+        ESP_LOGW(TAG, "OTA task not running");
+        return;
+    }
+
+    // ESP_LOGI(TAG, "Shutting down OTA service");
+
+    // Signal task to stop
+    ota_shutdown_requested = true;
+
+    // Close listen socket to unblock accept()
+    if (ota_listen_sock >= 0) {
+        shutdown(ota_listen_sock, SHUT_RDWR);
+        close(ota_listen_sock);
+        ota_listen_sock = -1;
+    }
+
+    // Wait for task to finish cleanup and set handle to NULL
+    // If update is in progress, this will wait until it completes
+    uint8_t wait_count = 0;
+    bool logged_waiting = false;
+
+    while (ota_task_handle != NULL && (ota_update_in_progress || wait_count < 100)) {
+
+        if (ota_update_in_progress && !logged_waiting) {
+            ESP_LOGW(TAG, "Waiting for OTA update to complete before shutdown...");
+            logged_waiting = true;
+        }
+        vTaskDelay(pdMS_TO_TICKS(10));
+        wait_count++;
+    }
 }
