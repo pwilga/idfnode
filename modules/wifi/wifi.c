@@ -7,6 +7,8 @@
 
 #define WIFI_STA_CONNECTED_BIT BIT0
 #define WIFI_AP_STARTED_BIT BIT1
+#define WIFI_STOPPED_BIT BIT2
+#define WIFI_AP_CLIENT_CONNECTED_BIT BIT3
 
 #define TAG "cikon-wifi"
 #define TAG_STA TAG "-sta"
@@ -16,7 +18,6 @@ static wifi_credentials_t wifi_creds = {NULL};
 static esp_netif_t *sta_netif = NULL, *ap_netif = NULL;
 
 static bool ignore_sta_disconnect_event = false;
-static bool ap_has_client = false;
 
 static TaskHandle_t wifi_sta_connection_task_handle = NULL;
 static TaskHandle_t wifi_ap_task_handle = NULL;
@@ -119,7 +120,8 @@ static void wifi_ap_timeout_task(void *args) {
     const int timeout_seconds = CONFIG_WIFI_AP_INACTIVITY_TIMEOUT_MINUTES * 60;
 
     while (xEventGroupGetBits(wifi_event_group) & WIFI_AP_STARTED_BIT) {
-        if (ap_has_client) {
+
+        if (xEventGroupGetBits(wifi_event_group) & WIFI_AP_CLIENT_CONNECTED_BIT) {
 
             taskENTER_CRITICAL(&wifi_ap_timeout_mux);
             ap_seconds_without_clients = 0;
@@ -144,6 +146,14 @@ static void wifi_ap_timeout_task(void *args) {
     }
 
     wifi_mode_t mode;
+
+    // Check if AP is still active - if not, someone else already stopped it
+    if (!(xEventGroupGetBits(wifi_event_group) & WIFI_AP_STARTED_BIT)) {
+        ESP_LOGI(TAG_AP, "AP already stopped by another task, timeout task exiting");
+        wifi_ap_task_handle = NULL;
+        vTaskDelete(NULL);
+        return;
+    }
 
     if (esp_wifi_get_mode(&mode) != ESP_OK || mode != WIFI_MODE_STA) {
         ESP_LOGI(TAG_AP, "AP timeout - switching to STA mode");
@@ -187,7 +197,7 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t e
 
         case WIFI_EVENT_AP_START:
             xEventGroupSetBits(wifi_event_group, WIFI_AP_STARTED_BIT);
-            ap_has_client = false;
+            xEventGroupClearBits(wifi_event_group, WIFI_AP_CLIENT_CONNECTED_BIT);
 
             if (wifi_ap_task_handle != NULL) {
                 eTaskState state = eTaskGetState(wifi_ap_task_handle);
@@ -205,15 +215,21 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t e
         case WIFI_EVENT_AP_STOP:
             ESP_LOGI(TAG_AP, "Access Point (AP) has been stopped.");
             xEventGroupClearBits(wifi_event_group, WIFI_AP_STARTED_BIT);
+            xEventGroupSetBits(wifi_event_group, WIFI_STOPPED_BIT);
+            break;
+
+        case WIFI_EVENT_STA_STOP:
+            ESP_LOGI(TAG_STA, "Station (STA) has been stopped.");
+            xEventGroupSetBits(wifi_event_group, WIFI_STOPPED_BIT);
             break;
 
         case WIFI_EVENT_AP_STACONNECTED:
-            ESP_LOGI(TAG_AP, "A client has connected to the Access Point (AP).");
-            ap_has_client = true;
+            // ESP_LOGI(TAG_AP, "A client has connected to the Access Point (AP).");
+            xEventGroupSetBits(wifi_event_group, WIFI_AP_CLIENT_CONNECTED_BIT);
             break;
         case WIFI_EVENT_AP_STADISCONNECTED:
-            ESP_LOGI(TAG_AP, "A client has disconnected from the Access Point (AP).");
-            ap_has_client = false;
+            // ESP_LOGI(TAG_AP, "A client has disconnected from the Access Point (AP).");
+            xEventGroupClearBits(wifi_event_group, WIFI_AP_CLIENT_CONNECTED_BIT);
             break;
 
         default:
@@ -347,6 +363,11 @@ void wifi_init_sta_mode() {
 
 esp_err_t safe_wifi_stop() {
 
+    // If WiFi was never started (no netif exists), nothing to stop
+    if (sta_netif == NULL && ap_netif == NULL) {
+        return ESP_OK;
+    }
+
     // Atomically (thread-safe) detach the task handle from the global variable,
     // so that no other code can use or delete it at the same time (prevents race conditions).
     // vTaskDelete is called outside the critical section, because it may block or take time.
@@ -371,8 +392,19 @@ esp_err_t safe_wifi_stop() {
     ap_seconds_without_clients = 0;
     taskEXIT_CRITICAL(&wifi_ap_timeout_mux);
 
+    // Clear the STOPPED bit before calling esp_wifi_stop()
+    xEventGroupClearBits(wifi_event_group, WIFI_STOPPED_BIT);
+
     esp_wifi_disconnect();
     esp_err_t err = esp_wifi_stop();
+
+    // Wait for WiFi to actually stop (WIFI_EVENT_STA_STOP or WIFI_EVENT_AP_STOP)
+    EventBits_t bits = xEventGroupWaitBits(wifi_event_group, WIFI_STOPPED_BIT, pdTRUE, pdFALSE,
+                                           pdMS_TO_TICKS(1000));
+
+    if (!(bits & WIFI_STOPPED_BIT)) {
+        ESP_LOGW(TAG, "WiFi stop event timeout after 1000ms");
+    }
 
     xEventGroupClearBits(wifi_event_group, WIFI_STA_CONNECTED_BIT | WIFI_AP_STARTED_BIT);
 
@@ -414,6 +446,7 @@ void wifi_log_event_group_bits(void) {
         return;
 
     EventBits_t bits = xEventGroupGetBits(wifi_event_group);
-    ESP_LOGI(TAG, "WiFi bits: %s%s", (bits & WIFI_STA_CONNECTED_BIT) ? "STA " : "",
-             (bits & WIFI_AP_STARTED_BIT) ? "AP " : "");
+    ESP_LOGI(TAG, "WiFi bits: %s%s%s", (bits & WIFI_STA_CONNECTED_BIT) ? "STA " : "",
+             (bits & WIFI_AP_STARTED_BIT) ? "AP " : "",
+             (bits & WIFI_AP_CLIENT_CONNECTED_BIT) ? "AP_CLIENT " : "");
 }
