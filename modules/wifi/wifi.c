@@ -315,12 +315,17 @@ void wifi_init_ap_mode() {
 
     strncpy((char *)ap_config.ap.ssid, wifi_creds.ap_ssid, sizeof(ap_config.ap.ssid) - 1);
 
-    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_AP));
-    ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_AP, &ap_config));
-
+    // Create netif BEFORE setting mode and config
     ap_netif = esp_netif_create_default_wifi_ap();
 
+    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_AP));
+    ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_AP, &ap_config));
     ESP_ERROR_CHECK(esp_wifi_start());
+
+    // Explicitly restart DHCP server to ensure it's listening
+    esp_netif_dhcps_stop(ap_netif);
+    vTaskDelay(pdMS_TO_TICKS(100));
+    esp_netif_dhcps_start(ap_netif);
 }
 
 void wifi_init_sta_mode() {
@@ -351,11 +356,11 @@ void wifi_init_sta_mode() {
 
     sta_config.sta.threshold.authmode = WIFI_AUTH_WPA2_PSK;
 
-    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
-    ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &sta_config));
-
+    // Create netif BEFORE setting mode and config
     sta_netif = esp_netif_create_default_wifi_sta();
 
+    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
+    ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &sta_config));
     ESP_ERROR_CHECK(esp_wifi_start());
 
     wifi_sta_connection_task_ensure_running();
@@ -395,6 +400,14 @@ esp_err_t safe_wifi_stop() {
     // Clear the STOPPED bit before calling esp_wifi_stop()
     xEventGroupClearBits(wifi_event_group, WIFI_STOPPED_BIT);
 
+    // Disconnect all AP clients before stopping (MAC 0 = disconnect all)
+    wifi_mode_t current_mode;
+    if (esp_wifi_get_mode(&current_mode) == ESP_OK) {
+        if (current_mode == WIFI_MODE_AP || current_mode == WIFI_MODE_APSTA) {
+            esp_wifi_deauth_sta(0);
+        }
+    }
+
     esp_wifi_disconnect();
     esp_err_t err = esp_wifi_stop();
 
@@ -405,6 +418,10 @@ esp_err_t safe_wifi_stop() {
     if (!(bits & WIFI_STOPPED_BIT)) {
         ESP_LOGW(TAG, "WiFi stop event timeout after 1000ms");
     }
+
+    // CRITICAL: Wait for WiFi driver to finish processing all packets
+    // before destroying netif to prevent NULL pointer dereference
+    vTaskDelay(pdMS_TO_TICKS(200));
 
     xEventGroupClearBits(wifi_event_group, WIFI_STA_CONNECTED_BIT | WIFI_AP_STARTED_BIT);
 

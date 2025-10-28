@@ -208,7 +208,6 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 
         mqtt_retry_counter = 0;
         xEventGroupSetBits(mqtt_event_group, MQTT_CONNECTED_BIT);
-        xEventGroupClearBits(mqtt_event_group, MQTT_TASKS_SHUTDOWN_BIT);
 
         mqtt_queue = xQueueCreate(8, sizeof(void *));
         assert(mqtt_queue != NULL);
@@ -339,6 +338,9 @@ void mqtt_init() {
         return;
     }
 
+    // Clear shutdown bit - allow tasks to run
+    xEventGroupClearBits(mqtt_event_group, MQTT_TASKS_SHUTDOWN_BIT);
+
     bool secure = mqtt_config.mqtt_mtls_en;
 
     static char avail_topic_buf[TOPIC_BUF_SIZE];
@@ -386,6 +388,16 @@ void mqtt_shutdown() {
         return;
 
     xEventGroupSetBits(mqtt_event_group, MQTT_TASKS_SHUTDOWN_BIT);
+
+    // Wait for tasks to finish (max 2 seconds)
+    uint8_t timeout = 200; // 200 × 10ms = 2s
+    while ((mqtt_command_task_handle != NULL || mqtt_telemetry_task_handle != NULL) && timeout--) {
+        vTaskDelay(pdMS_TO_TICKS(10));
+    }
+
+    if (mqtt_command_task_handle != NULL || mqtt_telemetry_task_handle != NULL) {
+        ESP_LOGW(TAG, "MQTT tasks did not exit in time!");
+    }
 
     ESP_ERROR_CHECK(esp_mqtt_client_stop(mqtt_client));
     ESP_ERROR_CHECK(esp_mqtt_client_destroy(mqtt_client));

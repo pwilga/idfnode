@@ -20,7 +20,6 @@
 static QueueHandle_t supervisor_queue;
 static EventGroupHandle_t supervisor_event_group;
 
-// Registered platform adapters
 static supervisor_platform_adapter_t *registered_adapters[SUPERVISOR_MAX_ADAPTERS];
 static uint8_t adapter_count = 0;
 
@@ -33,8 +32,6 @@ static const uint32_t supervisor_intervals_ms[SUPERVISOR_INTERVAL_COUNT] = {
     [SUPERVISOR_INTERVAL_10M] = 10 * 60 * 1000,
     [SUPERVISOR_INTERVAL_2H] = 2 * 60 * 60 * 1000,
     [SUPERVISOR_INTERVAL_12H] = 12 * 60 * 60 * 1000};
-
-// Public API implementations
 
 QueueHandle_t supervisor_get_queue(void) { return supervisor_queue; }
 
@@ -74,6 +71,7 @@ static void supervisor_task(void *args) {
 
     command_job_t *job;
 
+    // Super loop
     while (1) {
         if (xQueueReceive(supervisor_queue, &job, pdMS_TO_TICKS(100))) {
             ESP_LOGI(TAG, "Received command: %s", job->cmnd->command_id);
@@ -144,18 +142,14 @@ void supervisor_init(void) {
         return;
     }
 
-    // Initialize command system
     cmnd_init(supervisor_queue);
     cmnd_core_handlers_register();
 
-    // Initialize telemetry system
     tele_init();
     tele_basic_appenders_register();
 
-    // Initialize button manager (hardware, platform-independent)
     button_manager_init(0);
 
-    // Start debug task (if needed)
     xTaskCreate(debug_info_task, "debug_info", 4096, NULL, 0, NULL);
 
     ESP_LOGI(TAG, "Supervisor core initialized successfully");
@@ -164,7 +158,6 @@ void supervisor_init(void) {
 esp_err_t supervisor_platform_init(void) {
     ESP_LOGI(TAG, "Initializing %d platform adapter(s)", adapter_count);
 
-    // Initialize all registered adapters
     for (int i = 0; i < adapter_count; i++) {
         if (registered_adapters[i]->init) {
             ESP_LOGI(TAG, "Initializing adapter #%d", i + 1);
@@ -172,11 +165,10 @@ esp_err_t supervisor_platform_init(void) {
         }
     }
 
-    // Start supervisor task
     xTaskCreate(supervisor_task, "supervisor", CONFIG_SUPERVISOR_TASK_STACK_SIZE, NULL,
                 CONFIG_SUPERVISOR_TASK_PRIORITY, NULL);
 
-    ESP_LOGI(TAG, "Supervisor platform initialization complete");
+    // ESP_LOGI(TAG, "Supervisor platform initialization complete");
 
     return ESP_OK;
 }

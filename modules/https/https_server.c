@@ -58,6 +58,11 @@ static void https_restart_inactivity_timer(void) {
 
 void https_init(void) {
 
+    if (https_server_handle != NULL) {
+        ESP_LOGW(TAG, "HTTPS server already running, ignoring init");
+        return;
+    }
+
     static StaticEventGroup_t http_event_group_storage;
 
     if (https_event_group == NULL) {
@@ -87,6 +92,10 @@ void https_shutdown(void) {
     uint8_t timeout = 100;
     while (https_server_handle != NULL && timeout--)
         vTaskDelay(pdMS_TO_TICKS(10));
+
+    if (https_server_handle != NULL) {
+        ESP_LOGE(TAG, "HTTPS server error shutdown timeout");
+    }
 }
 
 static bool https_check_basic_auth(httpd_req_t *req) {
@@ -126,14 +135,18 @@ static esp_err_t tele_get_handler(httpd_req_t *req) {
     tele_append_all(json);
 
     char *json_str = cJSON_PrintUnformatted(json);
+
     httpd_resp_set_type(req, "application/json");
-    httpd_resp_send(req, json_str, HTTPD_RESP_USE_STRLEN);
+    esp_err_t ret = httpd_resp_send(req, json_str, HTTPD_RESP_USE_STRLEN);
+
     free(json_str);
     cJSON_Delete(json);
-    return ESP_OK;
+
+    return ret;
 }
 
 static esp_err_t cmnd_post_handler(httpd_req_t *req) {
+
     if (!https_check_basic_auth(req)) {
         ESP_LOGW(TAG, "POST /cmnd: unauthorized");
         return ESP_FAIL;
@@ -152,7 +165,7 @@ static esp_err_t cmnd_post_handler(httpd_req_t *req) {
     while (received < total_len) {
         int ret = httpd_req_recv(req, buf + received, total_len - received);
         if (ret <= 0) {
-            ESP_LOGE(TAG, "POST /cmnd: recv failed");
+            ESP_LOGE(TAG, "POST /cmnd: recv failed, ret=%d", ret);
             free(buf);
             httpd_resp_send_500(req);
             return ESP_FAIL;
@@ -162,10 +175,10 @@ static esp_err_t cmnd_post_handler(httpd_req_t *req) {
     buf[received] = '\0';
 
     cmnd_process_json(buf);
-
     free(buf);
-    httpd_resp_send(req, "OK", HTTPD_RESP_USE_STRLEN);
-    return ESP_OK;
+
+    esp_err_t ret = httpd_resp_send(req, "OK", HTTPD_RESP_USE_STRLEN);
+    return ret;
 }
 
 static const httpd_uri_t cmnd_post_uri = {
@@ -187,6 +200,8 @@ void https_server_start(void) {
     // Limit HTTPS server to only one connection at a time
     httpd_config_t httpd_conf = HTTPD_DEFAULT_CONFIG();
     httpd_conf.max_open_sockets = 1;
+    httpd_conf.lru_purge_enable = true; // Enable LRU purge to close old connections
+    httpd_conf.close_fn = NULL;         // Use default close with SO_LINGER
     // httpd_conf.keep_alive_enable = true;
     // httpd_conf.keep_alive_idle = 60; // seconds
     // httpd_conf.keep_alive_interval = 5;

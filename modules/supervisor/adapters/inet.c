@@ -23,7 +23,8 @@
 #define TAG "inet-adapter"
 
 #define INET_EVENT_TIME_SYNCED BIT0
-#define INET_EVENT_NETWORK_READY BIT1
+#define INET_EVENT_STA_READY BIT1
+#define INET_EVENT_AP_READY BIT2
 
 static const char *mdns_host = NULL;
 static const char *mdns_instance = NULL;
@@ -35,6 +36,10 @@ static esp_event_handler_instance_t inet_wifi_handler = NULL;
 static esp_event_handler_instance_t inet_ip_handler = NULL;
 
 static bool shutdown_ota = true;
+
+static SemaphoreHandle_t network_transition_mutex = NULL;
+static volatile bool sta_services_running = false;
+static volatile bool ap_services_running = false;
 
 static void inet_adapter_init(void);
 static void inet_adapter_shutdown(void);
@@ -116,10 +121,6 @@ void inet_sntp_reinit(void) {
 static void inet_stop_services(void) {
     ESP_LOGI(TAG, "Stopping network services");
 
-    // IMPORTANT: Stop UDP monitor FIRST to restore normal logging
-    // before MQTT tries to log during shutdown
-    udp_monitor_shutdown();
-
     mqtt_publish_offline_state();
     mqtt_shutdown();
     https_shutdown();
@@ -130,20 +131,36 @@ static void inet_stop_services(void) {
     if (shutdown_ota) {
         tcp_ota_shutdown();
     }
+    // udp_monitor_shutdown();
+
+    sta_services_running = false;
+    ap_services_running = false;
 }
 
 void inet_switch_to_ap_mode(void) {
-    ESP_LOGI(TAG, "Switching to AP mode");
+    if (xSemaphoreTake(network_transition_mutex, pdMS_TO_TICKS(100)) == pdFALSE) {
+        ESP_LOGW(TAG, "Network transition already in progress, cannot switch to AP");
+        return;
+    }
 
+    ESP_LOGI(TAG, "Switching to AP mode");
     inet_stop_services();
     wifi_init_ap_mode();
+
+    xSemaphoreGive(network_transition_mutex);
 }
 
 void inet_switch_to_sta_mode(void) {
-    ESP_LOGI(TAG, "Switching to STA mode");
+    if (xSemaphoreTake(network_transition_mutex, pdMS_TO_TICKS(100)) == pdFALSE) {
+        ESP_LOGW(TAG, "Network transition already in progress, cannot switch to STA");
+        return;
+    }
 
+    // ESP_LOGI(TAG, "Switching to STA mode");
     inet_stop_services();
     wifi_init_sta_mode();
+
+    xSemaphoreGive(network_transition_mutex);
 }
 
 static void inet_sntp_sync_cb(struct timeval *tv) {
@@ -160,24 +177,13 @@ static void inet_restart_cb(void) {
 static void inet_netif_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id,
                                      void *event_data) {
     if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
-        // ESP_LOGI(TAG, "Got IP address, starting STA services");
-        inet_mdns_init();
-        inet_sntp_init();
-        mqtt_init();
-        tcp_ota_init();
-        udp_monitor_init();
-        supervisor_notify_event(INET_EVENT_NETWORK_READY);
+        supervisor_notify_event(INET_EVENT_STA_READY);
     }
 
     if (event_base == WIFI_EVENT) {
         switch (event_id) {
         case WIFI_EVENT_AP_START:
-            https_init();
-            // If already running from STA mode, mdns_init() will just return OK
-            inet_mdns_init();
-
-            tcp_ota_init();
-            udp_monitor_init();
+            supervisor_notify_event(INET_EVENT_AP_READY);
             break;
         case WIFI_EVENT_AP_STOP:
             // ESP_LOGI(TAG, "AP stopped");
@@ -204,6 +210,13 @@ static const char *inet_get_or_generate_ap_ssid(void) {
 static void inet_adapter_init(void) {
 
     ESP_LOGI(TAG, "Initializing inet platform adapter");
+
+    if (network_transition_mutex == NULL) {
+        network_transition_mutex = xSemaphoreCreateMutex();
+        if (!network_transition_mutex) {
+            ESP_LOGE(TAG, "Failed to create network transition mutex!");
+        }
+    }
 
     wifi_credentials_t creds = {.sta_ssid = config_get()->wifi_ssid,
                                 .sta_password = config_get()->wifi_pass,
@@ -247,10 +260,7 @@ static void inet_adapter_init(void) {
         IP_EVENT, IP_EVENT_STA_GOT_IP, &inet_netif_event_handler, NULL, &inet_ip_handler));
 
     wifi_init_sta_mode();
-
     inet_cmnd_handlers_register();
-
-    // ESP_LOGI(TAG, "Inet adapter initialized successfully");
 }
 
 static void inet_adapter_shutdown(void) {
@@ -271,7 +281,11 @@ static void inet_adapter_shutdown(void) {
     inet_stop_services();
     mdns_free();
 
-    // Reset flag for next init
+    if (network_transition_mutex) {
+        vSemaphoreDelete(network_transition_mutex);
+        network_transition_mutex = NULL;
+    }
+
     shutdown_ota = true;
 }
 
@@ -288,8 +302,38 @@ static void inet_adapter_on_event(EventBits_t bits) {
         ESP_LOGW(TAG, "Time synced: %s", buf);
     }
 
-    if (bits & INET_EVENT_NETWORK_READY) {
-        ESP_LOGI(TAG, "Network is ready");
+    if (bits & INET_EVENT_STA_READY) {
+
+        if (sta_services_running) {
+            ESP_LOGW(TAG, "STA services already running, ignoring duplicate event");
+            return;
+        }
+
+        ESP_LOGI(TAG, "STA ready, starting STA services");
+        inet_mdns_init();
+        inet_sntp_init();
+        mqtt_init();
+        tcp_ota_init();
+        // udp_monitor_init();
+
+        sta_services_running = true;
+        ap_services_running = false;
+    }
+
+    if (bits & INET_EVENT_AP_READY) {
+        if (ap_services_running) {
+            ESP_LOGW(TAG, "AP services already running, ignoring duplicate event");
+            return;
+        }
+
+        ESP_LOGI(TAG, "AP ready, starting AP services");
+        https_init();
+        inet_mdns_init();
+        tcp_ota_init();
+        // udp_monitor_init();
+
+        ap_services_running = true;
+        sta_services_running = false;
     }
 }
 
