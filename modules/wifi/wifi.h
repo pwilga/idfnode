@@ -29,6 +29,13 @@ void wifi_init_ap_mode();
  */
 esp_err_t safe_wifi_stop();
 
+/**
+ * @brief Completely shuts down WiFi subsystem (stops WiFi, unregisters handlers,
+ * deinitializes driver and event loop). Use when disabling WiFi completely (e.g. switching to
+ * Zigbee on C6).
+ */
+void wifi_shutdown();
+
 void wifi_unregister_event_handlers();
 bool is_wifi_network_connected();
 void wifi_log_event_group_bits();

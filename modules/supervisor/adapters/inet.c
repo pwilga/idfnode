@@ -41,8 +41,6 @@ static SemaphoreHandle_t network_transition_mutex = NULL;
 static volatile bool sta_services_running = false;
 static volatile bool ap_services_running = false;
 
-static void inet_adapter_init(void);
-static void inet_adapter_shutdown(void);
 static void inet_adapter_on_event(EventBits_t bits);
 static void inet_adapter_on_interval(supervisor_interval_stage_t stage);
 
@@ -143,7 +141,7 @@ void inet_switch_to_ap_mode(void) {
         return;
     }
 
-    ESP_LOGI(TAG, "Switching to AP mode");
+    // ESP_LOGI(TAG, "Switching to AP mode");
     inet_stop_services();
     wifi_init_ap_mode();
 
@@ -169,9 +167,12 @@ static void inet_sntp_sync_cb(struct timeval *tv) {
 }
 
 static void inet_restart_cb(void) {
-    ESP_LOGI(TAG, "Restart requested, shutting down inet adapter");
+    // ESP_LOGI(TAG, "Restart requested, shutting down inet adapter");
     shutdown_ota = false; // Don't shutdown OTA before restart
-    inet_adapter_shutdown();
+    // inet_adapter_shutdown();
+    mqtt_publish_offline_state();
+    mqtt_shutdown();
+    wifi_unregister_event_handlers();
 }
 
 static void inet_netif_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id,
@@ -207,7 +208,12 @@ static const char *inet_get_or_generate_ap_ssid(void) {
     return ssid;
 }
 
-static void inet_adapter_init(void) {
+void inet_adapter_init(void) {
+
+    if (is_wifi_network_connected()) {
+        ESP_LOGW(TAG, "WiFi network already connected, skipping inet adapter init");
+        return;
+    }
 
     ESP_LOGI(TAG, "Initializing inet platform adapter");
 
@@ -263,10 +269,9 @@ static void inet_adapter_init(void) {
     inet_cmnd_handlers_register();
 }
 
-static void inet_adapter_shutdown(void) {
-    ESP_LOGI(TAG, "Shutting down inet platform adapter");
+void inet_adapter_shutdown(void) {
 
-    wifi_unregister_event_handlers();
+    ESP_LOGI(TAG, "Shutting down inet platform adapter");
 
     if (inet_ip_handler) {
         esp_event_handler_instance_unregister(IP_EVENT, IP_EVENT_STA_GOT_IP, inet_ip_handler);
@@ -280,6 +285,11 @@ static void inet_adapter_shutdown(void) {
 
     inet_stop_services();
     mdns_free();
+    inet_cmnd_handlers_unregister();
+
+    // Unregister callbacks
+    set_restart_callback(NULL);
+    wifi_set_ap_timeout_callback(NULL);
 
     if (network_transition_mutex) {
         vSemaphoreDelete(network_transition_mutex);
@@ -287,6 +297,8 @@ static void inet_adapter_shutdown(void) {
     }
 
     shutdown_ota = true;
+
+    wifi_shutdown();
 }
 
 static void inet_adapter_on_event(EventBits_t bits) {

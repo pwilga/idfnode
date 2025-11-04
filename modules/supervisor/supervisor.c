@@ -113,11 +113,8 @@ static void supervisor_task(void *args) {
 void supervisor_init(void) {
     ESP_LOGI(TAG, "Initializing supervisor core");
 
-    ESP_ERROR_CHECK(nvs_flash_safe_init());
-
-    config_manager_init();
-
     core_system_init();
+    config_manager_init();
 
     static StaticQueue_t supervisor_queue_storage;
     static uint8_t

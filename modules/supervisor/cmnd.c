@@ -56,6 +56,49 @@ void cmnd_register(const char *command_id, const char *description, command_hand
     command_count++;
 }
 
+void cmnd_unregister(const char *command_id) {
+    if (!command_id) {
+        ESP_LOGE(TAG, "Invalid command ID for unregister");
+        return;
+    }
+
+    for (size_t i = 0; i < command_count; i++) {
+        if (strcmp(command_registry[i].command_id, command_id) == 0) {
+            // Shift all commands after this one down
+            for (size_t j = i; j < command_count - 1; j++) {
+                command_registry[j] = command_registry[j + 1];
+            }
+            command_count--;
+            ESP_LOGI(TAG, "Command '%s' unregistered", command_id);
+            return;
+        }
+    }
+
+    ESP_LOGW(TAG, "Command '%s' not found for unregister", command_id);
+}
+
+void cmnd_register_group(const command_entry_t *commands) {
+    if (!commands) {
+        ESP_LOGE(TAG, "Invalid command group parameters");
+        return;
+    }
+
+    for (size_t i = 0; commands[i].command_id != NULL; i++) {
+        cmnd_register(commands[i].command_id, commands[i].description, commands[i].handler);
+    }
+}
+
+void cmnd_unregister_group(const command_entry_t *commands) {
+    if (!commands) {
+        ESP_LOGE(TAG, "Invalid command group parameters");
+        return;
+    }
+
+    for (size_t i = 0; commands[i].command_id != NULL; i++) {
+        cmnd_unregister(commands[i].command_id);
+    }
+}
+
 const command_t *cmnd_find(const char *command_id) {
 
     if (!cmnd_initialized) {

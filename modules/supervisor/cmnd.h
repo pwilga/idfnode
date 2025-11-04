@@ -16,6 +16,9 @@ typedef struct {
     command_handler_t handler;
 } command_t;
 
+// Alias for command entry (same structure, used for declaring command groups)
+typedef command_t command_entry_t;
+
 typedef struct {
     const command_t *cmnd;
     char *args_json_str;
@@ -24,6 +27,9 @@ typedef struct {
 void cmnd_init(QueueHandle_t queue);
 void cmnd_process_json(const char *json_string);
 void cmnd_register(const char *command_id, const char *description, command_handler_t handler);
+void cmnd_unregister(const char *command_id);
+void cmnd_register_group(const command_entry_t *commands);
+void cmnd_unregister_group(const command_entry_t *commands);
 void cmnd_submit(const char *command_id, const char *args_json_str);
 
 const command_t *cmnd_find(const char *command_id);

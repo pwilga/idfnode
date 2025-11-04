@@ -3,6 +3,7 @@
 
 #include "driver/gpio.h"
 #include "esp_err.h"
+#include "esp_event.h"
 #include "esp_log.h"
 #include "esp_mac.h"
 #include "esp_system.h"
@@ -18,7 +19,11 @@ static void (*restart_callback)(void) = NULL;
 static bool onboard_led_state = true;
 
 void core_system_init(void) {
-    // onbard_led
+
+    ESP_ERROR_CHECK(nvs_flash_safe_init());
+    ESP_ERROR_CHECK(esp_event_loop_create_default());
+
+    // onboard_led
     ESP_ERROR_CHECK(gpio_reset_pin(CONFIG_BOARD_STATUS_LED_GPIO));
     ESP_ERROR_CHECK(gpio_set_direction(CONFIG_BOARD_STATUS_LED_GPIO, GPIO_MODE_OUTPUT));
 }

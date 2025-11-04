@@ -5,6 +5,7 @@
 #include "cmnd.h"
 #include "ha.h"
 #include "https_server.h"
+#include "inet.h"
 #include "inet_cmnd_handlers.h"
 #include "json_parser.h"
 #include "ota.h"
@@ -86,17 +87,38 @@ static void monitor_handler(const char *args_json_str) {
     }
 }
 
-void inet_cmnd_handlers_register(void) {
-    // WiFi commands
-    cmnd_register("ap", "Switch to AP mode", set_ap_handler);
-    cmnd_register("sta", "Switch to STA mode", set_sta_handler);
+extern supervisor_platform_adapter_t inet_adapter;
 
-    // Service commands
-    cmnd_register("https", "Control HTTPS server (on/off)", https_handler);
-    cmnd_register("sntp", "Control SNTP service (on/off)", sntp_handler);
-    cmnd_register("ota", "Control OTA service (on/off)", ota_handler);
-    cmnd_register("monitor", "Control UDP monitor (on/off)", monitor_handler);
+static void wifi_handler(const char *args_json_str) {
+    logic_state_t wifi_state = json_str_as_logic_state(args_json_str);
 
-    // Home Assistant discovery command
-    cmnd_register("ha", "Trigger Home Assistant MQTT discovery", ha_handler);
+    if (wifi_state == STATE_ON) {
+        ESP_LOGI(TAG, "Starting WiFi");
+        inet_adapter.init();
+    } else if (wifi_state == STATE_OFF) {
+        ESP_LOGI(TAG, "Stopping WiFi");
+        inet_adapter.shutdown();
+    }
 }
+
+static const command_entry_t inet_commands[] = {
+    {"ap", "Switch to AP mode", set_ap_handler},
+    {"sta", "Switch to STA mode", set_sta_handler},
+    {"https", "Control HTTPS server (on/off)", https_handler},
+    {"sntp", "Control SNTP service (on/off)", sntp_handler},
+    {"ota", "Control OTA service (on/off)", ota_handler},
+    {"monitor", "Control UDP monitor (on/off)", monitor_handler},
+    {"ha", "Trigger Home Assistant MQTT discovery", ha_handler},
+    {NULL, NULL, NULL} // Sentinel
+};
+
+void inet_cmnd_handlers_register(void) {
+    cmnd_register_group(inet_commands);
+
+    // Register wifi control command separately (not unregistered with other commands)
+    if (!cmnd_find("wifi")) {
+        cmnd_register("wifi", "Control WiFi (on/off)", wifi_handler);
+    }
+}
+
+void inet_cmnd_handlers_unregister(void) { cmnd_unregister_group(inet_commands); }

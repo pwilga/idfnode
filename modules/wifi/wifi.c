@@ -1,7 +1,9 @@
 #include <string.h>
 
 #include "esp_log.h"
+#include "esp_netif.h"
 #include "esp_wifi.h"
+#include "freertos/idf_additions.h"
 
 #include "wifi.h"
 
@@ -9,6 +11,7 @@
 #define WIFI_AP_STARTED_BIT BIT1
 #define WIFI_STOPPED_BIT BIT2
 #define WIFI_AP_CLIENT_CONNECTED_BIT BIT3
+#define WIFI_SHUTDOWN_INITIATED_BIT BIT4
 
 #define TAG "cikon-wifi"
 #define TAG_STA TAG "-sta"
@@ -256,9 +259,30 @@ void wifi_unregister_event_handlers() {
     }
 }
 
+void wifi_shutdown() {
+    ESP_LOGI(TAG, "Shutting down WiFi subsystem...");
+    xEventGroupSetBits(wifi_event_group, WIFI_SHUTDOWN_INITIATED_BIT);
+
+    wifi_unregister_event_handlers();
+    safe_wifi_stop();
+
+    esp_err_t err = esp_wifi_deinit();
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "WiFi deinit failed: %s", esp_err_to_name(err));
+    }
+
+    // Deinitialization is not supported yet, esp-netif keeps internal state and RAM.x
+    // err = esp_netif_deinit();
+
+    ESP_LOGI(TAG, "WiFi subsystem shutdown complete");
+}
+
 void wifi_set_ap_timeout_callback(wifi_ap_timeout_callback_t cb) { ap_timeout_callback = cb; }
 
 bool is_wifi_network_connected(void) {
+    if (wifi_event_group == NULL) {
+        return false;
+    }
     return xEventGroupGetBits(wifi_event_group) & (WIFI_STA_CONNECTED_BIT | WIFI_AP_STARTED_BIT);
 }
 
@@ -268,8 +292,10 @@ void wifi_configure(const wifi_credentials_t *creds) {
         wifi_creds = *creds;
     }
 
-    ESP_ERROR_CHECK(esp_netif_init());
-    ESP_ERROR_CHECK(esp_event_loop_create_default());
+    esp_err_t err = esp_netif_init();
+    if (err != ESP_OK && err != ESP_ERR_INVALID_STATE) {
+        ESP_ERROR_CHECK(err);
+    }
 
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
     ESP_ERROR_CHECK(esp_wifi_init(&cfg));
@@ -284,6 +310,8 @@ void wifi_configure(const wifi_credentials_t *creds) {
     if (wifi_event_group == NULL) {
         wifi_event_group = xEventGroupCreateStatic(&event_group_storage);
         // wifi_event_group = xEventGroupCreate();
+    } else {
+        xEventGroupClearBits(wifi_event_group, WIFI_SHUTDOWN_INITIATED_BIT);
     }
 
     if (!wifi_event_group) {
@@ -356,7 +384,6 @@ void wifi_init_sta_mode() {
 
     sta_config.sta.threshold.authmode = WIFI_AUTH_WPA2_PSK;
 
-    // Create netif BEFORE setting mode and config
     sta_netif = esp_netif_create_default_wifi_sta();
 
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
@@ -411,27 +438,38 @@ esp_err_t safe_wifi_stop() {
     esp_wifi_disconnect();
     esp_err_t err = esp_wifi_stop();
 
-    // Wait for WiFi to actually stop (WIFI_EVENT_STA_STOP or WIFI_EVENT_AP_STOP)
-    EventBits_t bits = xEventGroupWaitBits(wifi_event_group, WIFI_STOPPED_BIT, pdTRUE, pdFALSE,
-                                           pdMS_TO_TICKS(1000));
+    // Check if shutdown is in progress - event handlers are already unregistered
+    // so WIFI_STOPPED_BIT will never be set by events
+    EventBits_t shutdown_bits = xEventGroupGetBits(wifi_event_group);
+    if (shutdown_bits & WIFI_SHUTDOWN_INITIATED_BIT) {
+        vTaskDelay(pdMS_TO_TICKS(500));
+    } else {
+        // Wait for WiFi to actually stop (not shutdown)
+        EventBits_t bits = xEventGroupWaitBits(wifi_event_group, WIFI_STOPPED_BIT, pdTRUE, pdFALSE,
+                                               pdMS_TO_TICKS(1000));
 
-    if (!(bits & WIFI_STOPPED_BIT)) {
-        ESP_LOGW(TAG, "WiFi stop event timeout after 1000ms");
+        if (!(bits & WIFI_STOPPED_BIT)) {
+            ESP_LOGW(TAG, "WiFi stop event timeout after 1000ms");
+        }
     }
 
     // CRITICAL: Wait for WiFi driver to finish processing all packets
     // before destroying netif to prevent NULL pointer dereference
     vTaskDelay(pdMS_TO_TICKS(200));
 
-    xEventGroupClearBits(wifi_event_group, WIFI_STA_CONNECTED_BIT | WIFI_AP_STARTED_BIT);
+    xEventGroupClearBits(wifi_event_group, WIFI_STA_CONNECTED_BIT | WIFI_AP_STARTED_BIT |
+                                               WIFI_SHUTDOWN_INITIATED_BIT |
+                                               WIFI_AP_CLIENT_CONNECTED_BIT);
 
     if (sta_netif) {
-        esp_netif_destroy(sta_netif);
+        // esp_netif_destroy(sta_netif);
+        esp_netif_destroy_default_wifi(sta_netif);
         sta_netif = NULL;
     }
 
     if (ap_netif) {
-        esp_netif_destroy(ap_netif);
+        // esp_netif_destroy(ap_netif);
+        esp_netif_destroy_default_wifi(ap_netif);
         ap_netif = NULL;
     }
 
