@@ -1,12 +1,8 @@
 idf_component_register(
     SRCS
-        "../modules/wifi/wifi.c"
         "../modules/utils/debug.c"
-        "../modules/core/platform_services.c"
         "../modules/monitor/udp_monitor.c"
         "../modules/ota/ota.c"
-        "../modules/mqtt/mqtt.c"
-        "../modules/mqtt/ha.c"
         "../modules/supervisor/supervisor.c"
         "../modules/supervisor/cmnd.c"
         "../modules/supervisor/cmnd_core_handlers.c"
@@ -17,27 +13,19 @@ idf_component_register(
         "../modules/supervisor/adapters/zigbee.c"
         "../modules/utils/json_parser.c"
         "../modules/utils/button_manager.c"
-        "../modules/config/config_manager.c"
         "../modules/https/https_server.c"
         "../modules/utils/net.c"
         "main.c"
-    REQUIRES driver esp_wifi nvs_flash lwip app_update mbedtls esp_timer mdns mqtt json esp_https_server button
+    REQUIRES esp_wifi lwip app_update mbedtls esp_timer mdns json esp_https_server button cikon_config cikon_mqtt cikon_core cikon_wifi
     PRIV_REQUIRES spi_flash
     INCLUDE_DIRS
-        "../modules/core"
-        "../modules/wifi"
         "../modules/utils"
         "../modules/ota"
         "../modules/monitor"
-        "../modules/mqtt"
         "../modules/supervisor"
         "../modules/supervisor/adapters"
-        "../modules/config"
         "../modules/https"
     EMBED_TXTFILES
-        "certs/ca.pem"
-        "certs/cikonesp.pem"
-        "certs/cikonesp.key"
         "certs/https.pem"
         "certs/https.key"
 )

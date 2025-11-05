@@ -3,6 +3,20 @@ dependencies:
   ## Required IDF version
   idf:
     version: '>=4.1.0'
+  cikon_config:
+    git: "https://github.com/pwilga/cikon-iot-solution.git"
+    path: components/cikon_config
+  cikon_core:
+    git: "git@github.com:pwilga/cikon-iot-solution.git"
+    path: components/cikon_core
+    # path: ../../cikon-iot-solution/components/cikon_core
+  cikon_mqtt:
+    git: "https://github.com/pwilga/cikon-iot-solution.git"
+    path: components/cikon_mqtt
+  cikon_wifi:
+    git: "git@github.com:pwilga/cikon-iot-solution.git"
+    path: components/cikon_wifi
+    # path: ../../cikon-iot-solution/components/cikon_wifi
   # # Put list of dependencies here
   # # For components maintained by Espressif:
   # component: "~1.0.0"

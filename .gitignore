@@ -26,6 +26,7 @@ __pycache__/
 .env/
 
 # Project specific
-main/certs/
-modules/config/config_fields_private.h
+certs/
+config/
+
 
