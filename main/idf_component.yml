@@ -7,14 +7,18 @@ dependencies:
     git: "https://github.com/pwilga/cikon-iot-solution.git"
     path: components/cikon_config
   cikon_core:
-    git: "git@github.com:pwilga/cikon-iot-solution.git"
+    git: "https://github.com/pwilga/cikon-iot-solution.git"
     path: components/cikon_core
     # path: ../../cikon-iot-solution/components/cikon_core
+  cikon_https:
+    git: "https://github.com/pwilga/cikon-iot-solution.git"
+    path: components/cikon_https
+    # path: ../../cikon-iot-solution/components/cikon_https
   cikon_mqtt:
     git: "https://github.com/pwilga/cikon-iot-solution.git"
     path: components/cikon_mqtt
   cikon_wifi:
-    git: "git@github.com:pwilga/cikon-iot-solution.git"
+    git: "https://github.com/pwilga/cikon-iot-solution.git"
     path: components/cikon_wifi
     # path: ../../cikon-iot-solution/components/cikon_wifi
   # # Put list of dependencies here
@@ -28,5 +32,5 @@ dependencies:
   #   # `public` flag doesn't have an effect dependencies of the `main` component.
   #   # All dependencies of `main` are public by default.
   #   public: true
-  espressif/mdns: '*'
   espressif/button: '*'
+  espressif/mdns: '*'

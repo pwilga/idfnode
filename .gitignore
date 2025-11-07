@@ -28,5 +28,4 @@ __pycache__/
 # Project specific
 certs/
 config/
-
-
+dependencies.lock

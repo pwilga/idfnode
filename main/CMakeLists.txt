@@ -13,10 +13,9 @@ idf_component_register(
         "../modules/supervisor/adapters/zigbee.c"
         "../modules/utils/json_parser.c"
         "../modules/utils/button_manager.c"
-        "../modules/https/https_server.c"
         "../modules/utils/net.c"
         "main.c"
-    REQUIRES esp_wifi lwip app_update mbedtls esp_timer mdns json esp_https_server button cikon_config cikon_mqtt cikon_core cikon_wifi
+    REQUIRES esp_wifi lwip app_update mbedtls esp_timer cjson button cikon_config cikon_mqtt cikon_core cikon_wifi cikon_https
     PRIV_REQUIRES spi_flash
     INCLUDE_DIRS
         "../modules/utils"
@@ -24,8 +23,4 @@ idf_component_register(
         "../modules/monitor"
         "../modules/supervisor"
         "../modules/supervisor/adapters"
-        "../modules/https"
-    EMBED_TXTFILES
-        "certs/https.pem"
-        "certs/https.key"
 )

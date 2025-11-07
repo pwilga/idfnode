@@ -255,6 +255,8 @@ void inet_adapter_init(void) {
 
     mqtt_configure(&mqtt_cfg);
 
+    https_configure(config_get()->http_auth);
+
     set_restart_callback(inet_restart_cb);
 
     // Register callback for AP timeout -> STA mode switch
@@ -317,7 +319,8 @@ static void inet_adapter_on_event(EventBits_t bits) {
     if (bits & INET_EVENT_STA_READY) {
 
         if (sta_services_running) {
-            ESP_LOGW(TAG, "STA services already running, ignoring duplicate event");
+            ESP_LOGW(TAG, "STA services already running, ignoring");
+            mqtt_init();
             return;
         }
 
@@ -364,7 +367,9 @@ static void inet_adapter_on_interval(supervisor_interval_stage_t stage) {
         break;
 
     case SUPERVISOR_INTERVAL_10M:
-        // mqtt_init();
+        if (sta_services_running) {
+            mqtt_init();
+        }
         break;
 
     case SUPERVISOR_INTERVAL_2H:
