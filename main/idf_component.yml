@@ -6,6 +6,7 @@ dependencies:
   cikon_config:
     git: "https://github.com/pwilga/cikon-iot-solution.git"
     path: components/cikon_config
+    # path: ../../cikon-iot-solution/components/cikon_config
   cikon_core:
     git: "https://github.com/pwilga/cikon-iot-solution.git"
     path: components/cikon_core
@@ -17,10 +18,16 @@ dependencies:
   cikon_mqtt:
     git: "https://github.com/pwilga/cikon-iot-solution.git"
     path: components/cikon_mqtt
+    # path: ../../cikon-iot-solution/components/cikon_mqtt
   cikon_wifi:
     git: "https://github.com/pwilga/cikon-iot-solution.git"
     path: components/cikon_wifi
     # path: ../../cikon-iot-solution/components/cikon_wifi
+  cikon_tcp_ota:
+    git: "https://github.com/pwilga/cikon-iot-solution.git"
+    path: components/cikon_tcp_ota
+    # path: ../../cikon-iot-solution/components/cikon_tcp_ota
+
   # # Put list of dependencies here
   # # For components maintained by Espressif:
   # component: "~1.0.0"

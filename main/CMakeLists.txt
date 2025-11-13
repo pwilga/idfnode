@@ -2,7 +2,6 @@ idf_component_register(
     SRCS
         "../modules/utils/debug.c"
         "../modules/monitor/udp_monitor.c"
-        "../modules/ota/ota.c"
         "../modules/supervisor/supervisor.c"
         "../modules/supervisor/cmnd.c"
         "../modules/supervisor/cmnd_core_handlers.c"
@@ -15,11 +14,10 @@ idf_component_register(
         "../modules/utils/button_manager.c"
         "../modules/utils/net.c"
         "main.c"
-    REQUIRES esp_wifi lwip app_update mbedtls esp_timer cjson button cikon_config cikon_mqtt cikon_core cikon_wifi cikon_https
+    REQUIRES esp_wifi cikon_tcp_ota esp_timer cjson button cikon_config cikon_mqtt cikon_core cikon_wifi cikon_https
     PRIV_REQUIRES spi_flash
     INCLUDE_DIRS
         "../modules/utils"
-        "../modules/ota"
         "../modules/monitor"
         "../modules/supervisor"
         "../modules/supervisor/adapters"

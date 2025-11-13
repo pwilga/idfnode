@@ -8,7 +8,7 @@
 #include "inet.h"
 #include "inet_cmnd_handlers.h"
 #include "json_parser.h"
-#include "ota.h"
+#include "tcp_ota.h"
 #include "udp_monitor.h"
 
 #define TAG "cmnd-inet-handlers"
