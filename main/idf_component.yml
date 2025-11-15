@@ -27,6 +27,10 @@ dependencies:
     git: "https://github.com/pwilga/cikon-iot-solution.git"
     path: components/cikon_tcp_ota
     # path: ../../cikon-iot-solution/components/cikon_tcp_ota
+  cikon_tcp_monitor:
+    git: "https://github.com/pwilga/cikon-iot-solution.git"
+    path: components/cikon_tcp_monitor
+    # path: ../../cikon-iot-solution/components/cikon_tcp_monitor
 
   # # Put list of dependencies here
   # # For components maintained by Espressif:
