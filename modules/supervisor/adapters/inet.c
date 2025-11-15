@@ -15,9 +15,9 @@
 #include "mqtt.h"
 #include "platform_services.h"
 #include "supervisor.h"
+#include "tcp_monitor.h"
 #include "tcp_ota.h"
 #include "tele.h"
-#include "udp_monitor.h"
 #include "wifi.h"
 
 #define TAG "inet-adapter"
@@ -118,6 +118,9 @@ void inet_sntp_reinit(void) {
 
 static void inet_stop_services(void) {
     ESP_LOGI(TAG, "Stopping network services");
+
+    // CRITICAL: Shutdown tcp_monitor FIRST before network stack resets
+    tcp_monitor_shutdown();
 
     mqtt_publish_offline_state();
     mqtt_shutdown();
@@ -329,7 +332,7 @@ static void inet_adapter_on_event(EventBits_t bits) {
         inet_sntp_init();
         mqtt_init();
         tcp_ota_init();
-        // udp_monitor_init();
+        tcp_monitor_init();
 
         sta_services_running = true;
         ap_services_running = false;
@@ -345,7 +348,7 @@ static void inet_adapter_on_event(EventBits_t bits) {
         https_init();
         inet_mdns_init();
         tcp_ota_init();
-        // udp_monitor_init();
+        tcp_monitor_init();
 
         ap_services_running = true;
         sta_services_running = false;

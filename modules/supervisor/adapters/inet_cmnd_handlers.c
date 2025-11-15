@@ -8,8 +8,8 @@
 #include "inet.h"
 #include "inet_cmnd_handlers.h"
 #include "json_parser.h"
+#include "tcp_monitor.h"
 #include "tcp_ota.h"
-#include "udp_monitor.h"
 
 #define TAG "cmnd-inet-handlers"
 
@@ -79,11 +79,11 @@ static void monitor_handler(const char *args_json_str) {
     logic_state_t monitor_state = json_str_as_logic_state(args_json_str);
 
     if (monitor_state == STATE_ON) {
-        ESP_LOGI(TAG, "Starting UDP monitor");
-        udp_monitor_init();
+        ESP_LOGI(TAG, "Starting TCP monitor");
+        tcp_monitor_init();
     } else if (monitor_state == STATE_OFF) {
-        ESP_LOGI(TAG, "Stopping UDP monitor");
-        udp_monitor_shutdown();
+        ESP_LOGI(TAG, "Stopping TCP monitor");
+        tcp_monitor_shutdown();
     }
 }
 
@@ -107,7 +107,7 @@ static const command_entry_t inet_commands[] = {
     {"https", "Control HTTPS server (on/off)", https_handler},
     {"sntp", "Control SNTP service (on/off)", sntp_handler},
     {"ota", "Control OTA service (on/off)", ota_handler},
-    {"monitor", "Control UDP monitor (on/off)", monitor_handler},
+    {"monitor", "Control TCP monitor (on/off)", monitor_handler},
     {"ha", "Trigger Home Assistant MQTT discovery", ha_handler},
     {NULL, NULL, NULL} // Sentinel
 };

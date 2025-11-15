@@ -1,7 +1,7 @@
 idf_component_register(
     SRCS
         "../modules/utils/debug.c"
-        "../modules/monitor/udp_monitor.c"
+        "../modules/utils/task_helpers.c"
         "../modules/supervisor/supervisor.c"
         "../modules/supervisor/cmnd.c"
         "../modules/supervisor/cmnd_core_handlers.c"
@@ -10,12 +10,22 @@ idf_component_register(
         "../modules/supervisor/adapters/inet.c"
         "../modules/supervisor/adapters/inet_cmnd_handlers.c"
         "../modules/supervisor/adapters/zigbee.c"
-        "../modules/utils/json_parser.c"
         "../modules/utils/button_manager.c"
         "../modules/utils/net.c"
+        "../modules/monitor/tcp_monitor.c"
         "main.c"
-    REQUIRES esp_wifi cikon_tcp_ota esp_timer cjson button cikon_config cikon_mqtt cikon_core cikon_wifi cikon_https
-    PRIV_REQUIRES spi_flash
+    PRIV_REQUIRES
+        esp_wifi
+        esp_ringbuf
+        cjson
+        button
+        spi_flash
+        cikon_config
+        cikon_core
+        cikon_https
+        cikon_mqtt
+        cikon_tcp_ota
+        cikon_wifi
     INCLUDE_DIRS
         "../modules/utils"
         "../modules/monitor"
