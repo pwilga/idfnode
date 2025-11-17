@@ -43,7 +43,6 @@ static void sntp_handler(const char *args_json_str) {
     if (sntp_state == STATE_ON) {
         ESP_LOGI(TAG, "Starting SNTP service");
         esp_netif_sntp_deinit();
-        inet_sntp_reinit();
     } else if (sntp_state == STATE_OFF) {
         ESP_LOGI(TAG, "Stopping SNTP service");
         esp_netif_sntp_deinit();

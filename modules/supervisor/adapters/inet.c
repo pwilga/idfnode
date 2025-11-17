@@ -110,12 +110,6 @@ static void inet_sntp_init(void) {
              config.servers[2] ? config.servers[2] : "none");
 }
 
-void inet_sntp_reinit(void) {
-    ESP_LOGI(TAG, "Reinitializing SNTP service");
-    esp_netif_sntp_deinit();
-    inet_sntp_init();
-}
-
 static void inet_stop_services(void) {
     ESP_LOGI(TAG, "Stopping network services");
 
@@ -245,7 +239,17 @@ void inet_adapter_init(void) {
         (const char *[]){config_get()->sntp1, config_get()->sntp2, config_get()->sntp3},
         inet_sntp_sync_cb);
 
+    static char device_ip[16];
+    // TODO: Ethernet support ? Check both interfaces
+    wifi_get_interface_ip(device_ip, sizeof(device_ip));
+
     mqtt_config_t mqtt_cfg = {.client_id = get_client_id(),
+                              .device_name = config_get()->dev_name,
+                              .device_manufacturer = "Cikon Systems",
+                              .device_model = CONFIG_IDF_TARGET,
+                              .device_sw_version = "v1.0.0",
+                              .device_hw_version = CONFIG_IDF_INIT_VERSION,
+                              .device_ip_address = device_ip,
                               .mqtt_node = config_get()->mqtt_node,
                               .mqtt_broker = config_get()->mqtt_broker,
                               .mqtt_user = config_get()->mqtt_user,

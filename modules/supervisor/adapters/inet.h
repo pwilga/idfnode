@@ -16,14 +16,6 @@ extern "C" {
 extern supervisor_platform_adapter_t inet_adapter;
 
 /**
- * @brief Reinitialize SNTP service
- *
- * Used by SNTP command handler to restart time synchronization.
- * Deinitializes and reinitializes SNTP with current configuration.
- */
-void inet_sntp_reinit(void);
-
-/**
  * @brief Switch WiFi to AP mode
  *
  * Performs graceful shutdown of all services (MQTT, HTTPS, mDNS, SNTP),
