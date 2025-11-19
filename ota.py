@@ -1,8 +1,28 @@
 import socket
 import hashlib
 import sys
+import subprocess
 from pathlib import Path
 
+print("Building project...")
+
+build_cmd = (
+    "bash -c 'source ~/repos/esp-idf/export.sh > /dev/null 2>&1 && idf.py build'"
+)
+result = subprocess.run(build_cmd, shell=True, capture_output=True, text=True)
+
+print(result.stdout)
+if result.stderr:
+    print(result.stderr)
+
+if result.returncode != 0:
+    print("❌ Build failed!")
+    sys.exit(1)
+
+print("✅ Build successful!")
+
+
+# ESP32 connection details
 
 ESP_IP = "cikonesp.local"
 ESP_PORT = 5555
