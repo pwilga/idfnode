@@ -1,4 +1,4 @@
-#include "freertos/FreeRTOS.h"
+#include "freertos/FreeRTOS.h"  // IWYU pragma: keep
 #include "supervisor.h"
 
 // Include platform adapters

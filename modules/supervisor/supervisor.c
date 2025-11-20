@@ -1,5 +1,3 @@
-#include <string.h>
-
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -12,7 +10,7 @@
 #include "platform_services.h"
 #include "supervisor.h"
 #include "tele.h"
-#include "tele_basic_appenders.h"
+#include "tele_core_appenders.h"
 
 #define TAG "supervisor"
 #define SUPERVISOR_MAX_ADAPTERS 4
@@ -143,7 +141,7 @@ void supervisor_init(void) {
     cmnd_core_handlers_register();
 
     tele_init();
-    tele_basic_appenders_register();
+    tele_core_appenders_register();
 
     button_manager_init(0);
 

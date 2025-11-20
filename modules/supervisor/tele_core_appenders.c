@@ -3,12 +3,12 @@
 #include "cJSON.h"
 #include "esp_random.h"
 #include "esp_timer.h"
-#include "freertos/FreeRTOS.h"
+#include "freertos/FreeRTOS.h"  // IWYU pragma: keep
 #include "freertos/task.h"
 
 #include "platform_services.h"
 #include "tele.h"
-#include "tele_basic_appenders.h"
+#include "tele_core_appenders.h"
 
 float random_float(float min, float max) {
     return min + ((float)esp_random() / UINT32_MAX) * (max - min);
@@ -116,7 +116,7 @@ void tele_tasks_dict_appender(const char *tele_id, cJSON *json_root) {
     cJSON_AddItemToObject(json_root, tele_id, task_dict);
 }
 
-void tele_basic_appenders_register(void) {
+void tele_core_appenders_register(void) {
 
     tele_register("uptime", tele_uptime_appender);
     tele_register("startup", tele_startup_appender);

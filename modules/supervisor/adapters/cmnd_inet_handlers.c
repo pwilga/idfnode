@@ -6,7 +6,7 @@
 #include "ha.h"
 #include "https_server.h"
 #include "inet.h"
-#include "inet_cmnd_handlers.h"
+#include "cmnd_inet_handlers.h"
 #include "json_parser.h"
 #include "tcp_monitor.h"
 #include "tcp_ota.h"

@@ -1,5 +1,5 @@
-#ifndef INET_CMND_HANDLERS_H
-#define INET_CMND_HANDLERS_H
+#ifndef CMND_INET_HANDLERS_H
+#define CMND_INET_HANDLERS_H
 
 /**
  * @brief Register inet adapter command handlers
@@ -20,4 +20,4 @@ void inet_cmnd_handlers_register(void);
  */
 void inet_cmnd_handlers_unregister(void);
 
-#endif // INET_CMND_HANDLERS_H
+#endif // CMND_INET_HANDLERS_H
