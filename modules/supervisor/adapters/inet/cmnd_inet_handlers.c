@@ -3,10 +3,9 @@
 
 #include "adapters/inet.h"
 #include "cmnd.h"
+#include "cmnd_inet_handlers.h"
 #include "ha.h"
 #include "https_server.h"
-#include "inet.h"
-#include "cmnd_inet_handlers.h"
 #include "json_parser.h"
 #include "tcp_monitor.h"
 #include "tcp_ota.h"

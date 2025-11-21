@@ -2,7 +2,7 @@
 #define SUPERVISOR_H
 
 #include "esp_err.h"
-#include "freertos/FreeRTOS.h"  // IWYU pragma: keep
+#include "freertos/FreeRTOS.h" // IWYU pragma: keep
 #include "freertos/event_groups.h"
 #include "freertos/queue.h"
 

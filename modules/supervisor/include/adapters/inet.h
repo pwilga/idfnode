@@ -33,9 +33,6 @@ void inet_switch_to_ap_mode(void);
  */
 void inet_switch_to_sta_mode(void);
 
-void inet_adapter_init(void);
-void inet_adapter_shutdown(void);
-
 #ifdef __cplusplus
 }
 #endif

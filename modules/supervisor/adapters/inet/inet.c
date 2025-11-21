@@ -7,11 +7,11 @@
 #include "esp_wifi_types_generic.h"
 #include "mdns.h"
 
+#include "adapters/inet.h"
 #include "cmnd.h"
+#include "cmnd_inet_handlers.h"
 #include "config_manager.h"
 #include "https_server.h"
-#include "inet.h"
-#include "cmnd_inet_handlers.h"
 #include "mqtt.h"
 #include "platform_services.h"
 #include "tcp_monitor.h"
@@ -39,14 +39,6 @@ static bool shutdown_ota = true;
 static SemaphoreHandle_t network_transition_mutex = NULL;
 static volatile bool sta_services_running = false;
 static volatile bool ap_services_running = false;
-
-static void inet_adapter_on_event(EventBits_t bits);
-static void inet_adapter_on_interval(supervisor_interval_stage_t stage);
-
-supervisor_platform_adapter_t inet_adapter = {.init = inet_adapter_init,
-                                              .shutdown = inet_adapter_shutdown,
-                                              .on_event = inet_adapter_on_event,
-                                              .on_interval = inet_adapter_on_interval};
 
 static void inet_mdns_configure(const char *hostname, const char *instance_name) {
     mdns_host = hostname;
@@ -388,3 +380,8 @@ static void inet_adapter_on_interval(supervisor_interval_stage_t stage) {
         break;
     }
 }
+
+supervisor_platform_adapter_t inet_adapter = {.init = inet_adapter_init,
+                                              .shutdown = inet_adapter_shutdown,
+                                              .on_event = inet_adapter_on_event,
+                                              .on_interval = inet_adapter_on_interval};

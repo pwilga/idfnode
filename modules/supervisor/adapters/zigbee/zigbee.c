@@ -1,7 +1,7 @@
 #include "esp_log.h"
 
+#include "adapters/zigbee.h"
 #include "supervisor.h"
-#include "zigbee.h"
 
 #define TAG "zigbee-adapter"
 

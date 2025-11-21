@@ -1,17 +1,17 @@
 idf_component_register(
     SRCS
         "../modules/utils/debug.c"
-        "../modules/supervisor/supervisor.c"
-        "../modules/supervisor/cmnd.c"
-        "../modules/supervisor/cmnd_core_handlers.c"
-        "../modules/supervisor/tele.c"
-        "../modules/supervisor/tele_core_appenders.c"
-        "../modules/supervisor/adapters/inet.c"
-        "../modules/supervisor/adapters/cmnd_inet_handlers.c"
-        "../modules/supervisor/adapters/zigbee.c"
         "../modules/utils/button_manager.c"
         "../modules/utils/net.c"
         "main.c"
+        "../modules/supervisor/core/supervisor.c"
+        "../modules/supervisor/core/cmnd.c"
+        "../modules/supervisor/core/cmnd_core_handlers.c"
+        "../modules/supervisor/core/tele.c"
+        "../modules/supervisor/core/tele_core_appenders.c"
+        "../modules/supervisor/adapters/inet/inet.c"
+        "../modules/supervisor/adapters/inet/cmnd_inet_handlers.c"
+        "../modules/supervisor/adapters/zigbee/zigbee.c"
     PRIV_REQUIRES
         esp_wifi
         cjson
@@ -26,6 +26,9 @@ idf_component_register(
         cikon_wifi
     INCLUDE_DIRS
         "../modules/utils"
-        "../modules/supervisor"
-        "../modules/supervisor/adapters"
+        "../modules/supervisor/include"
+    PRIV_INCLUDE_DIRS
+        "../modules/supervisor/adapters/inet"
+        "../modules/supervisor/adapters/zigbee"
+        "../modules/supervisor/core"
 )
