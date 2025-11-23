@@ -253,7 +253,13 @@ void inet_adapter_init(void) {
 
     mqtt_configure(&mqtt_cfg);
 
-    https_configure(config_get()->http_auth);
+    static const https_endpoint_config_t inet_https_endpoints[] = {
+        {.uri = "/cmnd", .method = HTTP_POST, .json_cmnd = cmnd_process_json},
+        {.uri = "/tele", .method = HTTP_GET, .json_tele = tele_append_all},
+        {.uri = NULL} // sentinel
+    };
+
+    https_configure(inet_https_endpoints, config_get()->http_auth);
 
     set_restart_callback(inet_restart_cb);
 
