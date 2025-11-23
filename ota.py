@@ -2,30 +2,43 @@ import socket
 import hashlib
 import sys
 import subprocess
+import argparse
 from pathlib import Path
 
-print("Building project...")
+# Parse command line arguments
+parser = argparse.ArgumentParser(description='OTA firmware upload to ESP32')
+parser.add_argument('address',
+                    help='ESP32 IP address or hostname')
+parser.add_argument('--port', type=int, default=5555,
+                    help='ESP32 port (default: 5555)')
+parser.add_argument('--skip-build', action='store_true',
+                    help='Skip building the project')
+args = parser.parse_args()
 
-build_cmd = (
-    "bash -c 'source ~/repos/esp-idf/export.sh > /dev/null 2>&1 && idf.py build'"
-)
-result = subprocess.run(build_cmd, shell=True, capture_output=True, text=True)
+if not args.skip_build:
+    print("Building project...")
+    build_cmd = (
+        "bash -c 'source ~/repos/esp-idf/export.sh > /dev/null 2>&1 && idf.py build'"
+    )
+    result = subprocess.run(build_cmd, shell=True, capture_output=True, text=True)
 
-print(result.stdout)
-if result.stderr:
-    print(result.stderr)
+    print(result.stdout)
+    if result.stderr:
+        print(result.stderr)
 
-if result.returncode != 0:
-    print("❌ Build failed!")
-    sys.exit(1)
+    if result.returncode != 0:
+        print("❌ Build failed!")
+        sys.exit(1)
 
-print("✅ Build successful!")
-
+    print("✅ Build successful!")
+else:
+    print("⏭️  Skipping build...")
 
 # ESP32 connection details
+ESP_IP = args.address
+ESP_PORT = args.port
 
-ESP_IP = "cikonesp.local"
-ESP_PORT = 5555
+print(f"📡 Connecting to {ESP_IP}:{ESP_PORT}...")
 
 magic_bytes = bytes([0xAF, 0xCA, 0xEC, 0x2D, 0xFE, 0x55])
 expected_ack = bytes([0xAA, 0x55])
