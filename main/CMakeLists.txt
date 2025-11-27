@@ -12,8 +12,11 @@ idf_component_register(
         "../modules/supervisor/adapters/inet/inet.c"
         "../modules/supervisor/adapters/inet/cmnd_inet_handlers.c"
         "../modules/supervisor/adapters/zigbee/zigbee.c"
+        "../modules/supervisor/adapters/rf433/rf433.c"
+        "../modules/rf433_receiver/rf433_receiver.c"
     PRIV_REQUIRES
         esp_wifi
+        esp_driver_rmt
         cjson
         button
         spi_flash
@@ -27,8 +30,11 @@ idf_component_register(
     INCLUDE_DIRS
         "../modules/utils"
         "../modules/supervisor/include"
+        "../modules/rf433_receiver/include"
     PRIV_INCLUDE_DIRS
         "../modules/supervisor/adapters/inet"
         "../modules/supervisor/adapters/zigbee"
+        "../modules/supervisor/adapters/rf433"
         "../modules/supervisor/core"
+        "../modules/rf433_receiver"
 )

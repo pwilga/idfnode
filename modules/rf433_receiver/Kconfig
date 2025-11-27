@@ -1,0 +1,51 @@
+menu "Cikon IoT RF433 Receiver Configuration"
+
+    config RF433_RX_GPIO
+        int "RF receiver GPIO pin"
+        default 23
+        range 0 39
+        help
+            GPIO pin connected to the 433MHz RF receiver data pin.
+            Default: GPIO 23
+
+    config RF433_TASK_STACK_SIZE
+        int "RF433 receiver task stack size"
+        default 3072
+        range 2048 8192
+        help
+            Stack size (in bytes) for the RF433 receiver task.
+            Default: 3072
+
+    config RF433_TASK_PRIORITY
+        int "RF433 receiver task priority"
+        default 10
+        range 1 25
+        help
+            Priority of the RF433 receiver task.
+            Default: 10
+
+    config RF433_DEBOUNCE_MS
+        int "RF code debounce time (ms)"
+        default 150
+        range 50 1000
+        help
+            Minimum time between accepting the same RF code to prevent duplicates.
+            Default: 150ms
+
+    config RF433_RMT_RESOLUTION_HZ
+        int "RMT resolution (Hz)"
+        default 1000000
+        range 500000 10000000
+        help
+            RMT peripheral tick resolution. Higher = better timing precision.
+            Default: 1000000 (1 tick = 1µs)
+
+    config RF433_RMT_MEM_BLOCK_SYMBOLS
+        int "RMT memory block symbols"
+        default 64
+        range 48 256
+        help
+            Number of RMT symbols to buffer. Should be enough for one complete RF frame.
+            Default: 64
+
+endmenu

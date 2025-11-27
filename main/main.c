@@ -3,12 +3,14 @@
 
 // Include platform adapters
 #include "adapters/inet.h"
+#include "adapters/rf433.h"
 // #include "adapters/zigbee.h"  // Uncomment to enable Zigbee adapter
 
 void app_main(void) {
 
     supervisor_init();
     supervisor_register_adapter(&inet_adapter);
+    supervisor_register_adapter(&rf433_adapter);
     supervisor_platform_init();
 
     for (;;) {

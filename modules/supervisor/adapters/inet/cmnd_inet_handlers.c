@@ -2,6 +2,7 @@
 #include "esp_netif_sntp.h"
 
 #include "adapters/inet.h"
+#include "adapters/rf433.h"
 #include "cmnd.h"
 #include "cmnd_inet_handlers.h"
 #include "ha.h"
@@ -85,8 +86,6 @@ static void monitor_handler(const char *args_json_str) {
     }
 }
 
-extern supervisor_platform_adapter_t inet_adapter;
-
 static void wifi_handler(const char *args_json_str) {
     logic_state_t wifi_state = json_str_as_logic_state(args_json_str);
 
@@ -99,6 +98,16 @@ static void wifi_handler(const char *args_json_str) {
     }
 }
 
+static void rf433_handler(const char *args_json_str) {
+    logic_state_t wifi_state = json_str_as_logic_state(args_json_str);
+
+    if (wifi_state == STATE_ON) {
+        rf433_adapter.init();
+    } else if (wifi_state == STATE_OFF) {
+        rf433_adapter.shutdown();
+    }
+}
+
 static const command_entry_t inet_commands[] = {
     {"ap", "Switch to AP mode", set_ap_handler},
     {"sta", "Switch to STA mode", set_sta_handler},
@@ -107,6 +116,7 @@ static const command_entry_t inet_commands[] = {
     {"ota", "Control OTA service (on/off)", ota_handler},
     {"monitor", "Control TCP monitor (on/off)", monitor_handler},
     {"ha", "Trigger Home Assistant MQTT discovery", ha_handler},
+    {"rf433", "Control RF433 adapter (on/off)", rf433_handler},
     {NULL, NULL, NULL} // Sentinel
 };
 

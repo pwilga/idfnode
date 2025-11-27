@@ -1,0 +1,7 @@
+name: rf433_receiver
+version: "0.1.0"
+description: "433MHz RF receiver for ESP32 using RMT peripheral (RC Switch protocols)"
+license: MIT
+targets: [esp32, esp32c3]
+maintainers:
+  - "Piotr Wilga <pwilga@gmail.com>"
