@@ -32,23 +32,6 @@ menu "IDF-node Application Configuration"
             int "Supervisor task priority"
             default 5
 
-
-        config TCP_OTA_TASK_STACK_SIZE
-            int "TCP OTA task stack size"
-            default 8192
-
-        config TCP_OTA_TASK_PRIORITY
-            int "TCP OTA task priority"
-            default 0
-
-        config UDP_MONITOR_TASK_STACK_SIZE
-            int "UDP monitor task stack size"
-            default 4096
-
-        config UDP_MONITOR_TASK_PRIORITY
-            int "UDP monitor task priority"
-            default 5
-
     endmenu
 
 endmenu  # IDF-node Application Configuration

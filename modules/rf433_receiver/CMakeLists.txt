@@ -6,4 +6,5 @@ idf_component_register(
     PRIV_REQUIRES
         driver
         esp_common
+        esp_event
 )

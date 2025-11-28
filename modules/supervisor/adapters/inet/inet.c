@@ -14,16 +14,18 @@
 #include "https_server.h"
 #include "mqtt.h"
 #include "platform_services.h"
+#include "supervisor.h"
 #include "tcp_monitor.h"
 #include "tcp_ota.h"
 #include "tele.h"
 #include "wifi.h"
 
-#define TAG "inet-adapter"
+#define TAG "cikon-inet-adapter"
 
-#define INET_EVENT_TIME_SYNCED BIT0
-#define INET_EVENT_STA_READY BIT1
-#define INET_EVENT_AP_READY BIT2
+#define INET_EVENT_TIME_SYNCED BIT4
+#define INET_EVENT_STA_READY BIT5
+#define INET_EVENT_AP_READY BIT6
+#define INET_EVENT_RESERVED BIT7
 
 static const char *mdns_host = NULL;
 static const char *mdns_instance = NULL;
@@ -308,6 +310,11 @@ void inet_adapter_shutdown(void) {
 }
 
 static void inet_adapter_on_event(EventBits_t bits) {
+
+    if (bits & SUPERVISOR_EVENT_CMND_COMPLETED) {
+        mqtt_trigger_telemetry();
+    }
+
     if (bits & INET_EVENT_TIME_SYNCED) {
         time_t now_sec = 0;
         time(&now_sec);

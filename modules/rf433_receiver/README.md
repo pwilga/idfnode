@@ -6,23 +6,23 @@
 
 - Supports RC Switch Protocol 1 and Protocol 2
 - Hardware-based signal decoding using RMT peripheral
-- Callback-based code handling
+- Event-based architecture using ESP-IDF event loop
 - Automatic debouncing (150ms)
 - Decodes 24-bit RF codes
+- Configurable via Kconfig
 
 ## API
 
 ### Configuration
 
 ```c
-void rf433_receiver_configure(gpio_num_t rx_pin, const rf433_handler_t *handlers);
+void rf433_receiver_configure(gpio_num_t rx_pin);
 ```
 
-Configure the receiver with GPIO pin and callback handlers.
+Configure the receiver GPIO pin.
 
 **Parameters:**
 - `rx_pin` - GPIO pin connected to RF receiver (e.g., GPIO_NUM_23)
-- `handlers` - Array of code/callback pairs, terminated with `{0, NULL}`
 
 ### Initialization
 
@@ -40,51 +40,74 @@ void rf433_receiver_shutdown(void);
 
 Stop the receiver and free all resources.
 
+## Events
+
+### Event Base
+
+```c
+ESP_EVENT_DECLARE_BASE(RF433_EVENTS);
+```
+
+### Event IDs
+
+```c
+typedef enum {
+    RF433_CODE_RECEIVED,
+} rf433_event_id_t;
+```
+
+### Event Data
+
+```c
+typedef struct {
+    uint32_t code;  // 24-bit RF code
+    uint8_t bits;   // Number of bits decoded (always 24)
+} rf433_event_data_t;
+```
+
 ## Usage Example
 
 ```c
 #include "rf433_receiver.h"
+#include "esp_event.h"
 
-void button1_handler(uint32_t code) {
-    ESP_LOGI("APP", "Button 1 pressed: 0x%06X", code);
-}
+static void rf433_event_handler(void* arg, esp_event_base_t base, int32_t id, void* data) {
+    rf433_event_data_t *event = (rf433_event_data_t*)data;
 
-void button2_handler(uint32_t code) {
-    ESP_LOGI("APP", "Button 2 pressed: 0x%06X", code);
+    ESP_LOGI("APP", "RF code received: 0x%06X (%d bits)", event->code, event->bits);
+
+    switch(event->code) {
+        case 0x5447C2:
+            ESP_LOGI("APP", "Button 1 pressed");
+            // Handle button 1
+            break;
+
+        case 0xB9F9C1:
+            ESP_LOGI("APP", "Button 2 pressed");
+            // Handle button 2
+            break;
+    }
 }
 
 void app_main(void) {
-    static const rf433_handler_t handlers[] = {
-        {.code = 0x5447C2, .callback = button1_handler},
-        {.code = 0xB9F9C1, .callback = button2_handler},
-        {.code = 0, .callback = NULL}  // sentinel
-    };
+    // Register event handler
+    esp_event_handler_register(RF433_EVENTS, RF433_CODE_RECEIVED, rf433_event_handler, NULL);
 
-    rf433_receiver_configure(GPIO_NUM_23, handlers);
+    // Configure and start receiver
+    rf433_receiver_configure(GPIO_NUM_23);
     rf433_receiver_init();
 }
 ```
 
-## Types
+## Configuration (Kconfig)
 
-### rf433_callback_t
-
-```c
-typedef void (*rf433_callback_t)(uint32_t code);
-```
-
-Callback function invoked when a registered RF code is received.
-
-### rf433_handler_t
-
-```c
-typedef struct {
-    uint32_t code;
-    rf433_callback_t callback;
-} rf433_handler_t;
-```
-
-Maps RF code to callback function.
+Available options in `menuconfig`:
+- `RF433_RX_GPIO` - GPIO pin (default: 23)
+- `RF433_TASK_STACK_SIZE` - Task stack size (default: 3072)
+- `RF433_TASK_PRIORITY` - Task priority (default: 10)
+- `RF433_DEBOUNCE_MS` - Debounce time (default: 150ms)
+- `RF433_RMT_RESOLUTION_HZ` - RMT resolution (default: 1MHz)
+- `RF433_RMT_MEM_BLOCK_SYMBOLS` - RMT buffer size (default: 64)
 
 ## Hardware
 

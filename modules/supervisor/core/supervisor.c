@@ -12,7 +12,7 @@
 #include "tele.h"
 #include "tele_core_appenders.h"
 
-#define TAG "supervisor"
+#define TAG "cikon-supervisor"
 #define SUPERVISOR_MAX_ADAPTERS 4
 
 static QueueHandle_t supervisor_queue;
@@ -75,6 +75,7 @@ static void supervisor_task(void *args) {
             ESP_LOGI(TAG, "Received command: %s", job->cmnd->command_id);
 
             job->cmnd->handler(job->args_json_str);
+            supervisor_notify_event(SUPERVISOR_EVENT_CMND_COMPLETED);
 
             free(job->args_json_str);
             free(job);

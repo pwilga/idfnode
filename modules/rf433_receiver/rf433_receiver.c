@@ -1,11 +1,15 @@
+#include <string.h>
+
 #include "driver/rmt_rx.h"
+#include "esp_event.h"
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h" // IWYU pragma: keep
 #include "freertos/queue.h"
 #include "freertos/task.h"
-#include <string.h>
 
 #include "rf433_receiver.h"
+
+ESP_EVENT_DEFINE_BASE(RF433_EVENTS);
 
 #define TAG "cikon-rf433-receiver"
 
@@ -50,7 +54,6 @@ typedef struct {
 } rf_code_t;
 
 static gpio_num_t rf433_rx_pin = GPIO_NUM_NC;
-static const rf433_handler_t *rf433_handlers = NULL;
 
 static uint32_t last_code = 0;
 static TickType_t last_code_time = 0;
@@ -108,15 +111,10 @@ static bool decode_rc_switch(const rmt_symbol_word_t *symbols, size_t num_symbol
     return false;
 }
 
-static void dispatch_code(uint32_t code) {
-    if (rf433_handlers == NULL)
-        return;
+static void dispatch_code(uint32_t code, uint8_t bits) {
+    rf433_event_data_t event_data = {.code = code, .bits = bits};
 
-    for (const rf433_handler_t *h = rf433_handlers; h->code != 0; h++) {
-        if (code == h->code && h->callback != NULL) {
-            h->callback(code);
-        }
-    }
+    esp_event_post(RF433_EVENTS, RF433_CODE_RECEIVED, &event_data, sizeof(event_data), 0);
 }
 
 static bool IRAM_ATTR rfrx_done(rmt_channel_handle_t channel, const rmt_rx_done_event_data_t *edata,
@@ -182,7 +180,7 @@ static void rf433_receiver_task(void *param) {
                     (now - last_code_time) > pdMS_TO_TICKS(CONFIG_RF433_DEBOUNCE_MS)) {
                     ESP_LOGI(TAG, "0x%06lX (%d bits) frame received", (unsigned long)rf_code.code,
                              rf_code.bits);
-                    dispatch_code(rf_code.code);
+                    dispatch_code(rf_code.code, rf_code.bits);
                     last_code = rf_code.code;
                     last_code_time = now;
                 }
@@ -196,19 +194,24 @@ static void rf433_receiver_task(void *param) {
     }
 }
 
-void rf433_receiver_configure(gpio_num_t rx_pin, const rf433_handler_t *handlers) {
-    rf433_rx_pin = rx_pin;
-    rf433_handlers = handlers;
-}
+void rf433_receiver_configure(gpio_num_t rx_pin) { rf433_rx_pin = rx_pin; }
 
 void rf433_receiver_init(void) {
+
+    ESP_LOGI(TAG, "Init RF433 RMT receiver on GPIO %d", rf433_rx_pin);
 
     if (rf433_rx_pin == GPIO_NUM_NC) {
         ESP_LOGE(TAG, "RF433 receiver not configured!");
         return;
     }
 
-    ESP_LOGI(TAG, "Init RF433 RMT receiver on GPIO %d", rf433_rx_pin);
+    // Ensure default event loop exists
+    esp_err_t err = esp_event_loop_create_default();
+    if (err != ESP_OK && err != ESP_ERR_INVALID_STATE) {
+        ESP_LOGE(TAG, "Failed to create event loop: %s", esp_err_to_name(err));
+        return;
+    }
+
     xTaskCreate(rf433_receiver_task, "rf433_receiver", CONFIG_RF433_TASK_STACK_SIZE, NULL,
                 CONFIG_RF433_TASK_PRIORITY, &rf433_task_handle);
 }

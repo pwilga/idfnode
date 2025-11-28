@@ -13,7 +13,7 @@ static bool tele_initialized = false;
 
 void tele_init(void) {
     if (tele_initialized) {
-        ESP_LOGD(TAG, "Telemetry system already initialized");
+        ESP_LOGW(TAG, "Telemetry system already initialized");
         return;
     }
 
