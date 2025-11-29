@@ -1,3 +1,4 @@
+#include <inttypes.h>
 #include <string.h>
 
 #include "driver/rmt_rx.h"
@@ -21,8 +22,19 @@ ESP_EVENT_DEFINE_BASE(RF433_EVENTS);
 #define CONFIG_RF433_RMT_MEM_BLOCK_SYMBOLS 64
 #endif
 
+// Require consecutive identical frames to filter out noise
+// Set to 1 to disable confirmation (fast but noisy)
+// Set to 2+ for noise rejection (requires longer button press)
+#ifndef CONFIRMATION_COUNT
+#define CONFIRMATION_COUNT 2
+#endif
+
+#ifndef CONFIRMATION_WINDOW_MS
+#define CONFIRMATION_WINDOW_MS 100
+#endif
+
 #ifndef CONFIG_RF433_DEBOUNCE_MS
-#define CONFIG_RF433_DEBOUNCE_MS 150
+#define CONFIG_RF433_DEBOUNCE_MS 120
 #endif
 
 #ifndef CONFIG_RF433_TASK_STACK_SIZE
@@ -53,10 +65,18 @@ typedef struct {
     uint8_t bits;
 } rf_code_t;
 
+typedef struct {
+    uint32_t code;
+    uint8_t count;
+    TickType_t first_seen;
+} code_confirmation_t;
+
 static gpio_num_t rf433_rx_pin = GPIO_NUM_NC;
 
 static uint32_t last_code = 0;
 static TickType_t last_code_time = 0;
+
+static code_confirmation_t pending_code = {0};
 
 static TaskHandle_t rf433_task_handle = NULL;
 static rmt_channel_handle_t rx_channel_handle = NULL;
@@ -176,13 +196,45 @@ static void rf433_receiver_task(void *param) {
 
             if (decode_rc_switch(cur, len, &rf_code)) {
                 TickType_t now = xTaskGetTickCount();
-                if (rf_code.code != last_code ||
-                    (now - last_code_time) > pdMS_TO_TICKS(CONFIG_RF433_DEBOUNCE_MS)) {
-                    ESP_LOGI(TAG, "0x%06lX (%d bits) frame received", (unsigned long)rf_code.code,
-                             rf_code.bits);
-                    dispatch_code(rf_code.code, rf_code.bits);
-                    last_code = rf_code.code;
-                    last_code_time = now;
+
+                // Require multiple confirmations of the same code
+                if (rf_code.code == pending_code.code) {
+                    TickType_t elapsed = now - pending_code.first_seen;
+
+                    if (elapsed <= pdMS_TO_TICKS(CONFIRMATION_WINDOW_MS)) {
+                        pending_code.count++;
+
+                        // Only dispatch after N identical frames
+                        if (pending_code.count >= CONFIRMATION_COUNT) {
+                            // Check debounce with last dispatched code
+                            if (rf_code.code != last_code ||
+                                (now - last_code_time) > pdMS_TO_TICKS(CONFIG_RF433_DEBOUNCE_MS)) {
+
+                                ESP_LOGI(TAG, "✓ Confirmed: 0x%06" PRIX32 " (%d bits, %dx)",
+                                         rf_code.code, rf_code.bits, pending_code.count);
+
+                                dispatch_code(rf_code.code, rf_code.bits);
+                                last_code = rf_code.code;
+                                last_code_time = now;
+                            }
+
+                            // Don't reset pending_code here - let subsequent frames
+                            // from same button press be handled by debounce logic
+                        }
+                    } else {
+                        // Timeout - start new sequence
+                        pending_code.code = rf_code.code;
+                        pending_code.count = 1;
+                        pending_code.first_seen = now;
+                        ESP_LOGD(TAG, "Timeout, new pending: 0x%06" PRIX32, rf_code.code);
+                    }
+                } else {
+                    // New code - start confirmation
+                    pending_code.code = rf_code.code;
+                    pending_code.count = 1;
+                    pending_code.first_seen = now;
+                    ESP_LOGD(TAG, "Pending confirmation: 0x%06" PRIX32 " (1/%d)", rf_code.code,
+                             CONFIRMATION_COUNT);
                 }
             }
         }
