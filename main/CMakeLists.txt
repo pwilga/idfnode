@@ -1,40 +1,10 @@
 idf_component_register(
-    SRCS
-        "../modules/utils/debug.c"
-        "../modules/utils/button_manager.c"
-        "../modules/utils/net.c"
-        "main.c"
-        "../modules/supervisor/core/supervisor.c"
-        "../modules/supervisor/core/cmnd.c"
-        "../modules/supervisor/core/cmnd_core_handlers.c"
-        "../modules/supervisor/core/tele.c"
-        "../modules/supervisor/core/tele_core_appenders.c"
-        "../modules/supervisor/adapters/inet/inet.c"
-        "../modules/supervisor/adapters/inet/cmnd_inet_handlers.c"
-        "../modules/supervisor/adapters/zigbee/zigbee.c"
-        "../modules/supervisor/adapters/rf433/rf433.c"
-        "../modules/rf433_receiver/rf433_receiver.c"
+    SRCS "main.c"
+    REQUIRES
+        cikon_supervisor
+        cikon_supervisor_inet
+        cikon_supervisor_rf433
+        # cikon_supervisor_zigbee  # uncomment to enable
     PRIV_REQUIRES
-        esp_wifi
-        esp_driver_rmt
-        cjson
-        button
-        spi_flash
-        cikon_config
-        cikon_core
-        cikon_https
-        cikon_mqtt
-        cikon_tcp_ota
-        cikon_tcp_monitor
-        cikon_wifi
-    INCLUDE_DIRS
-        "../modules/utils"
-        "../modules/supervisor/include"
-        "../modules/rf433_receiver/include"
-    PRIV_INCLUDE_DIRS
-        "../modules/supervisor/adapters/inet"
-        "../modules/supervisor/adapters/zigbee"
-        "../modules/supervisor/adapters/rf433"
-        "../modules/supervisor/core"
-        "../modules/rf433_receiver"
+        cikon_helpers
 )

@@ -1,37 +1,23 @@
-menu "IDF-node Application Configuration"
+menu "Supervisor Adapters"
 
-    config SUPERVISOR_QUEUE_LENGTH
-        int "Supervisor command queue length"
-        default 8
-        range 1 20
+    config ENABLE_SUPERVISOR_INET
+        bool "Enable INET adapter"
+        default y
         help
-            Length of the supervisor command queue.
-            Typical: 8.
+            Enable network adapter (WiFi, MQTT, Home Assistant).
 
-    config MAX_COMMANDS
-        int "Maximum number of commands"
-        default 20
-        range 1 100
+    config ENABLE_SUPERVISOR_RF433
+        bool "Enable RF433 adapter"
+        default n
+        depends on ENABLE_SUPERVISOR_INET
         help
-            Maximum number of commands that can be queued for execution.
+            Enable 433MHz RF receiver adapter.
+            Requires INET adapter for Home Assistant integration.
 
-    config MAX_TELE
-        int "Maximum number of telemetry appenders"
-        default 20
-        range 1 100
+    config ENABLE_SUPERVISOR_ZIGBEE
+        bool "Enable Zigbee adapter (STUB)"
+        default n
         help
-            Maximum number of telemetry appenders that can be registered.
+            Enable Zigbee coordinator adapter (stub implementation).
 
-    menu "Tasks configuration"
-
-        config SUPERVISOR_TASK_STACK_SIZE
-            int "Supervisor task stack size"
-            default 4096
-
-        config SUPERVISOR_TASK_PRIORITY
-            int "Supervisor task priority"
-            default 5
-
-    endmenu
-
-endmenu  # IDF-node Application Configuration
+endmenu

@@ -3,45 +3,16 @@ dependencies:
   ## Required IDF version
   idf:
     version: '>=4.1.0'
-  cikon_config:
+  
+  cikon_supervisor:
     git: "https://github.com/pwilga/cikon-iot-solution.git"
-    path: components/cikon_config
-    # path: ../../cikon-iot-solution/components/cikon_config
-  cikon_core:
+    path: components/cikon_supervisor
+    # path: ../../cikon-iot-solution/components/cikon_supervisor
+  cikon_supervisor_inet:
     git: "https://github.com/pwilga/cikon-iot-solution.git"
-    path: components/cikon_core
-    # path: ../../cikon-iot-solution/components/cikon_core
-  cikon_https:
+    path: components/cikon_supervisor_inet
+    # path: ../../cikon-iot-solution/components/cikon_supervisor_inet
+  cikon_supervisor_rf433:
     git: "https://github.com/pwilga/cikon-iot-solution.git"
-    path: components/cikon_https
-    # path: ../../cikon-iot-solution/components/cikon_https
-  cikon_mqtt:
-    git: "https://github.com/pwilga/cikon-iot-solution.git"
-    path: components/cikon_mqtt
-    # path: ../../cikon-iot-solution/components/cikon_mqtt
-  cikon_wifi:
-    git: "https://github.com/pwilga/cikon-iot-solution.git"
-    path: components/cikon_wifi
-    # path: ../../cikon-iot-solution/components/cikon_wifi
-  cikon_tcp_ota:
-    git: "https://github.com/pwilga/cikon-iot-solution.git"
-    path: components/cikon_tcp_ota
-    # path: ../../cikon-iot-solution/components/cikon_tcp_ota
-  cikon_tcp_monitor:
-    git: "https://github.com/pwilga/cikon-iot-solution.git"
-    path: components/cikon_tcp_monitor
-    # path: ../../cikon-iot-solution/components/cikon_tcp_monitor
-
-  # # Put list of dependencies here
-  # # For components maintained by Espressif:
-  # component: "~1.0.0"
-  # # For 3rd party components:
-  # username/component: ">=1.0.0,<2.0.0"
-  # username2/component2:
-  #   version: "~1.0.0"
-  #   # For transient dependencies `public` flag can be set.
-  #   # `public` flag doesn't have an effect dependencies of the `main` component.
-  #   # All dependencies of `main` are public by default.
-  #   public: true
-  espressif/button: '*'
-  espressif/mdns: '*'
+    path: components/cikon_supervisor_rf433
+    # path: ../../cikon-iot-solution/components/cikon_supervisor_rf433
