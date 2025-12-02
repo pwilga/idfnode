@@ -1,5 +1,4 @@
-menu "Supervisor Adapters"
-
+menu "Cikon App Configuration"
     config ENABLE_SUPERVISOR_INET
         bool "Enable INET adapter"
         default y
@@ -19,5 +18,4 @@ menu "Supervisor Adapters"
         default n
         help
             Enable Zigbee coordinator adapter (stub implementation).
-
 endmenu
