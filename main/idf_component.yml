@@ -10,6 +10,9 @@ dependencies:
   cikon_supervisor_button:
     git: "https://github.com/pwilga/cikon-iot-solution.git"
     path: components/cikon_supervisor_button
+  cikon_supervisor_debug:
+    git: "https://github.com/pwilga/cikon-iot-solution.git"
+    path: components/cikon_supervisor_debug
   cikon_supervisor_inet:
     git: "https://github.com/pwilga/cikon-iot-solution.git"
     path: components/cikon_supervisor_inet

@@ -1,5 +1,6 @@
 #include "freertos/FreeRTOS.h" // IWYU pragma: keep
 #include "button_adapter.h"
+#include "debug_adapter.h"
 #include "inet_adapter.h"
 #include "rf433_adapter.h"
 #include "supervisor.h"
@@ -11,6 +12,7 @@ void app_main(void) {
 
     // Register adapters
     supervisor_register_adapter(&button_adapter);
+    supervisor_register_adapter(&debug_adapter);
     supervisor_register_adapter(&inet_adapter);
     supervisor_register_adapter(&rf433_adapter);
     // supervisor_register_adapter(&zigbee_adapter); // uncomment when zigbee is ready
