@@ -12,7 +12,10 @@ if(NOT DEFINED CIKON_COMPONENTS_PATH)
 endif()
 
 if(EXISTS "${CMAKE_CURRENT_LIST_DIR}/${CIKON_COMPONENTS_PATH}")
-    set(EXTRA_COMPONENT_DIRS "${CIKON_COMPONENTS_PATH}")
+    set(EXTRA_COMPONENT_DIRS
+        "${CIKON_COMPONENTS_PATH}"
+        "${CIKON_COMPONENTS_PATH}/cikon_supervisor_adapters"
+    )
     message(STATUS "Using local components from: ${EXTRA_COMPONENT_DIRS}")
 endif()
 

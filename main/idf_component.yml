@@ -7,15 +7,15 @@ dependencies:
   cikon_supervisor:
     git: "https://github.com/pwilga/cikon-iot-solution.git"
     path: components/cikon_supervisor
-  cikon_supervisor_button:
+  cikon_supervisor_adapters_button:
     git: "https://github.com/pwilga/cikon-iot-solution.git"
-    path: components/cikon_supervisor_button
-  cikon_supervisor_debug:
+    path: components/cikon_supervisor_adapters/cikon_supervisor_adapters_button
+  cikon_supervisor_adapters_debug:
     git: "https://github.com/pwilga/cikon-iot-solution.git"
-    path: components/cikon_supervisor_debug
-  cikon_supervisor_inet:
+    path: components/cikon_supervisor_adapters/cikon_supervisor_adapters_debug
+  cikon_supervisor_adapters_inet:
     git: "https://github.com/pwilga/cikon-iot-solution.git"
-    path: components/cikon_supervisor_inet
-  cikon_supervisor_rf433:
+    path: components/cikon_supervisor_adapters/cikon_supervisor_adapters_inet
+  cikon_supervisor_adapters_rf433:
     git: "https://github.com/pwilga/cikon-iot-solution.git"
-    path: components/cikon_supervisor_rf433
+    path: components/cikon_supervisor_adapters/cikon_supervisor_adapters_rf433
