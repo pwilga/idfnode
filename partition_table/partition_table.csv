@@ -1,0 +1,8 @@
+# ESP-IDF Partition Table - 4MB Flash (Conservative Start)
+# Name,      Type, SubType,  Offset,   Size, Flags
+nvs,         data, nvs,      0x9000,   24K,
+otadata,     data, ota,      0xf000,   8K,
+ota_0,       app,  ota_0,    0x20000,  1728K,
+ota_1,       app,  ota_1,    0x1D0000, 1728K,
+coredump,    data, coredump, 0x380000, 64K,
+littlefs,    data, littlefs, 0x390000, 448K,
