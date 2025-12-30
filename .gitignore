@@ -13,7 +13,6 @@
 
 # IDE and tools
 .DS_Store
-.vscode/
 *.code-workspace
 CMakeFiles/
 CMakeCache.txt

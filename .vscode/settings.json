@@ -1,0 +1,14 @@
+{
+  "C_Cpp.intelliSenseEngine": "disabled",
+  "clangd.path": "/Users/pil/.espressif/tools/esp-clang/esp-20.1.1_20250829/esp-clang/bin/clangd",
+  "editor.formatOnSave": true,
+  "[c]": {
+    "editor.defaultFormatter": "xaver.clang-format"
+  },
+  "[cpp]": {
+    "editor.defaultFormatter": "xaver.clang-format"
+  },
+  "editor.fontFamily": "FiraCode Nerd Font, Fira Code, monospace",
+  "idf.port": "rfc2217://kropka:7001?ign_set_control",
+  "idf.flashType": "UART",
+}
