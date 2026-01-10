@@ -25,3 +25,6 @@ dependencies:
   cikon_supervisor_adapters_ds18b20:
     git: "https://github.com/pwilga/cikon-iot-solution.git"
     path: components/cikon_supervisor_adapters/cikon_supervisor_adapters_ds18b20
+  cikon_supervisor_adapters_esp_now_rx:
+    git: "https://github.com/pwilga/cikon-iot-solution.git"
+    path: components/cikon_supervisor_adapters/cikon_supervisor_adapters_esp_now_rx
