@@ -3,6 +3,8 @@ import hashlib
 import sys
 import subprocess
 import argparse
+import os
+import json
 from pathlib import Path
 
 # Parse command line arguments
@@ -13,12 +15,36 @@ parser.add_argument('--port', type=int, default=5555,
                     help='ESP32 port (default: 5555)')
 parser.add_argument('--skip-build', action='store_true',
                     help='Skip building the project')
+parser.add_argument('--idf-path', type=str,
+                    help='Path to ESP-IDF (default: auto-detect from .vscode/settings.json)')
 args = parser.parse_args()
 
+def get_idf_path_from_vscode():
+    """Read IDF path from .vscode/settings.json"""
+    settings_file = Path(__file__).parent / '.vscode' / 'settings.json'
+    if settings_file.exists():
+        try:
+            with open(settings_file, 'r') as f:
+                # Remove comments (simple approach - may not handle all edge cases)
+                content = '\n'.join(line for line in f if not line.strip().startswith('//'))
+                settings = json.loads(content)
+                return settings.get('idf.espIdfPath') or settings.get('idf.currentSetup')
+        except Exception as e:
+            print(f"Warning: Failed to read VS Code settings: {e}")
+    return None
+
 if not args.skip_build:
-    print("Building project...")
+    # Determine IDF path: CLI arg > .vscode/settings.json > env variable > default
+    idf_path = (
+        args.idf_path or
+        get_idf_path_from_vscode() or
+        os.environ.get('IDF_PATH') or
+        os.path.expanduser('~/repos/esp-idf-5.4')
+    )
+    print(f"Building project with IDF from: {idf_path}")
+
     build_cmd = (
-        "bash -c 'source ~/repos/esp-idf/export.sh > /dev/null 2>&1 && idf.py build'"
+        f"bash -c 'source {idf_path}/export.sh > /dev/null 2>&1 && idf.py build'"
     )
     result = subprocess.run(build_cmd, shell=True, capture_output=True, text=True)
 
