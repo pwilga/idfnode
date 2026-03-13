@@ -21,3 +21,25 @@ CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE=y
 CONFIG_MBEDTLS_ASYMMETRIC_CONTENT_LEN=y
 CONFIG_MBEDTLS_SSL_IN_CONTENT_LEN=2048
 CONFIG_MBEDTLS_SSL_OUT_CONTENT_LEN=4096
+
+# ESP-LITE-MESH
+
+CONFIG_MESH_LITE_ENABLE=y
+CONFIG_MESH_LITE_NODE_INFO_REPORT=y
+CONFIG_DEVICE_CATEGORY="sensor"
+
+# Increase Timer Service stack from 2048 to 6144 bytes (6KB)
+# Required for ESP-MESH Lite timer callbacks which perform stack-heavy operations:
+# - root_timer_cb(): node list management, memory alloc/free, event posting
+# - report_timer_cb(): topology reporting via ESP-NOW broadcast
+# Default 2KB causes stack overflow, 4KB still insufficient (only 764 bytes free)
+# 6KB provides reasonable margin for mesh operations with multiple nodes
+CONFIG_FREERTOS_TIMER_TASK_STACK_DEPTH=6144
+
+# ESP-MESH Bridge Configuration
+# Disable Ethernet bridge (iot_bridge v1.0.1 has bug: missing "driver" in CMakeLists.txt)
+# This prevents compilation of bridge_eth.c which requires driver/gpio.h
+CONFIG_BRIDGE_ETHERNET_NETIF_ENABLE=n
+CONFIG_BRIDGE_SOFTAP_SSID_END_WITH_THE_MAC=y
+
+# End of ESP-LITE-MESH
