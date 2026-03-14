@@ -11,3 +11,13 @@ CONFIG_ESP_COREDUMP_ENABLE_TO_FLASH=y
 
 CONFIG_LWIP_SNTP_MAX_SERVERS=3
 CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE=y
+
+# TLS/MQTT Memory Optimization
+# Default mbedTLS uses 16KB input + 4KB output = 20KB just for TLS buffers!
+# For IoT MQTT/HTTPS: 2KB input + 4KB output is sufficient (saves 12KB RAM)
+# - MQTT messages: typically <1KB (sensor data, commands, HA discovery)
+# - HTTPS JSON responses: typically <2KB (telemetry, system info)
+# - Large messages get fragmented (adds ~10-20ms, rarely happens)
+CONFIG_MBEDTLS_ASYMMETRIC_CONTENT_LEN=y
+CONFIG_MBEDTLS_SSL_IN_CONTENT_LEN=2048
+CONFIG_MBEDTLS_SSL_OUT_CONTENT_LEN=4096
