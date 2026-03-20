@@ -25,21 +25,26 @@ def get_idf_path_from_vscode():
     if settings_file.exists():
         try:
             with open(settings_file, 'r') as f:
-                # Remove comments (simple approach - may not handle all edge cases)
-                content = '\n'.join(line for line in f if not line.strip().startswith('//'))
-                settings = json.loads(content)
+                settings = json.load(f)  # VS Code settings.json is valid JSON (no comments, no trailing commas)
                 return settings.get('idf.espIdfPath') or settings.get('idf.currentSetup')
         except Exception as e:
             print(f"Warning: Failed to read VS Code settings: {e}")
+            print(f"         Fix .vscode/settings.json or use --idf-path flag")
     return None
 
 if not args.skip_build:
     # Determine IDF path: CLI arg > .vscode/settings.json > env variable > default
+    vscode_path = get_idf_path_from_vscode()
+    env_path = os.environ.get('IDF_PATH')
+
+    print(f"DEBUG: VS Code settings path: {vscode_path}")
+    print(f"DEBUG: IDF_PATH env var: {env_path}")
+
     idf_path = (
         args.idf_path or
-        get_idf_path_from_vscode() or
-        os.environ.get('IDF_PATH') or
-        os.path.expanduser('~/repos/esp-idf-5.4')
+        vscode_path or
+        env_path or
+        os.path.expanduser('~/repos/esp-idf')  # Default: 6.0
     )
     print(f"Building project with IDF from: {idf_path}")
 

@@ -1,28 +1,41 @@
 {
-    "version": "2.0.0",
-    "tasks": [
-        {
-            "label": "OTA Upload",
-            "type": "shell",
-            "command": "python3",
-            "args": [
-                "${workspaceFolder}/ota.py",
-                "${input:espAddress}"
-            ],
-            "problemMatcher": [],
-            "presentation": {
-                "reveal": "always",
-                "panel": "new",
-                "close": true
-            }
-        }
-    ],
-    "inputs": [
-        {
-            "id": "espAddress",
-            "type": "promptString",
-            "description": "ESP32 IP address or hostname",
-            "default": "cikonesp.local"
-        }
-    ]
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "OTA Upload",
+			"type": "shell",
+			"command": "python3",
+			"args": [
+				"${workspaceFolder}/ota.py",
+				"${input:espAddress}"
+			],
+			"problemMatcher": [],
+			"presentation": {
+				"reveal": "always",
+				"panel": "new",
+				"close": true
+			}
+		},
+		{
+			"label": "Full Clean (Custom)",
+			"type": "shell",
+			"command": "sh",
+			"args": [
+				"${workspaceFolder}/fullclean.sh"
+			],
+			"problemMatcher": [],
+			"presentation": {
+				"reveal": "always",
+				"panel": "shared"
+			}
+		}
+	],
+	"inputs": [
+		{
+			"id": "espAddress",
+			"type": "promptString",
+			"description": "ESP32 IP address or hostname",
+			"default": "cikonesp.local"
+		}
+	]
 }

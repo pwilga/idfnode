@@ -1,21 +1,50 @@
 menu "Cikon App Configuration"
+
+    config ENABLE_SUPERVISOR_BUTTON
+        bool "Enable button adapter"
+        default n
+
+    config ENABLE_SUPERVISOR_DEBUG
+        bool "Enable debug adapter"
+        default n
+
     config ENABLE_SUPERVISOR_INET
         bool "Enable INET adapter"
-        default y
+        default n
         help
             Enable network adapter (WiFi, MQTT, Home Assistant).
+
+    config ENABLE_SUPERVISOR_INET_MESH
+        bool "Enable INET Mesh adapter"
+        default n
+        help
+            Enable network mesh adapter (Mesh IF, MQTT, ...).
 
     config ENABLE_SUPERVISOR_RF433
         bool "Enable RF433 adapter"
         default n
-        depends on ENABLE_SUPERVISOR_INET
         help
             Enable 433MHz RF receiver adapter.
-            Requires INET adapter for Home Assistant integration.
+
+    config ENABLE_SUPERVISOR_LED
+        bool "Enable LED adapter"
+        default n
+
+    config ENABLE_SUPERVISOR_DS18B20
+        bool "Enable DS18B20 adapter"
+        default n
+
+    config ENABLE_SUPERVISOR_ESP_NOW_RX
+        bool "Enable ESP-NOW RX adapter"
+        default n
+
 
     config ENABLE_SUPERVISOR_ZIGBEE
         bool "Enable Zigbee adapter (STUB)"
         default n
         help
             Enable Zigbee coordinator adapter (stub implementation).
+
+
+
 endmenu

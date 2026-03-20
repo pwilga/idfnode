@@ -2,29 +2,57 @@
 dependencies:
   ## Required IDF version
   idf:
-    version: '>=5.0.0'
+    version: '>=5.4.0'
   
   cikon_supervisor:
     git: "https://github.com/pwilga/cikon-iot-solution.git"
     path: components/cikon_supervisor
+
   cikon_supervisor_adapters_button:
     git: "https://github.com/pwilga/cikon-iot-solution.git"
     path: components/cikon_supervisor_adapters/cikon_supervisor_adapters_button
+    matches:
+      - if: "$CONFIG{ENABLE_SUPERVISOR_BUTTON} == True"
+
   cikon_supervisor_adapters_debug:
     git: "https://github.com/pwilga/cikon-iot-solution.git"
     path: components/cikon_supervisor_adapters/cikon_supervisor_adapters_debug
+    matches:
+      - if: "$CONFIG{ENABLE_SUPERVISOR_DEBUG} == True"
+
   cikon_supervisor_adapters_inet:
     git: "https://github.com/pwilga/cikon-iot-solution.git"
     path: components/cikon_supervisor_adapters/cikon_supervisor_adapters_inet
+    matches:
+      - if: "$CONFIG{ENABLE_SUPERVISOR_INET} == True"
+
+  cikon_supervisor_adapters_inet_mesh:
+    git: "https://github.com/pwilga/cikon-iot-solution.git"
+    path: components/cikon_supervisor_adapters/cikon_supervisor_adapters_inet_mesh
+    matches:
+      - if: "$CONFIG{ENABLE_SUPERVISOR_INET_MESH} == True"
+
+
   cikon_supervisor_adapters_rf433:
     git: "https://github.com/pwilga/cikon-iot-solution.git"
     path: components/cikon_supervisor_adapters/cikon_supervisor_adapters_rf433
+    matches:
+      - if: "$CONFIG{ENABLE_SUPERVISOR_RF433} == True"
+
   cikon_supervisor_adapters_led:
     git: "https://github.com/pwilga/cikon-iot-solution.git"
     path: components/cikon_supervisor_adapters/cikon_supervisor_adapters_led
+    matches:
+      - if: "$CONFIG{ENABLE_SUPERVISOR_LED} == True"
+
   cikon_supervisor_adapters_ds18b20:
     git: "https://github.com/pwilga/cikon-iot-solution.git"
     path: components/cikon_supervisor_adapters/cikon_supervisor_adapters_ds18b20
+    matches:
+      - if: "$CONFIG{ENABLE_SUPERVISOR_DS18B20} == True"
+
   cikon_supervisor_adapters_esp_now_rx:
     git: "https://github.com/pwilga/cikon-iot-solution.git"
     path: components/cikon_supervisor_adapters/cikon_supervisor_adapters_esp_now_rx
+    matches:
+      - if: "$CONFIG{ENABLE_SUPERVISOR_ESP_NOW_RX} == True"
