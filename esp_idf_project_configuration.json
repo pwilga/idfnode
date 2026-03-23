@@ -38,7 +38,34 @@
       "sdkconfigFilePath": ""
     },
     "env": {},
-    "idfTarget": "",
+    "idfTarget": "esp32",
+    "flashBaudRate": "",
+    "monitorBaudRate": "",
+    "openOCD": {
+      "debugLevel": -1,
+      "configs": [],
+      "args": []
+    },
+    "tasks": {
+      "preBuild": "",
+      "preFlash": "",
+      "postBuild": "",
+      "postFlash": ""
+    }
+  },
+  "atom_mesh": {
+    "build": {
+      "compileArgs": [
+        "-DDEVICE_PROFILE=atom_mesh",
+        "-G Ninja"
+      ],
+      "ninjaArgs": [],
+      "buildDirectoryPath": "",
+      "sdkconfigDefaults": [],
+      "sdkconfigFilePath": ""
+    },
+    "env": {},
+    "idfTarget": "esp32",
     "flashBaudRate": "",
     "monitorBaudRate": "",
     "openOCD": {
