@@ -13,7 +13,7 @@ git pull || { echo "✗ git pull failed - stopping"; exit 1; }
 DEVICES=(
     "atom_mesh:esp32s3:/dev/ttyAtom"
     "c3_cikonesp_mesh:esp32c3:/dev/ttyESP32c3"
-    "cikonesp:esp32:/dev/ttyESP32"
+    # "cikonesp:esp32:/dev/ttyESP32"
     # "cikonesp_mesh:esp32:/dev/ttyUSB3"
 )
 
