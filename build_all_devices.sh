@@ -11,9 +11,9 @@ git pull || { echo "✗ git pull failed - stopping"; exit 1; }
 
 # Device profiles array: "profile_name:target:port"
 DEVICES=(
-    "atom_mesh:esp32s3:/dev/ttyACM1"
-    "c3_cikonesp_mesh:esp32c3:/dev/ttyACM0"
-    # "cikonesp:esp32:/dev/ttyUSB2"
+    "atom_mesh:esp32s3:/dev/ttyAtom"
+    "c3_cikonesp_mesh:esp32c3:/dev/ttyESP32c3"
+    "cikonesp:esp32:/dev/ttyESP32"
     # "cikonesp_mesh:esp32:/dev/ttyUSB3"
 )
 
