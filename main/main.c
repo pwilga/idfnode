@@ -1,6 +1,10 @@
 #include "freertos/FreeRTOS.h" // IWYU pragma: keep
 #include "supervisor.h"
 
+#ifdef HAS_DEVICE_HANDLERS
+extern void device_handlers_init(void);
+#endif
+
 #if CONFIG_ENABLE_SUPERVISOR_BUTTON
 #include "button_adapter.h"
 #endif
@@ -70,6 +74,11 @@ void app_main(void) {
 #endif
 
     supervisor_platform_init();
+
+#ifdef HAS_DEVICE_HANDLERS
+    // Call device-specific initialization
+    device_handlers_init();
+#endif
 
     // Main loop
     for (;;) {

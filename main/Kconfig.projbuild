@@ -45,6 +45,4 @@ menu "Cikon App Configuration"
         help
             Enable Zigbee coordinator adapter (stub implementation).
 
-
-
 endmenu
