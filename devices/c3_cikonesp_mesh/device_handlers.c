@@ -9,7 +9,8 @@
 static void device_button_handler(uint8_t button_idx, button_event_t event) {
     switch (event) {
     case BUTTON_SINGLE_CLICK:
-        cmnd_submit("mesh", "{\"target\":\"atom\",\"cmnd\":\"Hello from C3\"}");
+        cmnd_submit("mesh_send", "{\"target\":\"cikonesp\","
+                                 "\"cmnd\":{\"onboard_led\":\"toggle\"}}");
         break;
 
     case BUTTON_DOUBLE_CLICK:
