@@ -30,6 +30,12 @@ menu "Cikon App Configuration"
         bool "Enable LED adapter"
         default n
 
+    config ENABLE_SUPERVISOR_NEOPIXEL
+        bool "Enable NeoPixel adapter"
+        default n
+        help
+            Enable WS2812 NeoPixel LED strip adapter with effects.
+
     config ENABLE_SUPERVISOR_DS18B20
         bool "Enable DS18B20 adapter"
         default n

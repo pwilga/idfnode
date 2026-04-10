@@ -20,7 +20,6 @@ extern void device_handlers_init(void);
 #if CONFIG_ENABLE_SUPERVISOR_ESP_NOW_RX
 #include "esp_now_rx_adapter.h"
 #endif
-
 #if CONFIG_ENABLE_SUPERVISOR_INET
 #include "inet_adapter.h"
 #endif
@@ -31,6 +30,10 @@ extern void device_handlers_init(void);
 
 #if CONFIG_ENABLE_SUPERVISOR_LED
 #include "led_adapter.h"
+#endif
+
+#if CONFIG_ENABLE_SUPERVISOR_NEOPIXEL
+#include "neopixel_adapter.h"
 #endif
 
 #if CONFIG_ENABLE_SUPERVISOR_RF433
@@ -63,6 +66,10 @@ void app_main(void) {
 
 #if CONFIG_ENABLE_SUPERVISOR_LED
     supervisor_register_adapter(&led_adapter);
+#endif
+
+#if CONFIG_ENABLE_SUPERVISOR_NEOPIXEL
+    supervisor_register_adapter(&neopixel_adapter);
 #endif
 
 #if CONFIG_ENABLE_SUPERVISOR_DS18B20
