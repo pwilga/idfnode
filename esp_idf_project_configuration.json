@@ -56,7 +56,36 @@
   "atom_mesh": {
     "build": {
       "compileArgs": [
-        "-DDEVICE_PROFILE=atom_mesh",
+        "-DDEVICE_PROFILE=atom",
+        "-G Ninja",
+        "-DDEVICE_PROFILE_VARIANT=mesh"
+      ],
+      "ninjaArgs": [],
+      "buildDirectoryPath": "",
+      "sdkconfigDefaults": [],
+      "sdkconfigFilePath": ""
+    },
+    "env": {},
+    "idfTarget": "esp32s3",
+    "flashBaudRate": "",
+    "monitorBaudRate": "",
+    "openOCD": {
+      "debugLevel": -1,
+      "configs": [],
+      "args": []
+    },
+    "tasks": {
+      "preBuild": "",
+      "preFlash": "",
+      "postBuild": "",
+      "postFlash": ""
+    }
+  },
+  "atom": {
+    "build": {
+      "compileArgs": [
+        "-DDEVICE_PROFILE_VARIANT=inet",
+        "-DDEVICE_PROFILE=atom",
         "-G Ninja"
       ],
       "ninjaArgs": [],
@@ -65,7 +94,7 @@
       "sdkconfigFilePath": ""
     },
     "env": {},
-    "idfTarget": "esp32",
+    "idfTarget": "esp32s3",
     "flashBaudRate": "",
     "monitorBaudRate": "",
     "openOCD": {

@@ -47,14 +47,19 @@ set(SDKCONFIG_DEFAULTS
     "${CMAKE_CURRENT_LIST_DIR}/sdkconfig.defaults"
     "${DEVICE_DIR}/sdkconfig.defaults"
 )
-message(STATUS "SDKCONFIG_DEFAULTS: ${SDKCONFIG_DEFAULTS}")
 
-# Exclude mesh components for non-mesh profiles
-if(DEVICE_PROFILE STREQUAL "cikonesp")
-    set(EXCLUDE_COMPONENTS "cikon_mesh_lite" "espressif__iot_bridge" "espressif__mesh_lite")
-    message(STATUS "Excluding mesh components for profile: ${DEVICE_PROFILE}")
-    message(STATUS "EXCLUDE_COMPONENTS: ${EXCLUDE_COMPONENTS}")
+# Add variant-specific config if DEVICE_PROFILE_VARIANT is specified
+if(DEFINED DEVICE_PROFILE_VARIANT)
+    set(VARIANT_CONFIG "${DEVICE_DIR}/sdkconfig.defaults.${DEVICE_PROFILE_VARIANT}")
+    if(EXISTS "${VARIANT_CONFIG}")
+        list(APPEND SDKCONFIG_DEFAULTS "${VARIANT_CONFIG}")
+        message(STATUS "Using profile variant: ${DEVICE_PROFILE_VARIANT}")
+    else()
+        message(WARNING "DEVICE_PROFILE_VARIANT='${DEVICE_PROFILE_VARIANT}' specified but config not found: ${VARIANT_CONFIG}")
+    endif()
 endif()
+
+message(STATUS "SDKCONFIG_DEFAULTS: ${SDKCONFIG_DEFAULTS}")
 
 idf_build_set_property(MINIMAL_BUILD ON)
 project(idfnode)
