@@ -2,6 +2,7 @@
   "cikonesp": {
     "build": {
       "compileArgs": [
+        "-DDEVICE_PROFILE_VARIANT=inet",
         "-DDEVICE_PROFILE=cikonesp",
         "-G Ninja"
       ],
@@ -29,7 +30,8 @@
   "cikonesp_mesh": {
     "build": {
       "compileArgs": [
-        "-DDEVICE_PROFILE=cikonesp_mesh",
+        "-DDEVICE_PROFILE_VARIANT=mesh",
+        "-DDEVICE_PROFILE=cikonesp",
         "-G Ninja"
       ],
       "ninjaArgs": [],
@@ -94,7 +96,7 @@
       "sdkconfigFilePath": ""
     },
     "env": {},
-    "idfTarget": "esp32s3",
+    "idfTarget": "esp32",
     "flashBaudRate": "",
     "monitorBaudRate": "",
     "openOCD": {
