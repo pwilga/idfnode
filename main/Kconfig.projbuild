@@ -36,6 +36,12 @@ menu "Cikon App Configuration"
         help
             Enable WS2812 NeoPixel LED strip adapter with effects.
 
+    config ENABLE_SUPERVISOR_LED_INDICATOR
+        bool "Enable LED Indicator adapter"
+        default n
+        help
+            Enable status LED indicator with blink patterns and priorities.
+
     config ENABLE_SUPERVISOR_DS18B20
         bool "Enable DS18B20 adapter"
         default n

@@ -51,6 +51,12 @@ dependencies:
     matches:
       - if: "$CONFIG{ENABLE_SUPERVISOR_NEOPIXEL} == True"
 
+  cikon_supervisor_adapters_led_indicator:
+    git: "https://github.com/pwilga/cikon-iot-solution.git"
+    path: components/cikon_supervisor_adapters/cikon_supervisor_adapters_led_indicator
+    matches:
+      - if: "$CONFIG{ENABLE_SUPERVISOR_LED_INDICATOR} == True"
+
   cikon_supervisor_adapters_ds18b20:
     git: "https://github.com/pwilga/cikon-iot-solution.git"
     path: components/cikon_supervisor_adapters/cikon_supervisor_adapters_ds18b20
