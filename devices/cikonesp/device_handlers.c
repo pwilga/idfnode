@@ -2,7 +2,7 @@
 
 #include "esp_log.h"
 
-#define TAG "device:cikonesp_mesh"
+#define TAG "device:cikonesp"
 
 #ifdef CONFIG_ENABLE_SUPERVISOR_RF433
 #include "cmnd.h"
