@@ -96,7 +96,7 @@
       "sdkconfigFilePath": ""
     },
     "env": {},
-    "idfTarget": "esp32",
+    "idfTarget": "esp32s3",
     "flashBaudRate": "",
     "monitorBaudRate": "",
     "openOCD": {

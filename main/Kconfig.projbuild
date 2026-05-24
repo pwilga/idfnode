@@ -20,6 +20,12 @@ menu "Cikon App Configuration"
         help
             Enable network mesh adapter (Mesh IF, MQTT, ...).
 
+    config ENABLE_SUPERVISOR_INET_ETHERNET
+        bool "Enable INET Ethernet adapter"
+        default n
+        help
+            Enable Ethernet network adapter (W5500/OpenETH with MQTT, mDNS, TCP OTA).
+
     config ENABLE_SUPERVISOR_RF433
         bool "Enable RF433 adapter"
         default n

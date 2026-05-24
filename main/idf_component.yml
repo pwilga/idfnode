@@ -32,6 +32,11 @@ dependencies:
     matches:
       - if: "$CONFIG{ENABLE_SUPERVISOR_INET_MESH} == True"
 
+  cikon_supervisor_adapters_inet_ethernet:
+    git: "https://github.com/pwilga/cikon-iot-solution.git"
+    path: components/cikon_supervisor_adapters/cikon_supervisor_adapters_inet_ethernet
+    matches:
+      - if: "$CONFIG{ENABLE_SUPERVISOR_INET_ETHERNET} == True"
 
   cikon_supervisor_adapters_rf433:
     git: "https://github.com/pwilga/cikon-iot-solution.git"

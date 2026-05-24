@@ -1,6 +1,6 @@
 #include "esp_log.h"
 
-#define TAG "device:c3_cikonesp_mesh"
+#define TAG "device:c3_cikonesp"
 
 #ifdef CONFIG_ENABLE_SUPERVISOR_BUTTON
 #include "button_adapter.h"
