@@ -110,5 +110,33 @@
       "postBuild": "",
       "postFlash": ""
     }
+  },
+  "atom_obr": {
+    "build": {
+      "compileArgs": [
+        "-DDEVICE_PROFILE_VARIANT=obr",
+        "-DDEVICE_PROFILE=atom",
+        "-G Ninja"
+      ],
+      "ninjaArgs": [],
+      "buildDirectoryPath": "",
+      "sdkconfigDefaults": [],
+      "sdkconfigFilePath": ""
+    },
+    "env": {},
+    "idfTarget": "esp32s3",
+    "flashBaudRate": "",
+    "monitorBaudRate": "",
+    "openOCD": {
+      "debugLevel": -1,
+      "configs": [],
+      "args": []
+    },
+    "tasks": {
+      "preBuild": "",
+      "preFlash": "",
+      "postBuild": "",
+      "postFlash": ""
+    }
   }
 }

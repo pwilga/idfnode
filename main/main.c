@@ -20,6 +20,9 @@ extern void device_handlers_init(void);
 #if CONFIG_ENABLE_SUPERVISOR_ESP_NOW_RX
 #include "esp_now_rx_adapter.h"
 #endif
+#if CONFIG_ENABLE_SUPERVISOR_THREAD_BR
+#include "thread_br_adapter.h"
+#endif
 #if CONFIG_ENABLE_SUPERVISOR_INET
 #include "inet_adapter.h"
 #endif
@@ -70,6 +73,10 @@ void app_main(void) {
 
 #if CONFIG_ENABLE_SUPERVISOR_INET_ETHERNET
     supervisor_register_adapter(&inet_ethernet_adapter);
+#endif
+
+#if CONFIG_ENABLE_SUPERVISOR_THREAD_BR
+    supervisor_register_adapter(&thread_br_adapter);
 #endif
 
 #if CONFIG_ENABLE_SUPERVISOR_RF433

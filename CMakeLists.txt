@@ -48,6 +48,14 @@ set(SDKCONFIG_DEFAULTS
     "${DEVICE_DIR}/sdkconfig.defaults"
 )
 
+# Use device-specific partition table if it exists
+if(EXISTS "${DEVICE_DIR}/partition_table.csv")
+    set(GENERATED_PT_CONFIG "${CMAKE_BINARY_DIR}/device_partition_table.defaults")
+    file(WRITE "${GENERATED_PT_CONFIG}" "CONFIG_PARTITION_TABLE_CUSTOM_FILENAME=\"devices/${DEVICE_PROFILE}/partition_table.csv\"\n")
+    list(APPEND SDKCONFIG_DEFAULTS "${GENERATED_PT_CONFIG}")
+    message(STATUS "Using device-specific partition table: devices/${DEVICE_PROFILE}/partition_table.csv")
+endif()
+
 # Add variant-specific config if DEVICE_PROFILE_VARIANT is specified
 if(DEFINED DEVICE_PROFILE_VARIANT)
     set(VARIANT_CONFIG "${DEVICE_DIR}/sdkconfig.defaults.${DEVICE_PROFILE_VARIANT}")
@@ -62,4 +70,5 @@ endif()
 message(STATUS "SDKCONFIG_DEFAULTS: ${SDKCONFIG_DEFAULTS}")
 
 idf_build_set_property(MINIMAL_BUILD ON)
+
 project(idfnode)

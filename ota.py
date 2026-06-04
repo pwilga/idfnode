@@ -48,14 +48,15 @@ if not args.skip_build:
     )
     print(f"Building project with IDF from: {idf_path}")
 
-    build_cmd = (
-        f"bash -c 'source {idf_path}/export.sh > /dev/null 2>&1 && idf.py build'"
-    )
-    result = subprocess.run(build_cmd, shell=True, capture_output=True, text=True)
+    project_dir = Path(__file__).parent
+    app_desc_obj = project_dir / "build" / "esp-idf" / "esp_app_format" / "CMakeFiles" / "__idf_esp_app_format.dir" / "esp_app_desc.c.obj"
+    app_desc_obj.unlink(missing_ok=True)
 
-    print(result.stdout)
-    if result.stderr:
-        print(result.stderr)
+    build_cmd = (
+        f"bash -c 'source {idf_path}/export.sh > /dev/null 2>&1 && "
+        f"idf.py -DDEVICE_PROFILE=atom -DDEVICE_PROFILE_VARIANT=obr build'"
+    )
+    result = subprocess.run(build_cmd, shell=True, cwd=project_dir)
 
     if result.returncode != 0:
         print("❌ Build failed!")
