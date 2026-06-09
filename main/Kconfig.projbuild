@@ -63,12 +63,21 @@ menu "Cikon App Configuration"
         help
             Enable Zigbee coordinator adapter (stub implementation).
 
-    config ENABLE_SUPERVISOR_THREAD_BR
+    config ENABLE_SUPERVISOR_THREAD_BORDER_ROUTER
         bool "Enable Thread Border Router adapter"
         default n
         help
             Enable OpenThread Border Router adapter.
             RCP (ESP32-H2/C6) connected via UART, backbone via WiFi or Ethernet.
+            Requires CIKON_VFS_EVENTFD_MAX_FDS >= 4 in board config.
+
+    config ENABLE_SUPERVISOR_THREAD_DEVICE
+        bool "Enable Thread Device adapter"
+        default n
+        help
+            Enable OpenThread device adapter (FTD or MTD/SED).
+            Uses native 802.15.4 radio — targets ESP32-H2 and ESP32-C6.
+            No backbone required, joins existing Thread network on boot.
             Requires CIKON_VFS_EVENTFD_MAX_FDS >= 4 in board config.
 
 endmenu

@@ -1,6 +1,6 @@
 #include "esp_log.h"
 
-#define TAG "device:atom_mesh"
+#define TAG "device:atom"
 
 #ifdef CONFIG_ENABLE_SUPERVISOR_BUTTON
 #include "button_adapter.h"

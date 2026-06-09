@@ -17,36 +17,46 @@ parser.add_argument('--skip-build', action='store_true',
                     help='Skip building the project')
 parser.add_argument('--idf-path', type=str,
                     help='Path to ESP-IDF (default: auto-detect from .vscode/settings.json)')
+parser.add_argument('--device-profile', type=str,
+                    help='DEVICE_PROFILE (default: read from .vscode/settings.json idf.customExtraVars)')
+parser.add_argument('--device-profile-variant', type=str,
+                    help='DEVICE_PROFILE_VARIANT (default: read from .vscode/settings.json idf.customExtraVars)')
 args = parser.parse_args()
 
-def get_idf_path_from_vscode():
-    """Read IDF path from .vscode/settings.json"""
+def get_vscode_settings():
+    """Read idf.currentSetup, DEVICE_PROFILE and DEVICE_PROFILE_VARIANT from .vscode/settings.json"""
     settings_file = Path(__file__).parent / '.vscode' / 'settings.json'
-    if settings_file.exists():
-        try:
-            with open(settings_file, 'r') as f:
-                settings = json.load(f)  # VS Code settings.json is valid JSON (no comments, no trailing commas)
-                return settings.get('idf.espIdfPath') or settings.get('idf.currentSetup')
-        except Exception as e:
-            print(f"Warning: Failed to read VS Code settings: {e}")
-            print(f"         Fix .vscode/settings.json or use --idf-path flag")
-    return None
+    if not settings_file.exists():
+        return None, None, None
+    try:
+        with open(settings_file, 'r') as f:
+            settings = json.load(f)
+        idf_path = settings.get('idf.espIdfPath') or settings.get('idf.currentSetup')
+        extra_vars = settings.get('idf.customExtraVars', {})
+        return idf_path, extra_vars.get('DEVICE_PROFILE'), extra_vars.get('DEVICE_PROFILE_VARIANT')
+    except Exception as e:
+        print(f"Warning: Failed to read .vscode/settings.json: {e}")
+        return None, None, None
 
 if not args.skip_build:
-    # Determine IDF path: CLI arg > .vscode/settings.json > env variable > default
-    vscode_path = get_idf_path_from_vscode()
-    env_path = os.environ.get('IDF_PATH')
+    vscode_idf, vscode_profile, vscode_variant = get_vscode_settings()
 
-    print(f"DEBUG: VS Code settings path: {vscode_path}")
-    print(f"DEBUG: IDF_PATH env var: {env_path}")
+    idf_path = args.idf_path or vscode_idf or os.environ.get('IDF_PATH')
+    if not idf_path:
+        print("❌ Cannot determine IDF path. Set idf.currentSetup in .vscode/settings.json or use --idf-path.")
+        sys.exit(1)
 
-    idf_path = (
-        args.idf_path or
-        vscode_path or
-        env_path or
-        os.path.expanduser('~/repos/esp-idf')  # Default: 6.0
-    )
-    print(f"Building project with IDF from: {idf_path}")
+    device_profile = args.device_profile or vscode_profile
+    if not device_profile:
+        print("❌ Cannot determine DEVICE_PROFILE. Set idf.customExtraVars.DEVICE_PROFILE in .vscode/settings.json or use --device-profile.")
+        sys.exit(1)
+
+    device_variant = args.device_profile_variant or vscode_variant
+    if not device_variant:
+        print("❌ Cannot determine DEVICE_PROFILE_VARIANT. Set idf.customExtraVars.DEVICE_PROFILE_VARIANT in .vscode/settings.json or use --device-profile-variant.")
+        sys.exit(1)
+
+    print(f"Building: DEVICE_PROFILE={device_profile} DEVICE_PROFILE_VARIANT={device_variant} (IDF: {idf_path})")
 
     project_dir = Path(__file__).parent
     app_desc_obj = project_dir / "build" / "esp-idf" / "esp_app_format" / "CMakeFiles" / "__idf_esp_app_format.dir" / "esp_app_desc.c.obj"
@@ -54,7 +64,7 @@ if not args.skip_build:
 
     build_cmd = (
         f"bash -c 'source {idf_path}/export.sh > /dev/null 2>&1 && "
-        f"idf.py -DDEVICE_PROFILE=atom -DDEVICE_PROFILE_VARIANT=obr build'"
+        f"idf.py -DDEVICE_PROFILE={device_profile} -DDEVICE_PROFILE_VARIANT={device_variant} build'"
     )
     result = subprocess.run(build_cmd, shell=True, cwd=project_dir)
 
@@ -96,8 +106,14 @@ fw_size = firmware_file_size.to_bytes(4, byteorder="big")
 
 print("Bytes:", fw_size.hex())
 
-with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-    s.connect((ESP_IP, ESP_PORT))
+addrinfos = socket.getaddrinfo(ESP_IP, ESP_PORT, socket.AF_UNSPEC, socket.SOCK_STREAM)
+if not addrinfos:
+    print(f"❌ Could not resolve {ESP_IP}")
+    sys.exit(1)
+af, socktype, proto, _, sockaddr = addrinfos[0]
+
+with socket.socket(af, socktype, proto) as s:
+    s.connect(sockaddr)
 
     s.sendall(magic_bytes)
     check_ack(s)

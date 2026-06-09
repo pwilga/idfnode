@@ -74,8 +74,14 @@ dependencies:
     matches:
       - if: "$CONFIG{ENABLE_SUPERVISOR_ESP_NOW_RX} == True"
 
-  cikon_supervisor_adapters_thread_br:
+  cikon_supervisor_adapters_thread_border_router:
     git: "https://github.com/pwilga/cikon-iot-solution.git"
-    path: components/cikon_supervisor_adapters/cikon_supervisor_adapters_thread_br
+    path: components/cikon_supervisor_adapters/cikon_supervisor_adapters_thread_border_router
     matches:
-      - if: "$CONFIG{ENABLE_SUPERVISOR_THREAD_BR} == True"
+      - if: "$CONFIG{ENABLE_SUPERVISOR_THREAD_BORDER_ROUTER} == True"
+
+  cikon_supervisor_adapters_thread_device:
+    git: "https://github.com/pwilga/cikon-iot-solution.git"
+    path: components/cikon_supervisor_adapters/cikon_supervisor_adapters_thread_device
+    matches:
+      - if: "$CONFIG{ENABLE_SUPERVISOR_THREAD_DEVICE} == True"

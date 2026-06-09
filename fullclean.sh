@@ -15,10 +15,15 @@ if [ -d "managed_components" ]; then
     rm -rf managed_components
 fi
 
-# Remove sdkconfig
+# Remove sdkconfig and sdkconfig.old
 if [ -f "sdkconfig" ]; then
     echo "  ✓ Removing sdkconfig"
     rm -f sdkconfig
+fi
+
+if [ -f "sdkconfig.old" ]; then
+    echo "  ✓ Removing sdkconfig.old"
+    rm -f sdkconfig.old
 fi
 
 # Remove dependencies lockfile
