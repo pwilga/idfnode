@@ -154,6 +154,37 @@
       "postFlash": ""
     }
   },
+  "c6dev_ftd": {
+    "build": {
+      "compileArgs": [
+        "-DDEVICE_PROFILE=c6dev",
+        "-DDEVICE_PROFILE_VARIANT=ftd",
+        "-G Ninja"
+      ],
+      "ninjaArgs": [],
+      "buildDirectoryPath": "",
+      "sdkconfigDefaults": [],
+      "sdkconfigFilePath": ""
+    },
+    "env": {
+      "DEVICE_PROFILE": "c6dev",
+      "DEVICE_PROFILE_VARIANT": "ftd"
+    },
+    "idfTarget": "esp32c6",
+    "flashBaudRate": "",
+    "monitorBaudRate": "",
+    "openOCD": {
+      "debugLevel": -1,
+      "configs": [],
+      "args": []
+    },
+    "tasks": {
+      "preBuild": "",
+      "preFlash": "",
+      "postBuild": "",
+      "postFlash": ""
+    }
+  },
   "h2dev_ftd": {
     "build": {
       "compileArgs": [

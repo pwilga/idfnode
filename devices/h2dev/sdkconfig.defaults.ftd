@@ -1,0 +1,5 @@
+# Usage: -DDEVICE_PROFILE=h2 -DDEVICE_PROFILE_VARIANT=ftd
+# Full Thread Device — router-capable, radio always ON
+# Suitable for mains-powered nodes
+
+CONFIG_OPENTHREAD_FTD=y
