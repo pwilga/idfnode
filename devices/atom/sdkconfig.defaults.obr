@@ -1,8 +1,10 @@
 # Usage: -DDEVICE_PROFILE=atom -DDEVICE_PROFILE_VARIANT=obr
 CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y
 
+CONFIG_LWIP_MAX_SOCKETS=20
+
 # LittleFS — general purpose storage (certs, config, app data).
-# CONFIG_VFS_LITTLEFS_ENABLED=y
+CONFIG_VFS_LITTLEFS_ENABLED=y
 # SPIFFS — web_storage partition for Thread BR web GUI assets.
 CONFIG_VFS_SPIFFS_ENABLED=y
 
