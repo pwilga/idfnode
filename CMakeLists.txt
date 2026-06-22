@@ -77,6 +77,26 @@ if(DEFINED DEVICE_PROFILE_VARIANT)
     endif()
 endif()
 
+# Dev overlay — loaded by default, skipped only for release builds
+# Usage: BUILD_TYPE=release idf.py build
+if(NOT DEFINED BUILD_TYPE)
+    if(DEFINED ENV{BUILD_TYPE})
+        set(BUILD_TYPE "$ENV{BUILD_TYPE}")
+    else()
+        set(BUILD_TYPE "dev")
+    endif()
+endif()
+
+if(NOT BUILD_TYPE STREQUAL "release")
+    set(DEV_OVERLAY "${CMAKE_CURRENT_LIST_DIR}/sdkconfig.defaults.dev")
+    if(EXISTS "${DEV_OVERLAY}")
+        list(APPEND SDKCONFIG_DEFAULTS "${DEV_OVERLAY}")
+        message(STATUS "Dev build — loading sdkconfig.defaults.dev")
+    endif()
+else()
+    message(STATUS "Release build — skipping dev overlay")
+endif()
+
 message(STATUS "SDKCONFIG_DEFAULTS: ${SDKCONFIG_DEFAULTS}")
 
 idf_build_set_property(MINIMAL_BUILD ON)
