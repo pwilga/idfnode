@@ -3,6 +3,7 @@
 # Name,      Type, SubType,  Offset,   Size, Flags
 nvs,         data, nvs,      0x9000,   24K,
 otadata,     data, ota,      0xf000,   8K,
-ota_0,       app,  ota_0,    0x20000,  1920K,
-ota_1,       app,  ota_1,    0x200000, 1920K,
-coredump,    data, coredump, 0x3e0000, 64K,
+ota_0,       app,  ota_0,    0x20000,   1792K,
+ota_1,       app,  ota_1,    0x1e0000,  1792K,
+littlefs,    data, littlefs, 0x3a0000,  320K,
+coredump,    data, coredump, 0x3f0000,  64K,
