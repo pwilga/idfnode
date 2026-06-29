@@ -8,6 +8,8 @@ set +e  # Don't exit on error, handle errors manually
 # Usage: -DDEVICE_PROFILE=cikonesp -DDEVICE_PROFILE_VARIANT=inet
 DEVICES=(
     "atom:esp32s3:inet:/dev/ttyAtom"
+    "h2dev:esp32h2:ftd:/dev/ttyH2"
+    "c6dev:esp32c6:ftd:/dev/ttyC6"
     # "c3_cikonesp:esp32c3:mesh:/dev/ttyESP32c3"
     # "cikonesp:esp32:mesh:/dev/ttyESP32"
 )
