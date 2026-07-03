@@ -12,8 +12,6 @@ if(DEFINED DEVICE_PROFILE)
     else()
         message(WARNING "DEVICE_PROFILE=${DEVICE_PROFILE} set but device_handlers.c not found at ${DEVICE_HANDLERS}")
     endif()
-else()
-    message(STATUS "No DEVICE_PROFILE set - using default behavior")
 endif()
 
 idf_component_register(
