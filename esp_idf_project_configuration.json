@@ -246,5 +246,36 @@
       "postBuild": "",
       "postFlash": ""
     }
+  },
+  "p4dev_eth": {
+    "build": {
+      "compileArgs": [
+        "-DDEVICE_PROFILE=p4dev",
+        "-DDEVICE_PROFILE_VARIANT=eth",
+        "-G Ninja"
+      ],
+      "ninjaArgs": [],
+      "buildDirectoryPath": "",
+      "sdkconfigDefaults": [],
+      "sdkconfigFilePath": ""
+    },
+    "env": {
+      "DEVICE_PROFILE": "p4dev",
+      "DEVICE_PROFILE_VARIANT": "eth"
+    },
+    "idfTarget": "esp32p4",
+    "flashBaudRate": "",
+    "monitorBaudRate": "",
+    "openOCD": {
+      "debugLevel": -1,
+      "configs": [],
+      "args": []
+    },
+    "tasks": {
+      "preBuild": "",
+      "preFlash": "",
+      "postBuild": "",
+      "postFlash": ""
+    }
   }
 }

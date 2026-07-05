@@ -1,0 +1,9 @@
+# ESP-IDF Partition Table - 16MB Flash (ESP32-P4NRW32), full utilization (ends at 0x1000000)
+# Name,      Type, SubType,  Offset,   Size, Flags
+nvs,         data, nvs,      0x9000,   24K,
+otadata,     data, ota,      0xf000,   8K,
+ota_0,       app,  ota_0,    0x20000,  6144K,
+ota_1,       app,  ota_1,    0x620000, 6144K,
+coredump,    data, coredump, 0xc20000, 64K,
+littlefs,    data, littlefs, 0xc30000, 3392K,
+web_storage, data, spiffs,   0xf80000, 512K,

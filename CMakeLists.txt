@@ -50,6 +50,12 @@ message(STATUS "DEVICE_CERTS_DIR: ${DEVICE_CERTS_DIR}")
 idf_build_set_property(DEVICE_CONFIG_DIR "${DEVICE_CONFIG_DIR}")
 idf_build_set_property(DEVICE_CERTS_DIR "${DEVICE_CERTS_DIR}")
 
+# Staging directory for the LittleFS image. Components (e.g. cikon_http) copy
+# their own assets here; certs are copied below. The image is created after
+# project() so the tree is fully populated first.
+set(LITTLEFS_IMAGE_DIR "${CMAKE_BINARY_DIR}/littlefs_image")
+idf_build_set_property(LITTLEFS_IMAGE_DIR "${LITTLEFS_IMAGE_DIR}")
+
 # Load sdkconfig.defaults from both root and device profile
 # ESP-IDF automatically adds .${IDF_TARGET} variants (e.g., .esp32) after each file
 # Order: base -> base.esp32 -> device -> device.esp32
@@ -102,3 +108,21 @@ message(STATUS "SDKCONFIG_DEFAULTS: ${SDKCONFIG_DEFAULTS}")
 idf_build_set_property(MINIMAL_BUILD ON)
 
 project(idfnode)
+
+# ---------------------------------------------------------------------------
+# LittleFS image: copy the device's certs onto the partition and flash it
+# together with the firmware, so nothing has to be uploaded by hand.
+# Component-level assets (e.g. web pages) are staged by the owning component
+# into LITTLEFS_IMAGE_DIR.
+# ---------------------------------------------------------------------------
+if(EXISTS "${DEVICE_CERTS_DIR}")
+    file(GLOB CERT_FILES "${DEVICE_CERTS_DIR}/*")
+    file(COPY ${CERT_FILES} DESTINATION "${LITTLEFS_IMAGE_DIR}/certs")
+    message(STATUS "LittleFS image: bundling certs from ${DEVICE_CERTS_DIR}")
+endif()
+
+if(EXISTS "${LITTLEFS_IMAGE_DIR}")
+    # FLASH_IN_PROJECT: written by `idf.py flash` alongside the firmware.
+    littlefs_create_partition_image(littlefs "${LITTLEFS_IMAGE_DIR}" FLASH_IN_PROJECT)
+    message(STATUS "LittleFS image from: ${LITTLEFS_IMAGE_DIR}")
+endif()

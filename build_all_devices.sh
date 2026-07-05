@@ -10,6 +10,7 @@ DEVICES=(
     "atom:esp32s3:obr:/dev/ttyAtom"
     "h2dev:esp32h2:ftd:/dev/ttyH2"
     "c6dev:esp32c6:ftd:/dev/ttyC6"
+    "p4dev:esp32p4:eth:/dev/ttyP4"
     # "c3_cikonesp:esp32c3:mesh:/dev/ttyESP32c3"
     # "cikonesp:esp32:mesh:/dev/ttyESP32"
 )

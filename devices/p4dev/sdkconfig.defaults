@@ -1,0 +1,14 @@
+CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y
+CONFIG_ESPTOOLPY_FLASHSIZE="16MB"
+
+# ESP32-P4 rev v1.3 silicon (pre-v3.0). Support of <3.0 and >=3.0 is
+# mutually exclusive; open the gate and set min revision to v1.0.
+CONFIG_ESP32P4_SELECTS_REV_LESS_V3=y
+CONFIG_ESP32P4_REV_MIN_100=y
+
+# 32MB HEX (16-line) PSRAM (ESP32-P4NRW32 on M5Stack Unit PoE-P4).
+# P4 supports only HEX mode @ 200MHz (both are Kconfig defaults), so no
+# CONFIG_SPIRAM_MODE_* / SPEED override is needed here.
+CONFIG_SPIRAM=y
+
+CONFIG_ENABLE_SUPERVISOR_DEBUG=y
