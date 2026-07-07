@@ -105,6 +105,24 @@ endif()
 
 message(STATUS "SDKCONFIG_DEFAULTS: ${SDKCONFIG_DEFAULTS}")
 
+# Firmware/bootloader build-time stamps come from __DATE__/__TIME__, which are
+# the build host's *local* wall clock with no timezone info attached. Capture
+# the host's offset from UTC once at configure time so platform_services.c can
+# correct those stamps to real UTC instead of just relabeling local time as "Z".
+# (Can't derive this by diffing "UTC epoch" vs "local epoch" via
+# string(TIMESTAMP ... "%s") - epoch seconds are timezone-independent by
+# definition, so both come out identical. `date +%z` gives the offset directly.)
+execute_process(COMMAND date +%z OUTPUT_VARIABLE CIKON_BUILD_TZ_OFFSET_STR OUTPUT_STRIP_TRAILING_WHITESPACE)
+string(SUBSTRING "${CIKON_BUILD_TZ_OFFSET_STR}" 0 1 CIKON_BUILD_TZ_SIGN)
+string(SUBSTRING "${CIKON_BUILD_TZ_OFFSET_STR}" 1 2 CIKON_BUILD_TZ_HH)
+string(SUBSTRING "${CIKON_BUILD_TZ_OFFSET_STR}" 3 2 CIKON_BUILD_TZ_MM)
+math(EXPR CIKON_BUILD_TZ_OFFSET_S "${CIKON_BUILD_TZ_HH} * 3600 + ${CIKON_BUILD_TZ_MM} * 60")
+if(CIKON_BUILD_TZ_SIGN STREQUAL "-")
+    math(EXPR CIKON_BUILD_TZ_OFFSET_S "0 - ${CIKON_BUILD_TZ_OFFSET_S}")
+endif()
+idf_build_set_property(COMPILE_DEFINITIONS "CIKON_BUILD_TZ_OFFSET_S=${CIKON_BUILD_TZ_OFFSET_S}" APPEND)
+message(STATUS "Build host TZ offset vs UTC: ${CIKON_BUILD_TZ_OFFSET_S}s")
+
 idf_build_set_property(MINIMAL_BUILD ON)
 
 project(idfnode)
