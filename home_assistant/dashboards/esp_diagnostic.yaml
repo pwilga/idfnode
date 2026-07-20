@@ -1,0 +1,525 @@
+views:
+  - title: ESP Dev Dashboard
+    icon: mdi:chip
+    type: sections
+    max_columns: 2
+    sections:
+      - type: grid
+        column_span: 1
+        cards:
+          - type: markdown
+            content: |-
+              {%- set temp = states('sensor.cikonesp_chip_temp') -%}
+              {%- if temp not in ['unknown', 'unavailable', none, ''] -%}
+              {{ 'Chip temp.: %.2f' | format(temp | float) }}°C
+              {%- endif -%}<br>
+              {%- set host = states('sensor.cikonesp_mdns') -%}
+              [http://{{ host }}](http://{{ host }})
+            grid_options:
+              columns: 6
+              rows: 1
+            text_only: true
+            card_mod:
+              style:
+                .: |
+                  ha-card {
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    height: 100%;
+                  }
+                  ha-markdown {
+                    text-align: center;
+                  }
+          - type: custom:mushroom-title-card
+            title: cikonesp
+            grid_options:
+              rows: 2
+              columns: 6
+            alignment: end
+            subtitle: >-
+              {{states('sensor.cikonesp_id')}}
+
+              Uptime:
+              {{relative_time(as_datetime(states('sensor.cikonesp_boot_time')))
+              }}
+            title_tap_action:
+              action: none
+          - type: markdown
+            content: >-
+              {%- set icons = {
+                'wifi': {'icon': 'mdi:wifi', 'color': '#8bc34a'},
+                'bt':   {'icon': 'mdi:bluetooth', 'color': '#2979ff'},
+                'ble':  {'icon': 'mdi:bluetooth-connect', 'color': '#2979ff'},
+                'ieee802154': {'icon': 'mdi:radio-tower', 'color': '#ffff00'},
+              } -%} {%- for f in state_attr('sensor.cikonesp_chip','features')
+              -%} {%- set d
+
+              = icons.get(f, {'icon': 'mdi:help-circle-outline', 'color':
+              'grey'}) -%} <font
+
+              color="{{ d.color }}"><ha-icon icon="{{ d.icon
+              }}"></ha-icon></font> {%-
+
+              endfor -%}
+            grid_options:
+              columns: 6
+              rows: 1
+            text_only: true
+            card_mod:
+              style:
+                .: |
+                  ha-card {
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    height: 100%;
+                  }
+                  ha-markdown {
+                    text-align: center;
+                  }
+                ha-markdown$: |
+                  ha-icon {
+                    --mdc-icon-size: 18px;
+                    margin-right: 4px;
+                    padding: 5px;
+                    box-sizing: border-box;
+                  }
+                  ha-icon {
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
+                    width: 32px;
+                    height: 32px;
+                    box-sizing: border-box;
+                    border-radius: 50%;
+                    background: rgba(255,255,255,0.1);
+                    overflow: hidden;
+                  }
+          - type: custom:mushroom-chips-card
+            chips:
+              - type: template
+                entity: sensor.cikonesp_chip
+                icon: mdi:cpu-32-bit
+                icon_color: blue
+                content: "{{ states('sensor.cikonesp_chip') }}"
+                tap_action:
+                  action: none
+              - type: template
+                entity: sensor.cikonesp_chip
+                icon: mdi:harddisk
+                icon_color: amber
+                content: >-
+                  Flash: {{ (state_attr('sensor.cikonesp_chip', 'flash_size') |
+                  int(0) / 1048576) | round(0) }} MB
+                tap_action:
+                  action: none
+              - type: template
+                entity: sensor.cikonesp_chip
+                icon: mdi:speedometer
+                icon_color: orange
+                content: "CPU: {{ state_attr('sensor.cikonesp_chip', 'cpu_freq') }} MHz"
+                tap_action:
+                  action: none
+              - type: template
+                entity: sensor.cikonesp_chip
+                icon: mdi:chip
+                icon_color: dark-grey
+                content: >-
+                  {% set c = state_attr('sensor.cikonesp_chip', 'cores') |
+                  int(0) %} Core{{ '' if c == 1 else 's' }}: {{ c }}
+                tap_action:
+                  action: none
+              - type: action
+                icon_color: pink
+                tap_action:
+                  action: perform-action
+                  perform_action: button.press
+                  target:
+                    entity_id: button.cikonesp_restart
+                  data: {}
+                  confirmation:
+                    text: Restart?
+                icon: mdi:restart
+            alignment: center
+          - type: custom:mushroom-template-card
+            entity: sensor.cikonesp_chip
+            layout: horizontal
+            tap_action:
+              action: none
+            multiline_secondary: true
+            primary: >
+              {% set link = states('sensor.cikonesp_link') %}
+
+              Uplink: {{ link if link not in ['unknown', 'unavailable', ''] else
+              '--' }}
+            secondary: >
+              {%- set ip = states('sensor.cikonesp_ip') -%}
+
+              {%- set ssid = state_attr('sensor.cikonesp_link', 'ssid') -%}
+
+              {%- set rssi = state_attr('sensor.cikonesp_link', 'rssi') -%}
+
+              {%- set link_line = (ssid if ssid else '') ~ ((' (' ~ rssi ~ '
+              dBm)') if rssi else '') -%}
+
+              IP: {{ ip if ip not in ['unknown', 'unavailable', ''] else '--' }}
+
+              {{ (link_line ~ '\n') if link_line else '' }}Reset: {{
+              states('sensor.cikonesp_reset_reason') }}
+
+              {{ states('sensor.cikonesp_ota_state') }}
+            icon: mdi:cpu-32-bit
+            icon_color: purple
+            grid_options:
+              columns: 6
+              rows: 2
+          - type: custom:mushroom-template-card
+            entity: sensor.cikonesp_free_heap
+            primary: >-
+              Free heap: {{ (states('sensor.cikonesp_free_heap')|int(0) / 1024)
+              | round(1) }} KB
+            secondary: >-
+              Min seen: {{
+              (state_attr('sensor.cikonesp_free_heap','min_heap')|int(0) / 1024)
+              | round(1) }} KB
+            icon: mdi:memory
+            icon_color: >-
+              {% set v = states('sensor.cikonesp_free_heap')|int(0) %} {{ 'red'
+              if v < 40000 else 'amber' if v < 80000 else 'green' }}
+            grid_options:
+              columns: 6
+              rows: auto
+          - type: custom:mushroom-template-card
+            primary: >-
+              Total: {{ (state_attr('sensor.cikonesp_fs_used','fs_total')|int(0)
+              / 1024) | round(0) }} KB
+            secondary: >-
+              file system usage {% set u =
+              states('sensor.cikonesp_fs_used')|int(0) %} {% set t =
+              state_attr('sensor.cikonesp_fs_used','fs_total')|int(1) %} {{ (u /
+              t * 100) | round(0) }}%
+            icon_color: >-
+              {% set u = states('sensor.cikonesp_fs_used')|int(0) %} {% set t =
+              state_attr('sensor.cikonesp_fs_used','fs_total')|int(1) %} {% set
+              p = u / t * 100 %} {{ 'red' if p > 85 else 'amber' if p > 60 else
+              'blue' }}
+            grid_options:
+              columns: 6
+              rows: auto
+            card_mod:
+              style: |
+                ha-card {
+                  position: relative;
+                  overflow: hidden;
+                }
+                ha-card::before {
+                  content: "";
+                  position: absolute;
+                  left: 0;
+                  top: 0;
+                  bottom: 0;
+                  width: {% set u = states('sensor.cikonesp_fs_used')|int(0) %}{% set t = state_attr('sensor.cikonesp_fs_used','fs_total')|int(1) %}{{ (u / t * 100) | round(1) }}%;
+                  background: rgba(33, 150, 243, 0.25);
+                  z-index: 0;
+                  transition: width 1s ease;
+                }
+                ha-card > * {
+                  position: relative;
+                  z-index: 1;
+                }
+          - type: custom:mushroom-template-card
+            multiline_secondary: true
+            primary: Bootlader
+            secondary: >-
+              Build time: {{
+              as_timestamp(states('sensor.cikonesp_bootloader_build_time')) |
+              timestamp_custom('%d.%m.%Y %H:%M') }}
+
+              v:{{ state_attr('sensor.cikonesp_bootloader_build_time','version')
+              }} IDF: {{
+              state_attr('sensor.cikonesp_bootloader_build_time','idf') }}
+            grid_options:
+              columns: 6
+              rows: auto
+            color: yellow
+            features_position: bottom
+            icon: mdi:boom-gate-alert-outline
+          - type: custom:mushroom-template-card
+            multiline_secondary: true
+            primary: Application
+            secondary: >
+              Build time: {{
+              as_timestamp(states('sensor.cikonesp_app_build_time')) |
+              timestamp_custom('%d.%m.%Y %H:%M') }}
+
+              {{ state_attr('sensor.cikonesp_app_build_time','version') }} IDF:
+              {{ state_attr('sensor.cikonesp_app_build_time','idf') }}
+            icon: mdi:application-brackets-outline
+            grid_options:
+              columns: 6
+              rows: auto
+            features_position: bottom
+            color: orange
+        background:
+          opacity: 24
+      - type: grid
+        column_span: 1
+        cards:
+          - type: markdown
+            content: |-
+              {%- set temp = states('sensor.p4dev_chip_temp') -%}
+              {%- if temp not in ['unknown', 'unavailable', none, ''] -%}
+              {{ 'Chip temp.: %.2f' | format(temp | float) }}°C
+              {%- endif -%}<br>
+              {%- set host = states('sensor.p4dev_mdns') -%}
+              [http://{{ host }}](http://{{ host }})
+            grid_options:
+              columns: 6
+              rows: 1
+            text_only: true
+            card_mod:
+              style:
+                .: |
+                  ha-card {
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    height: 100%;
+                  }
+                  ha-markdown {
+                    text-align: center;
+                  }
+          - type: custom:mushroom-title-card
+            title: p4dev
+            grid_options:
+              rows: 2
+              columns: 6
+            alignment: end
+            subtitle: >-
+              {{states('sensor.p4dev_id')}}
+
+              Uptime:
+              {{relative_time(as_datetime(states('sensor.p4dev_boot_time')))
+              }}
+            title_tap_action:
+              action: none
+          - type: markdown
+            content: >-
+              {%- set icons = {
+                'wifi': {'icon': 'mdi:wifi', 'color': '#8bc34a'},
+                'bt':   {'icon': 'mdi:bluetooth', 'color': '#2979ff'},
+                'ble':  {'icon': 'mdi:bluetooth-connect', 'color': '#2979ff'},
+                'ieee802154': {'icon': 'mdi:radio-tower', 'color': '#ffff00'},
+              } -%} {%- for f in state_attr('sensor.p4dev_chip','features')
+              -%} {%- set d
+
+              = icons.get(f, {'icon': 'mdi:help-circle-outline', 'color':
+              'grey'}) -%} <font
+
+              color="{{ d.color }}"><ha-icon icon="{{ d.icon
+              }}"></ha-icon></font> {%-
+
+              endfor -%}
+            grid_options:
+              columns: 6
+              rows: 1
+            text_only: true
+            card_mod:
+              style:
+                .: |
+                  ha-card {
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    height: 100%;
+                  }
+                  ha-markdown {
+                    text-align: center;
+                  }
+                ha-markdown$: |
+                  ha-icon {
+                    --mdc-icon-size: 18px;
+                    margin-right: 4px;
+                    padding: 5px;
+                    box-sizing: border-box;
+                  }
+                  ha-icon {
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
+                    width: 32px;
+                    height: 32px;
+                    box-sizing: border-box;
+                    border-radius: 50%;
+                    background: rgba(255,255,255,0.1);
+                    overflow: hidden;
+                  }
+          - type: custom:mushroom-chips-card
+            chips:
+              - type: template
+                entity: sensor.p4dev_chip
+                icon: mdi:cpu-32-bit
+                icon_color: blue
+                content: "{{ states('sensor.p4dev_chip') }}"
+                tap_action:
+                  action: none
+              - type: template
+                entity: sensor.p4dev_chip
+                icon: mdi:harddisk
+                icon_color: amber
+                content: >-
+                  Flash: {{ (state_attr('sensor.p4dev_chip', 'flash_size') |
+                  int(0) / 1048576) | round(0) }} MB
+                tap_action:
+                  action: none
+              - type: template
+                entity: sensor.p4dev_chip
+                icon: mdi:speedometer
+                icon_color: orange
+                content: "CPU: {{ state_attr('sensor.p4dev_chip', 'cpu_freq') }} MHz"
+                tap_action:
+                  action: none
+              - type: template
+                entity: sensor.p4dev_chip
+                icon: mdi:chip
+                icon_color: dark-grey
+                content: >-
+                  {% set c = state_attr('sensor.p4dev_chip', 'cores') |
+                  int(0) %} Core{{ '' if c == 1 else 's' }}: {{ c }}
+                tap_action:
+                  action: none
+              - type: action
+                icon_color: pink
+                tap_action:
+                  action: perform-action
+                  perform_action: button.press
+                  target:
+                    entity_id: button.p4dev_restart
+                  data: {}
+                  confirmation:
+                    text: Restart?
+                icon: mdi:restart
+            alignment: center
+          - type: custom:mushroom-template-card
+            entity: sensor.p4dev_chip
+            layout: horizontal
+            tap_action:
+              action: none
+            multiline_secondary: true
+            primary: >
+              {% set link = states('sensor.p4dev_link') %}
+
+              Uplink: {{ link if link not in ['unknown', 'unavailable', ''] else
+              '--' }}
+            secondary: >
+              {%- set ip = states('sensor.p4dev_ip') -%}
+
+              {%- set ssid = state_attr('sensor.p4dev_link', 'ssid') -%}
+
+              {%- set rssi = state_attr('sensor.p4dev_link', 'rssi') -%}
+
+              {%- set link_line = (ssid if ssid else '') ~ ((' (' ~ rssi ~ '
+              dBm)') if rssi else '') -%}
+
+              IP: {{ ip if ip not in ['unknown', 'unavailable', ''] else '--' }}
+
+              {{ (link_line ~ '\n') if link_line else '' }}Reset: {{
+              states('sensor.p4dev_reset_reason') }}
+
+              {{ states('sensor.p4dev_ota_state') }}
+            icon: mdi:cpu-32-bit
+            icon_color: purple
+            grid_options:
+              columns: 6
+              rows: 2
+          - type: custom:mushroom-template-card
+            entity: sensor.p4dev_free_heap
+            primary: >-
+              Free heap: {{ (states('sensor.p4dev_free_heap')|int(0) / 1024)
+              | round(1) }} KB
+            secondary: >-
+              Min seen: {{
+              (state_attr('sensor.p4dev_free_heap','min_heap')|int(0) / 1024)
+              | round(1) }} KB
+            icon: mdi:memory
+            icon_color: >-
+              {% set v = states('sensor.p4dev_free_heap')|int(0) %} {{ 'red'
+              if v < 40000 else 'amber' if v < 80000 else 'green' }}
+            grid_options:
+              columns: 6
+              rows: auto
+          - type: custom:mushroom-template-card
+            primary: >-
+              Total: {{ (state_attr('sensor.p4dev_fs_used','fs_total')|int(0)
+              / 1024) | round(0) }} KB
+            secondary: >-
+              file system usage {% set u =
+              states('sensor.p4dev_fs_used')|int(0) %} {% set t =
+              state_attr('sensor.p4dev_fs_used','fs_total')|int(1) %} {{ (u /
+              t * 100) | round(0) }}%
+            icon_color: >-
+              {% set u = states('sensor.p4dev_fs_used')|int(0) %} {% set t =
+              state_attr('sensor.p4dev_fs_used','fs_total')|int(1) %} {% set
+              p = u / t * 100 %} {{ 'red' if p > 85 else 'amber' if p > 60 else
+              'blue' }}
+            grid_options:
+              columns: 6
+              rows: auto
+            card_mod:
+              style: |
+                ha-card {
+                  position: relative;
+                  overflow: hidden;
+                }
+                ha-card::before {
+                  content: "";
+                  position: absolute;
+                  left: 0;
+                  top: 0;
+                  bottom: 0;
+                  width: {% set u = states('sensor.p4dev_fs_used')|int(0) %}{% set t = state_attr('sensor.p4dev_fs_used','fs_total')|int(1) %}{{ (u / t * 100) | round(1) }}%;
+                  background: rgba(33, 150, 243, 0.25);
+                  z-index: 0;
+                  transition: width 1s ease;
+                }
+                ha-card > * {
+                  position: relative;
+                  z-index: 1;
+                }
+          - type: custom:mushroom-template-card
+            multiline_secondary: true
+            primary: Bootlader
+            secondary: >-
+              Build time: {{
+              as_timestamp(states('sensor.p4dev_bootloader_build_time')) |
+              timestamp_custom('%d.%m.%Y %H:%M') }}
+
+              v:{{ state_attr('sensor.p4dev_bootloader_build_time','version')
+              }} IDF: {{
+              state_attr('sensor.p4dev_bootloader_build_time','idf') }}
+            grid_options:
+              columns: 6
+              rows: auto
+            color: yellow
+            features_position: bottom
+            icon: mdi:boom-gate-alert-outline
+          - type: custom:mushroom-template-card
+            multiline_secondary: true
+            primary: Application
+            secondary: >
+              Build time: {{
+              as_timestamp(states('sensor.p4dev_app_build_time')) |
+              timestamp_custom('%d.%m.%Y %H:%M') }}
+
+              {{ state_attr('sensor.p4dev_app_build_time','version') }} IDF:
+              {{ state_attr('sensor.p4dev_app_build_time','idf') }}
+            icon: mdi:application-brackets-outline
+            grid_options:
+              columns: 6
+              rows: auto
+            features_position: bottom
+            color: orange
+        background:
+          opacity: 24
+    cards: []
