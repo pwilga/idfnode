@@ -14,7 +14,9 @@ views:
               {{ 'Chip temp.: %.2f' | format(temp | float) }}°C
               {%- endif -%}<br>
               {%- set host = states('sensor.cikonesp_mdns') -%}
+              {%- if host not in ['unknown', 'unavailable', none, ''] -%}
               [http://{{ host }}](http://{{ host }})
+              {%- endif -%}
             grid_options:
               columns: 6
               rows: 1
@@ -38,11 +40,14 @@ views:
               columns: 6
             alignment: end
             subtitle: >-
-              {{states('sensor.cikonesp_id')}}
-
-              Uptime:
-              {{relative_time(as_datetime(states('sensor.cikonesp_boot_time')))
-              }}
+              {%- set id = states('sensor.cikonesp_id') -%}
+              {%- set boot = states('sensor.cikonesp_boot_time') -%}
+              {%- set id_line = id if id not in ['unknown', 'unavailable', '']
+              else '' -%}
+              {%- set up_line = ('Uptime: ' ~
+              relative_time(as_datetime(boot))) if boot not in ['unknown',
+              'unavailable', ''] else '' -%}
+              {{ [id_line, up_line] | reject('equalto', '') | list | join('\n') }}
             title_tap_action:
               action: none
           - type: markdown
@@ -52,16 +57,14 @@ views:
                 'bt':   {'icon': 'mdi:bluetooth', 'color': '#2979ff'},
                 'ble':  {'icon': 'mdi:bluetooth-connect', 'color': '#2979ff'},
                 'ieee802154': {'icon': 'mdi:radio-tower', 'color': '#ffff00'},
-              } -%} {%- for f in state_attr('sensor.cikonesp_chip','features')
+              } -%} {%- if not is_state('sensor.cikonesp_chip', 'unavailable')
+              -%} {%- for f in state_attr('sensor.cikonesp_chip','features')
               -%} {%- set d
-
               = icons.get(f, {'icon': 'mdi:help-circle-outline', 'color':
               'grey'}) -%} <font
-
               color="{{ d.color }}"><ha-icon icon="{{ d.icon
               }}"></ha-icon></font> {%-
-
-              endfor -%}
+              endfor -%} {%- endif -%}
             grid_options:
               columns: 6
               rows: 1
@@ -102,7 +105,9 @@ views:
                 entity: sensor.cikonesp_chip
                 icon: mdi:cpu-32-bit
                 icon_color: blue
-                content: "{{ states('sensor.cikonesp_chip') }}"
+                content: >-
+                  {% set v = states('sensor.cikonesp_chip') %}
+                  {{ '--' if v in ['unknown', 'unavailable'] else v }}
                 tap_action:
                   action: none
               - type: template
@@ -110,15 +115,18 @@ views:
                 icon: mdi:harddisk
                 icon_color: amber
                 content: >-
-                  Flash: {{ (state_attr('sensor.cikonesp_chip', 'flash_size') |
-                  int(0) / 1048576) | round(0) }} MB
+                  {% set fs = state_attr('sensor.cikonesp_chip', 'flash_size') %}
+                  Flash: {{ '--' if fs is none else
+                  ((fs | int(0) / 1048576) | round(0) ~ ' MB') }}
                 tap_action:
                   action: none
               - type: template
                 entity: sensor.cikonesp_chip
                 icon: mdi:speedometer
                 icon_color: orange
-                content: "CPU: {{ state_attr('sensor.cikonesp_chip', 'cpu_freq') }} MHz"
+                content: >-
+                  {% set cf = state_attr('sensor.cikonesp_chip', 'cpu_freq') %}
+                  CPU: {{ '--' if cf is none else (cf ~ ' MHz') }}
                 tap_action:
                   action: none
               - type: template
@@ -126,8 +134,9 @@ views:
                 icon: mdi:chip
                 icon_color: dark-grey
                 content: >-
-                  {% set c = state_attr('sensor.cikonesp_chip', 'cores') |
-                  int(0) %} Core{{ '' if c == 1 else 's' }}: {{ c }}
+                  {% set c = state_attr('sensor.cikonesp_chip', 'cores') %}
+                  {{ 'Cores: --' if c is none else
+                  ('Core: 1' if c == 1 else 'Cores: ' ~ c) }}
                 tap_action:
                   action: none
               - type: action
@@ -155,20 +164,20 @@ views:
               '--' }}
             secondary: >
               {%- set ip = states('sensor.cikonesp_ip') -%}
-
               {%- set ssid = state_attr('sensor.cikonesp_link', 'ssid') -%}
-
               {%- set rssi = state_attr('sensor.cikonesp_link', 'rssi') -%}
-
               {%- set link_line = (ssid if ssid else '') ~ ((' (' ~ rssi ~ '
               dBm)') if rssi else '') -%}
-
+              {%- set reset_reason = states('sensor.cikonesp_reset_reason') -%}
+              {%- set ota_state = states('sensor.cikonesp_ota_state') -%}
               IP: {{ ip if ip not in ['unknown', 'unavailable', ''] else '--' }}
 
               {{ (link_line ~ '\n') if link_line else '' }}Reset: {{
-              states('sensor.cikonesp_reset_reason') }}
+              reset_reason if reset_reason not in ['unknown', 'unavailable', '']
+              else '--' }}
 
-              {{ states('sensor.cikonesp_ota_state') }}
+              {{ ota_state if ota_state not in ['unknown', 'unavailable', '']
+              else '--' }}
             icon: mdi:cpu-32-bit
             icon_color: purple
             grid_options:
@@ -232,6 +241,10 @@ views:
             multiline_secondary: true
             primary: Bootlader
             secondary: >-
+              {% if is_state('sensor.cikonesp_bootloader_build_time',
+              'unavailable') %}
+              --
+              {% else %}
               Build time: {{
               as_timestamp(states('sensor.cikonesp_bootloader_build_time')) |
               timestamp_custom('%d.%m.%Y %H:%M') }}
@@ -239,6 +252,7 @@ views:
               v:{{ state_attr('sensor.cikonesp_bootloader_build_time','version')
               }} IDF: {{
               state_attr('sensor.cikonesp_bootloader_build_time','idf') }}
+              {% endif %}
             grid_options:
               columns: 6
               rows: auto
@@ -249,12 +263,16 @@ views:
             multiline_secondary: true
             primary: Application
             secondary: >
+              {% if is_state('sensor.cikonesp_app_build_time', 'unavailable') %}
+              --
+              {% else %}
               Build time: {{
               as_timestamp(states('sensor.cikonesp_app_build_time')) |
               timestamp_custom('%d.%m.%Y %H:%M') }}
 
               {{ state_attr('sensor.cikonesp_app_build_time','version') }} IDF:
               {{ state_attr('sensor.cikonesp_app_build_time','idf') }}
+              {% endif %}
             icon: mdi:application-brackets-outline
             grid_options:
               columns: 6
@@ -273,7 +291,9 @@ views:
               {{ 'Chip temp.: %.2f' | format(temp | float) }}°C
               {%- endif -%}<br>
               {%- set host = states('sensor.p4dev_mdns') -%}
+              {%- if host not in ['unknown', 'unavailable', none, ''] -%}
               [http://{{ host }}](http://{{ host }})
+              {%- endif -%}
             grid_options:
               columns: 6
               rows: 1
@@ -297,11 +317,14 @@ views:
               columns: 6
             alignment: end
             subtitle: >-
-              {{states('sensor.p4dev_id')}}
-
-              Uptime:
-              {{relative_time(as_datetime(states('sensor.p4dev_boot_time')))
-              }}
+              {%- set id = states('sensor.p4dev_id') -%}
+              {%- set boot = states('sensor.p4dev_boot_time') -%}
+              {%- set id_line = id if id not in ['unknown', 'unavailable', '']
+              else '' -%}
+              {%- set up_line = ('Uptime: ' ~
+              relative_time(as_datetime(boot))) if boot not in ['unknown',
+              'unavailable', ''] else '' -%}
+              {{ [id_line, up_line] | reject('equalto', '') | list | join('\n') }}
             title_tap_action:
               action: none
           - type: markdown
@@ -311,16 +334,14 @@ views:
                 'bt':   {'icon': 'mdi:bluetooth', 'color': '#2979ff'},
                 'ble':  {'icon': 'mdi:bluetooth-connect', 'color': '#2979ff'},
                 'ieee802154': {'icon': 'mdi:radio-tower', 'color': '#ffff00'},
-              } -%} {%- for f in state_attr('sensor.p4dev_chip','features')
+              } -%} {%- if not is_state('sensor.p4dev_chip', 'unavailable')
+              -%} {%- for f in state_attr('sensor.p4dev_chip','features')
               -%} {%- set d
-
               = icons.get(f, {'icon': 'mdi:help-circle-outline', 'color':
               'grey'}) -%} <font
-
               color="{{ d.color }}"><ha-icon icon="{{ d.icon
               }}"></ha-icon></font> {%-
-
-              endfor -%}
+              endfor -%} {%- endif -%}
             grid_options:
               columns: 6
               rows: 1
@@ -361,7 +382,9 @@ views:
                 entity: sensor.p4dev_chip
                 icon: mdi:cpu-32-bit
                 icon_color: blue
-                content: "{{ states('sensor.p4dev_chip') }}"
+                content: >-
+                  {% set v = states('sensor.p4dev_chip') %}
+                  {{ '--' if v in ['unknown', 'unavailable'] else v }}
                 tap_action:
                   action: none
               - type: template
@@ -369,15 +392,18 @@ views:
                 icon: mdi:harddisk
                 icon_color: amber
                 content: >-
-                  Flash: {{ (state_attr('sensor.p4dev_chip', 'flash_size') |
-                  int(0) / 1048576) | round(0) }} MB
+                  {% set fs = state_attr('sensor.p4dev_chip', 'flash_size') %}
+                  Flash: {{ '--' if fs is none else
+                  ((fs | int(0) / 1048576) | round(0) ~ ' MB') }}
                 tap_action:
                   action: none
               - type: template
                 entity: sensor.p4dev_chip
                 icon: mdi:speedometer
                 icon_color: orange
-                content: "CPU: {{ state_attr('sensor.p4dev_chip', 'cpu_freq') }} MHz"
+                content: >-
+                  {% set cf = state_attr('sensor.p4dev_chip', 'cpu_freq') %}
+                  CPU: {{ '--' if cf is none else (cf ~ ' MHz') }}
                 tap_action:
                   action: none
               - type: template
@@ -385,8 +411,9 @@ views:
                 icon: mdi:chip
                 icon_color: dark-grey
                 content: >-
-                  {% set c = state_attr('sensor.p4dev_chip', 'cores') |
-                  int(0) %} Core{{ '' if c == 1 else 's' }}: {{ c }}
+                  {% set c = state_attr('sensor.p4dev_chip', 'cores') %}
+                  {{ 'Cores: --' if c is none else
+                  ('Core: 1' if c == 1 else 'Cores: ' ~ c) }}
                 tap_action:
                   action: none
               - type: action
@@ -414,20 +441,20 @@ views:
               '--' }}
             secondary: >
               {%- set ip = states('sensor.p4dev_ip') -%}
-
               {%- set ssid = state_attr('sensor.p4dev_link', 'ssid') -%}
-
               {%- set rssi = state_attr('sensor.p4dev_link', 'rssi') -%}
-
               {%- set link_line = (ssid if ssid else '') ~ ((' (' ~ rssi ~ '
               dBm)') if rssi else '') -%}
-
+              {%- set reset_reason = states('sensor.p4dev_reset_reason') -%}
+              {%- set ota_state = states('sensor.p4dev_ota_state') -%}
               IP: {{ ip if ip not in ['unknown', 'unavailable', ''] else '--' }}
 
               {{ (link_line ~ '\n') if link_line else '' }}Reset: {{
-              states('sensor.p4dev_reset_reason') }}
+              reset_reason if reset_reason not in ['unknown', 'unavailable', '']
+              else '--' }}
 
-              {{ states('sensor.p4dev_ota_state') }}
+              {{ ota_state if ota_state not in ['unknown', 'unavailable', '']
+              else '--' }}
             icon: mdi:cpu-32-bit
             icon_color: purple
             grid_options:
@@ -491,6 +518,10 @@ views:
             multiline_secondary: true
             primary: Bootlader
             secondary: >-
+              {% if is_state('sensor.p4dev_bootloader_build_time',
+              'unavailable') %}
+              --
+              {% else %}
               Build time: {{
               as_timestamp(states('sensor.p4dev_bootloader_build_time')) |
               timestamp_custom('%d.%m.%Y %H:%M') }}
@@ -498,6 +529,7 @@ views:
               v:{{ state_attr('sensor.p4dev_bootloader_build_time','version')
               }} IDF: {{
               state_attr('sensor.p4dev_bootloader_build_time','idf') }}
+              {% endif %}
             grid_options:
               columns: 6
               rows: auto
@@ -508,12 +540,16 @@ views:
             multiline_secondary: true
             primary: Application
             secondary: >
+              {% if is_state('sensor.p4dev_app_build_time', 'unavailable') %}
+              --
+              {% else %}
               Build time: {{
               as_timestamp(states('sensor.p4dev_app_build_time')) |
               timestamp_custom('%d.%m.%Y %H:%M') }}
 
               {{ state_attr('sensor.p4dev_app_build_time','version') }} IDF:
               {{ state_attr('sensor.p4dev_app_build_time','idf') }}
+              {% endif %}
             icon: mdi:application-brackets-outline
             grid_options:
               columns: 6
