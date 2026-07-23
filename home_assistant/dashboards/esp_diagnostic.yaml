@@ -152,10 +152,8 @@ views:
                 icon: mdi:restart
             alignment: center
           - type: custom:mushroom-template-card
-            entity: sensor.cikonesp_chip
+            entity: sensor.cikonesp_ip
             layout: horizontal
-            tap_action:
-              action: none
             multiline_secondary: true
             primary: >
               {% set link = states('sensor.cikonesp_link') %}
@@ -170,7 +168,8 @@ views:
               dBm)') if rssi else '') -%}
               {%- set reset_reason = states('sensor.cikonesp_reset_reason') -%}
               {%- set ota_state = states('sensor.cikonesp_ota_state') -%}
-              IP: {{ ip if ip not in ['unknown', 'unavailable', ''] else '--' }}
+              IP: {{ (ip if ip not in ['unknown', 'unavailable', ''] else '--') |
+              truncate(22, True, '…') }}
 
               {{ (link_line ~ '\n') if link_line else '' }}Reset: {{
               reset_reason if reset_reason not in ['unknown', 'unavailable', '']
@@ -259,6 +258,7 @@ views:
             color: yellow
             features_position: bottom
             icon: mdi:boom-gate-alert-outline
+            entity: sensor.cikonesp_bootloader_build_time
           - type: custom:mushroom-template-card
             multiline_secondary: true
             primary: Application
@@ -279,6 +279,7 @@ views:
               rows: auto
             features_position: bottom
             color: orange
+            entity: sensor.cikonesp_app_build_time
         background:
           opacity: 24
       - type: grid
@@ -429,10 +430,8 @@ views:
                 icon: mdi:restart
             alignment: center
           - type: custom:mushroom-template-card
-            entity: sensor.p4dev_chip
+            entity: sensor.p4dev_ip
             layout: horizontal
-            tap_action:
-              action: none
             multiline_secondary: true
             primary: >
               {% set link = states('sensor.p4dev_link') %}
@@ -447,7 +446,8 @@ views:
               dBm)') if rssi else '') -%}
               {%- set reset_reason = states('sensor.p4dev_reset_reason') -%}
               {%- set ota_state = states('sensor.p4dev_ota_state') -%}
-              IP: {{ ip if ip not in ['unknown', 'unavailable', ''] else '--' }}
+              IP: {{ (ip if ip not in ['unknown', 'unavailable', ''] else '--') |
+              truncate(22, True, '…') }}
 
               {{ (link_line ~ '\n') if link_line else '' }}Reset: {{
               reset_reason if reset_reason not in ['unknown', 'unavailable', '']
@@ -536,6 +536,7 @@ views:
             color: yellow
             features_position: bottom
             icon: mdi:boom-gate-alert-outline
+            entity: sensor.p4dev_bootloader_build_time
           - type: custom:mushroom-template-card
             multiline_secondary: true
             primary: Application
@@ -556,6 +557,285 @@ views:
               rows: auto
             features_position: bottom
             color: orange
+            entity: sensor.p4dev_app_build_time
+        background:
+          opacity: 24
+      - type: grid
+        column_span: 1
+        cards:
+          - type: markdown
+            content: |-
+              {%- set temp = states('sensor.h2dev_chip_temp') -%}
+              {%- if temp not in ['unknown', 'unavailable', none, ''] -%}
+              {{ 'Chip temp.: %.2f' | format(temp | float) }}°C
+              {%- endif -%}<br>
+              {%- set host = states('sensor.h2dev_mdns') -%}
+              {%- if host not in ['unknown', 'unavailable', none, ''] -%}
+              [http://{{ host }}](http://{{ host }})
+              {%- endif -%}
+            grid_options:
+              columns: 6
+              rows: 1
+            text_only: true
+            card_mod:
+              style:
+                .: |
+                  ha-card {
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    height: 100%;
+                  }
+                  ha-markdown {
+                    text-align: center;
+                  }
+          - type: custom:mushroom-title-card
+            title: h2dev
+            grid_options:
+              rows: 2
+              columns: 6
+            alignment: end
+            subtitle: >-
+              {%- set id = states('sensor.h2dev_id') -%}
+              {%- set boot = states('sensor.h2dev_boot_time') -%}
+              {%- set id_line = id if id not in ['unknown', 'unavailable', '']
+              else '' -%}
+              {%- set up_line = ('Uptime: ' ~
+              relative_time(as_datetime(boot))) if boot not in ['unknown',
+              'unavailable', ''] else '' -%}
+              {{ [id_line, up_line] | reject('equalto', '') | list | join('\n') }}
+            title_tap_action:
+              action: none
+          - type: markdown
+            content: >-
+              {%- set icons = {
+                'wifi': {'icon': 'mdi:wifi', 'color': '#8bc34a'},
+                'bt':   {'icon': 'mdi:bluetooth', 'color': '#2979ff'},
+                'ble':  {'icon': 'mdi:bluetooth-connect', 'color': '#2979ff'},
+                'ieee802154': {'icon': 'mdi:radio-tower', 'color': '#ffff00'},
+              } -%} {%- if not is_state('sensor.h2dev_chip', 'unavailable')
+              -%} {%- for f in state_attr('sensor.h2dev_chip','features')
+              -%} {%- set d
+              = icons.get(f, {'icon': 'mdi:help-circle-outline', 'color':
+              'grey'}) -%} <font
+              color="{{ d.color }}"><ha-icon icon="{{ d.icon
+              }}"></ha-icon></font> {%-
+              endfor -%} {%- endif -%}
+            grid_options:
+              columns: 6
+              rows: 1
+            text_only: true
+            card_mod:
+              style:
+                .: |
+                  ha-card {
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    height: 100%;
+                  }
+                  ha-markdown {
+                    text-align: center;
+                  }
+                ha-markdown$: |
+                  ha-icon {
+                    --mdc-icon-size: 18px;
+                    margin-right: 4px;
+                    padding: 5px;
+                    box-sizing: border-box;
+                  }
+                  ha-icon {
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
+                    width: 32px;
+                    height: 32px;
+                    box-sizing: border-box;
+                    border-radius: 50%;
+                    background: rgba(255,255,255,0.1);
+                    overflow: hidden;
+                  }
+          - type: custom:mushroom-chips-card
+            chips:
+              - type: template
+                entity: sensor.h2dev_chip
+                icon: mdi:cpu-32-bit
+                icon_color: blue
+                content: >-
+                  {% set v = states('sensor.h2dev_chip') %}
+                  {{ '--' if v in ['unknown', 'unavailable'] else v }}
+                tap_action:
+                  action: none
+              - type: template
+                entity: sensor.h2dev_chip
+                icon: mdi:harddisk
+                icon_color: amber
+                content: >-
+                  {% set fs = state_attr('sensor.h2dev_chip', 'flash_size') %}
+                  Flash: {{ '--' if fs is none else
+                  ((fs | int(0) / 1048576) | round(0) ~ ' MB') }}
+                tap_action:
+                  action: none
+              - type: template
+                entity: sensor.h2dev_chip
+                icon: mdi:speedometer
+                icon_color: orange
+                content: >-
+                  {% set cf = state_attr('sensor.h2dev_chip', 'cpu_freq') %}
+                  CPU: {{ '--' if cf is none else (cf ~ ' MHz') }}
+                tap_action:
+                  action: none
+              - type: template
+                entity: sensor.h2dev_chip
+                icon: mdi:chip
+                icon_color: dark-grey
+                content: >-
+                  {% set c = state_attr('sensor.h2dev_chip', 'cores') %}
+                  {{ 'Cores: --' if c is none else
+                  ('Core: 1' if c == 1 else 'Cores: ' ~ c) }}
+                tap_action:
+                  action: none
+              - type: action
+                icon_color: pink
+                tap_action:
+                  action: perform-action
+                  perform_action: button.press
+                  target:
+                    entity_id: button.h2dev_restart
+                  data: {}
+                  confirmation:
+                    text: Restart?
+                icon: mdi:restart
+            alignment: center
+          - type: custom:mushroom-template-card
+            entity: sensor.h2dev_ip
+            layout: horizontal
+            multiline_secondary: true
+            primary: >
+              {% set link = states('sensor.h2dev_link') %}
+
+              Uplink: {{ link if link not in ['unknown', 'unavailable', ''] else
+              '--' }}
+            secondary: >
+              {%- set ip = states('sensor.h2dev_ip') -%}
+              {%- set ssid = state_attr('sensor.h2dev_link', 'ssid') -%}
+              {%- set rssi = state_attr('sensor.h2dev_link', 'rssi') -%}
+              {%- set link_line = (ssid if ssid else '') ~ ((' (' ~ rssi ~ '
+              dBm)') if rssi else '') -%}
+              {%- set reset_reason = states('sensor.h2dev_reset_reason') -%}
+              {%- set ota_state = states('sensor.h2dev_ota_state') -%}
+              IP: {{ (ip if ip not in ['unknown', 'unavailable', ''] else '--') |
+              truncate(22, True, '…') }}
+
+              {{ (link_line ~ '\n') if link_line else '' }}Reset: {{
+              reset_reason if reset_reason not in ['unknown', 'unavailable', '']
+              else '--' }}
+
+              {{ ota_state if ota_state not in ['unknown', 'unavailable', '']
+              else '--' }}
+            icon: mdi:cpu-32-bit
+            icon_color: purple
+            grid_options:
+              columns: 6
+              rows: 2
+          - type: custom:mushroom-template-card
+            entity: sensor.h2dev_free_heap
+            primary: >-
+              Free heap: {{ (states('sensor.h2dev_free_heap')|int(0) / 1024)
+              | round(1) }} KB
+            secondary: >-
+              Min seen: {{
+              (state_attr('sensor.h2dev_free_heap','min_heap')|int(0) / 1024)
+              | round(1) }} KB
+            icon: mdi:memory
+            icon_color: >-
+              {% set v = states('sensor.h2dev_free_heap')|int(0) %} {{ 'red'
+              if v < 40000 else 'amber' if v < 80000 else 'green' }}
+            grid_options:
+              columns: 6
+              rows: auto
+          - type: custom:mushroom-template-card
+            primary: >-
+              Total: {{ (state_attr('sensor.h2dev_fs_used','fs_total')|int(0)
+              / 1024) | round(0) }} KB
+            secondary: >-
+              file system usage {% set u =
+              states('sensor.h2dev_fs_used')|int(0) %} {% set t =
+              state_attr('sensor.h2dev_fs_used','fs_total')|int(1) %} {{ (u /
+              t * 100) | round(0) }}%
+            icon_color: >-
+              {% set u = states('sensor.h2dev_fs_used')|int(0) %} {% set t =
+              state_attr('sensor.h2dev_fs_used','fs_total')|int(1) %} {% set
+              p = u / t * 100 %} {{ 'red' if p > 85 else 'amber' if p > 60 else
+              'blue' }}
+            grid_options:
+              columns: 6
+              rows: auto
+            card_mod:
+              style: |
+                ha-card {
+                  position: relative;
+                  overflow: hidden;
+                }
+                ha-card::before {
+                  content: "";
+                  position: absolute;
+                  left: 0;
+                  top: 0;
+                  bottom: 0;
+                  width: {% set u = states('sensor.h2dev_fs_used')|int(0) %}{% set t = state_attr('sensor.h2dev_fs_used','fs_total')|int(1) %}{{ (u / t * 100) | round(1) }}%;
+                  background: rgba(33, 150, 243, 0.25);
+                  z-index: 0;
+                  transition: width 1s ease;
+                }
+                ha-card > * {
+                  position: relative;
+                  z-index: 1;
+                }
+          - type: custom:mushroom-template-card
+            multiline_secondary: true
+            primary: Bootlader
+            secondary: >-
+              {% if is_state('sensor.h2dev_bootloader_build_time',
+              'unavailable') %}
+              --
+              {% else %}
+              Build time: {{
+              as_timestamp(states('sensor.h2dev_bootloader_build_time')) |
+              timestamp_custom('%d.%m.%Y %H:%M') }}
+
+              v:{{ state_attr('sensor.h2dev_bootloader_build_time','version')
+              }} IDF: {{
+              state_attr('sensor.h2dev_bootloader_build_time','idf') }}
+              {% endif %}
+            grid_options:
+              columns: 6
+              rows: auto
+            color: yellow
+            features_position: bottom
+            icon: mdi:boom-gate-alert-outline
+            entity: sensor.h2dev_bootloader_build_time
+          - type: custom:mushroom-template-card
+            multiline_secondary: true
+            primary: Application
+            secondary: >
+              {% if is_state('sensor.h2dev_app_build_time', 'unavailable') %}
+              --
+              {% else %}
+              Build time: {{
+              as_timestamp(states('sensor.h2dev_app_build_time')) |
+              timestamp_custom('%d.%m.%Y %H:%M') }}
+
+              {{ state_attr('sensor.h2dev_app_build_time','version') }} IDF:
+              {{ state_attr('sensor.h2dev_app_build_time','idf') }}
+              {% endif %}
+            icon: mdi:application-brackets-outline
+            grid_options:
+              columns: 6
+              rows: auto
+            features_position: bottom
+            color: orange
+            entity: sensor.h2dev_app_build_time
         background:
           opacity: 24
     cards: []
