@@ -4,29 +4,11 @@
 
 #ifdef CONFIG_ENABLE_SUPERVISOR_BUTTON
 #include "button_adapter.h"
-#include "cmnd.h"
 
-static void device_button_handler(uint8_t button_idx, button_event_t event) {
-    switch (event) {
-    case BUTTON_SINGLE_CLICK:
-        cmnd_submit("mesh_send", "{\"target\":\"cikonesp\","
-                                 "\"cmnd\":{\"onboard_led\":\"toggle\"}}");
-        break;
-
-    case BUTTON_DOUBLE_CLICK:
-        cmnd_submit("mesh_send", "{\"target\":\"glupol\","
-                                 "\"cmnd\":{\"onboard_led\":\"toggle\"}}");
-        break;
-
-    case BUTTON_LONG_PRESS_START:
-
-        cmnd_submit("help", NULL);
-        break;
-
-    default:
-        ESP_LOGI(TAG, "Button %d: Unhandled event %d", button_idx, event);
-        break;
-    }
+static void device_button_handler(uint8_t button_idx, const char *button_name,
+                                  button_event_t event) {
+    (void)button_name;
+    button_adapter_log_event(button_idx, event);
 }
 #endif // CONFIG_ENABLE_SUPERVISOR_BUTTON
 

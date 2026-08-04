@@ -154,6 +154,37 @@
       "postFlash": ""
     }
   },
+  "bedroom_ceiling": {
+    "build": {
+      "compileArgs": [
+        "-DDEVICE_PROFILE_VARIANT=inet",
+        "-DDEVICE_PROFILE=bedroom_ceiling",
+        "-G Ninja"
+      ],
+      "ninjaArgs": [],
+      "buildDirectoryPath": "",
+      "sdkconfigDefaults": [],
+      "sdkconfigFilePath": ""
+    },
+    "env": {
+      "DEVICE_PROFILE": "bedroom_ceiling",
+      "DEVICE_PROFILE_VARIANT": "inet"
+    },
+    "idfTarget": "esp32c6",
+    "flashBaudRate": "",
+    "monitorBaudRate": "",
+    "openOCD": {
+      "debugLevel": -1,
+      "configs": [],
+      "args": []
+    },
+    "tasks": {
+      "preBuild": "",
+      "preFlash": "",
+      "postBuild": "",
+      "postFlash": ""
+    }
+  },
   "c6dev_ftd": {
     "build": {
       "compileArgs": [
