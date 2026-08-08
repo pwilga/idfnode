@@ -42,6 +42,10 @@ extern void device_handlers_init(void);
 #include "led_adapter.h"
 #endif
 
+#if CONFIG_ENABLE_SUPERVISOR_SWITCH
+#include "switch_adapter.h"
+#endif
+
 #if CONFIG_ENABLE_SUPERVISOR_NEOPIXEL
 #include "neopixel_adapter.h"
 #endif
@@ -57,6 +61,12 @@ extern void device_handlers_init(void);
 void app_main(void) {
 
     supervisor_init();
+
+// Registered first so relay/GPIO state is restored and driven as early as possible in boot,
+// minimizing the window where a switch sits in the wrong state while the rest of init runs.
+#if CONFIG_ENABLE_SUPERVISOR_SWITCH
+    supervisor_register_adapter(&switch_adapter);
+#endif
 
 #if CONFIG_ENABLE_SUPERVISOR_BUTTON
     supervisor_register_adapter(&button_adapter);

@@ -36,6 +36,13 @@ menu "Cikon App Configuration"
         bool "Enable LED adapter"
         default n
 
+    config ENABLE_SUPERVISOR_SWITCH
+        bool "Enable switch adapter"
+        default n
+        help
+            Enable generic digital on/off switch adapter (relays, plain LEDs,
+            valves, buzzers, ...).
+
     config ENABLE_SUPERVISOR_NEOPIXEL
         bool "Enable NeoPixel adapter"
         default n
