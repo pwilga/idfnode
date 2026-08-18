@@ -36,6 +36,13 @@ menu "Cikon App Configuration"
         bool "Enable LED adapter"
         default n
 
+    config ENABLE_SUPERVISOR_LIGHT
+        bool "Enable light adapter"
+        default n
+        help
+            HSV/CCT color light adapter for analog LED strips (1-5 PWM channels
+            per light: R/G/B/Cold-white/Warm-white).
+
     config ENABLE_SUPERVISOR_SWITCH
         bool "Enable switch adapter"
         default n

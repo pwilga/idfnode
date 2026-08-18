@@ -42,6 +42,10 @@ extern void device_handlers_init(void);
 #include "led_adapter.h"
 #endif
 
+#if CONFIG_ENABLE_SUPERVISOR_LIGHT
+#include "light_adapter.h"
+#endif
+
 #if CONFIG_ENABLE_SUPERVISOR_SWITCH
 #include "switch_adapter.h"
 #endif
@@ -102,6 +106,10 @@ void app_main(void) {
 
 #if CONFIG_ENABLE_SUPERVISOR_LED
     supervisor_register_adapter(&led_adapter);
+#endif
+
+#if CONFIG_ENABLE_SUPERVISOR_LIGHT
+    supervisor_register_adapter(&light_adapter);
 #endif
 
 #if CONFIG_ENABLE_SUPERVISOR_NEOPIXEL
