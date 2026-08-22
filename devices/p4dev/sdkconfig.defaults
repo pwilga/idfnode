@@ -12,6 +12,8 @@ CONFIG_ESP32P4_REV_MIN_100=y
 CONFIG_SPIRAM=y
 
 CONFIG_ENABLE_SUPERVISOR_DEBUG=y
+CONFIG_ENABLE_SUPERVISOR_SWITCH=y
+CONFIG_SWITCH_GPIO_LIST="8:1:Fake Switch"
 
 # Status LED: M5Stack Unit PoE-P4 has an analog 3-pin RGB LED (NH-B2020RGBA),
 # common-anode / active-low, on GPIO R:17 G:15 B:16 (per factory firmware
