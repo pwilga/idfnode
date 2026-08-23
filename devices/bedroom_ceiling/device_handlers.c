@@ -13,13 +13,17 @@
 #include "button_adapter.h"
 #include "cmnd.h"
 
-// Names come from CONFIG_BUTTON_GPIO_LIST="18:0:button_left,19:0:button_right"
-#define BUTTON_NAME_LEFT "button_left"
-#define BUTTON_NAME_RIGHT "button_right"
+#define BUTTON_NAME_LEFT "left"
+#define BUTTON_NAME_RIGHT "right"
+
+#define LIGHT_NAME_MAINS "mains"
 
 static void device_button_handler(uint8_t button_idx, const char *name, button_event_t event) {
     if (strcmp(name, BUTTON_NAME_LEFT) == 0) {
 
+        if (event == BUTTON_SINGLE_CLICK) {
+            cmnd_submit(LIGHT_NAME_MAINS, "\"toggle\"");
+        }
         if (event == BUTTON_LONG_PRESS_START) {
             cmnd_submit("help", NULL);
         }
