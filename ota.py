@@ -52,11 +52,9 @@ if not args.skip_build:
         sys.exit(1)
 
     device_variant = args.device_profile_variant or vscode_variant
-    if not device_variant:
-        print("❌ Cannot determine DEVICE_PROFILE_VARIANT. Set idf.customExtraVars.DEVICE_PROFILE_VARIANT in .vscode/settings.json or use --device-profile-variant.")
-        sys.exit(1)
 
-    print(f"Building: DEVICE_PROFILE={device_profile} DEVICE_PROFILE_VARIANT={device_variant} (IDF: {idf_path})")
+    variant_define = f" -DDEVICE_PROFILE_VARIANT={device_variant}" if device_variant else ""
+    print(f"Building: DEVICE_PROFILE={device_profile} DEVICE_PROFILE_VARIANT={device_variant or '(none)'} (IDF: {idf_path})")
 
     project_dir = Path(__file__).parent
     app_desc_obj = project_dir / "build" / "esp-idf" / "esp_app_format" / "CMakeFiles" / "__idf_esp_app_format.dir" / "esp_app_desc.c.obj"
@@ -64,7 +62,7 @@ if not args.skip_build:
 
     build_cmd = (
         f"bash -c 'source {idf_path}/export.sh > /dev/null 2>&1 && "
-        f"idf.py -DDEVICE_PROFILE={device_profile} -DDEVICE_PROFILE_VARIANT={device_variant} build'"
+        f"idf.py -DDEVICE_PROFILE={device_profile}{variant_define} build'"
     )
     result = subprocess.run(build_cmd, shell=True, cwd=project_dir)
 

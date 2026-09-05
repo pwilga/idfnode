@@ -4,6 +4,9 @@ CONFIG_ESPTOOLPY_FLASHSIZE="4MB"
 CONFIG_PARTITION_TABLE_CUSTOM=y
 CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partition_table/partition_table.csv"
 
+# Every device profile in this fleet mounts LittleFS (certs, coredump export, fs info)
+CONFIG_VFS_LITTLEFS_ENABLED=y
+
 # Core dump configuration
 CONFIG_ESP_COREDUMP_ENABLE_TO_FLASH=y
 

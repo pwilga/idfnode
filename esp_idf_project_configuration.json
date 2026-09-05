@@ -1,4 +1,33 @@
 {
+  "neocikon": {
+    "build": {
+      "compileArgs": [
+        "-DDEVICE_PROFILE=neocikon",
+        "-G Ninja"
+      ],
+      "ninjaArgs": [],
+      "buildDirectoryPath": "",
+      "sdkconfigDefaults": [],
+      "sdkconfigFilePath": ""
+    },
+    "env": {
+      "DEVICE_PROFILE": "neocikon"
+    },
+    "idfTarget": "esp32",
+    "flashBaudRate": "",
+    "monitorBaudRate": "",
+    "openOCD": {
+      "debugLevel": -1,
+      "configs": [],
+      "args": []
+    },
+    "tasks": {
+      "preBuild": "",
+      "preFlash": "",
+      "postBuild": "",
+      "postFlash": ""
+    }
+  },
   "cikonesp": {
     "build": {
       "compileArgs": [
