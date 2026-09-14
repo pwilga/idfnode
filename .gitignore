@@ -25,6 +25,13 @@ __pycache__/
 .env/
 
 # Project specific
-certs/
-config/
+# Certificates
+*.pem
+*.key
+*.crt
+*.srl
+
+config_fields_private.h
+
+.DS_Store
 dependencies.lock

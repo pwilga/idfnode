@@ -1,0 +1,8 @@
+- type: addressable
+  name: Tree
+  gpio: 16
+  leds: 30
+  # model: WS2812
+  # format: GRB
+  model: SK6812
+  format: GRBW

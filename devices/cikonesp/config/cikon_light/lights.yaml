@@ -1,0 +1,20 @@
+- type: pwm
+  name: Color Strip
+  red: 17
+  green: 21
+  blue: 16
+  cold_white: 18
+  warm_white: 19
+
+- type: pwm
+  name: Left Strip
+  cold_white: 25
+
+- type: pwm
+  name: Right Strip
+  cold_white: 27
+
+- type: switch
+  name: Board Led
+  gpio: 2
+  active_low: true

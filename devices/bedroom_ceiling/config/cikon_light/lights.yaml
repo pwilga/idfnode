@@ -1,0 +1,4 @@
+- type: switch
+  name: Mains
+  gpio: 14
+  active_low: true

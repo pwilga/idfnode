@@ -23,6 +23,48 @@ parser.add_argument('--device-profile-variant', type=str,
                     help='DEVICE_PROFILE_VARIANT (default: read from .vscode/settings.json idf.customExtraVars)')
 args = parser.parse_args()
 
+def get_activation_script(idf_path):
+    """Prefer the EIM-managed activation script for this IDF checkout (if EIM
+    installed it), falling back to the standard IDF export.sh otherwise."""
+    eim_idf_json = Path.home() / '.espressif' / 'tools' / 'eim_idf.json'
+    if eim_idf_json.exists():
+        try:
+            with open(eim_idf_json, 'r') as f:
+                data = json.load(f)
+            idf_path_resolved = str(Path(idf_path).resolve())
+            for entry in data.get('idfInstalled', []):
+                if str(Path(entry['path']).resolve()) == idf_path_resolved:
+                    return entry['activationScript']
+        except Exception:
+            pass
+    return f"{idf_path}/export.sh"
+
+def find_cmake_preset(project_dir, device_profile, device_variant):
+    """If CMakePresets.json exists, idf.py auto-picks the *first* preset unless one
+    is named explicitly (and then forces its IDF_TARGET, breaking cross-target builds).
+    Return the preset whose environment matches the requested profile/variant so we
+    can pass it via --preset, or None to fall back to plain -DDEVICE_PROFILE."""
+    presets_file = Path(project_dir) / 'CMakePresets.json'
+    if not presets_file.exists():
+        return None
+    try:
+        with open(presets_file, 'r') as f:
+            presets = json.load(f)
+    except Exception as e:
+        print(f"Warning: Failed to read CMakePresets.json: {e}")
+        return None
+
+    want_variant = device_variant or None
+    for preset in presets.get('configurePresets', []):
+        env = preset.get('environment', {})
+        if env.get('DEVICE_PROFILE') != device_profile:
+            continue
+        if (env.get('DEVICE_PROFILE_VARIANT') or None) != want_variant:
+            continue
+        return preset.get('name')
+    return None
+
+
 def get_vscode_settings():
     """Read idf.currentSetup, DEVICE_PROFILE and DEVICE_PROFILE_VARIANT from .vscode/settings.json"""
     settings_file = Path(__file__).parent / '.vscode' / 'settings.json'
@@ -53,16 +95,32 @@ if not args.skip_build:
 
     device_variant = args.device_profile_variant or vscode_variant
 
-    variant_define = f" -DDEVICE_PROFILE_VARIANT={device_variant}" if device_variant else ""
-    print(f"Building: DEVICE_PROFILE={device_profile} DEVICE_PROFILE_VARIANT={device_variant or '(none)'} (IDF: {idf_path})")
-
     project_dir = Path(__file__).parent
+    preset = find_cmake_preset(project_dir, device_profile, device_variant)
+
+    if preset is None and (project_dir / 'CMakePresets.json').exists():
+        print(f"❌ CMakePresets.json exists but has no preset for DEVICE_PROFILE={device_profile} "
+              f"DEVICE_PROFILE_VARIANT={device_variant or '(none)'}. idf.py would fall back to the "
+              f"first preset and force its IDF_TARGET. Add a matching preset or remove CMakePresets.json.")
+        sys.exit(1)
+
+    if preset:
+        idf_profile_args = f"--preset {preset}"
+        print(f"Building: preset={preset} (DEVICE_PROFILE={device_profile} "
+              f"DEVICE_PROFILE_VARIANT={device_variant or '(none)'}, IDF: {idf_path})")
+    else:
+        variant_define = f" -DDEVICE_PROFILE_VARIANT={device_variant}" if device_variant else ""
+        idf_profile_args = f"-DDEVICE_PROFILE={device_profile}{variant_define}"
+        print(f"Building: DEVICE_PROFILE={device_profile} "
+              f"DEVICE_PROFILE_VARIANT={device_variant or '(none)'} (IDF: {idf_path})")
+
     app_desc_obj = project_dir / "build" / "esp-idf" / "esp_app_format" / "CMakeFiles" / "__idf_esp_app_format.dir" / "esp_app_desc.c.obj"
     app_desc_obj.unlink(missing_ok=True)
 
+    activation_script = get_activation_script(idf_path)
     build_cmd = (
-        f"bash -c 'source {idf_path}/export.sh > /dev/null 2>&1 && "
-        f"idf.py -DDEVICE_PROFILE={device_profile}{variant_define} build'"
+        f"bash -c 'source {activation_script} > /dev/null && "
+        f"idf.py {idf_profile_args} build'"
     )
     result = subprocess.run(build_cmd, shell=True, cwd=project_dir)
 
