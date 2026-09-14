@@ -50,10 +50,6 @@ extern void device_handlers_init(void);
 #include "switch_adapter.h"
 #endif
 
-#if CONFIG_ENABLE_SUPERVISOR_NEOPIXEL
-#include "neopixel_adapter.h"
-#endif
-
 #if CONFIG_ENABLE_SUPERVISOR_LED_INDICATOR
 #include "led_indicator_adapter.h"
 #endif
@@ -110,10 +106,6 @@ void app_main(void) {
 
 #if CONFIG_ENABLE_SUPERVISOR_LIGHT
     supervisor_register_adapter(&light_adapter);
-#endif
-
-#if CONFIG_ENABLE_SUPERVISOR_NEOPIXEL
-    supervisor_register_adapter(&neopixel_adapter);
 #endif
 
 #if CONFIG_ENABLE_SUPERVISOR_LED_INDICATOR

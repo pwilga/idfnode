@@ -50,12 +50,6 @@ menu "Cikon App Configuration"
             Enable generic digital on/off switch adapter (relays, plain LEDs,
             valves, buzzers, ...).
 
-    config ENABLE_SUPERVISOR_NEOPIXEL
-        bool "Enable NeoPixel adapter"
-        default n
-        help
-            Enable WS2812 NeoPixel LED strip adapter with effects.
-
     config ENABLE_SUPERVISOR_LED_INDICATOR
         bool "Enable LED Indicator adapter"
         default n
