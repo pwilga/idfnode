@@ -1,0 +1,323 @@
+{
+  "version": 3,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 21,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "neocikon",
+      "cacheVariables": {
+        "IDF_TARGET": "esp32s2"
+      },
+      "environment": {
+        "DEVICE_PROFILE": "neocikon"
+      },
+      "vendor": {
+        "espressif/vscode-esp-idf": {
+          "schemaVersion": 1,
+          "settings": [
+            {
+              "type": "compileArgs",
+              "value": [
+                "-DDEVICE_PROFILE=neocikon",
+                "-G Ninja"
+              ]
+            },
+            {
+              "type": "openOCD",
+              "value": {
+                "debugLevel": 2,
+                "configs": [
+                  "board/esp32s2-kaluga-1.cfg"
+                ],
+                "args": []
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "cikonesp",
+      "cacheVariables": {
+        "IDF_TARGET": "esp32"
+      },
+      "environment": {
+        "DEVICE_PROFILE": "cikonesp",
+        "DEVICE_PROFILE_VARIANT": "inet"
+      },
+      "vendor": {
+        "espressif/vscode-esp-idf": {
+          "schemaVersion": 1,
+          "settings": [
+            {
+              "type": "compileArgs",
+              "value": [
+                "-DDEVICE_PROFILE_VARIANT=inet",
+                "-DDEVICE_PROFILE=cikonesp",
+                "-G Ninja"
+              ]
+            },
+            {
+              "type": "openOCD",
+              "value": {
+                "debugLevel": 2,
+                "configs": [
+                  "board/esp32-wrover-kit-3.3v.cfg"
+                ],
+                "args": []
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "cikonesp_mesh",
+      "cacheVariables": {
+        "IDF_TARGET": "esp32"
+      },
+      "environment": {
+        "DEVICE_PROFILE": "cikonesp",
+        "DEVICE_PROFILE_VARIANT": "mesh"
+      },
+      "vendor": {
+        "espressif/vscode-esp-idf": {
+          "schemaVersion": 1,
+          "settings": [
+            {
+              "type": "compileArgs",
+              "value": [
+                "-DDEVICE_PROFILE_VARIANT=mesh",
+                "-DDEVICE_PROFILE=cikonesp",
+                "-G Ninja"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "atom_mesh",
+      "cacheVariables": {
+        "IDF_TARGET": "esp32s3"
+      },
+      "environment": {
+        "DEVICE_PROFILE": "atom",
+        "DEVICE_PROFILE_VARIANT": "mesh"
+      },
+      "vendor": {
+        "espressif/vscode-esp-idf": {
+          "schemaVersion": 1,
+          "settings": [
+            {
+              "type": "compileArgs",
+              "value": [
+                "-DDEVICE_PROFILE=atom",
+                "-G Ninja",
+                "-DDEVICE_PROFILE_VARIANT=mesh"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "atom",
+      "cacheVariables": {
+        "IDF_TARGET": "esp32s3"
+      },
+      "environment": {
+        "DEVICE_PROFILE": "atom",
+        "DEVICE_PROFILE_VARIANT": "inet"
+      },
+      "vendor": {
+        "espressif/vscode-esp-idf": {
+          "schemaVersion": 1,
+          "settings": [
+            {
+              "type": "compileArgs",
+              "value": [
+                "-DDEVICE_PROFILE_VARIANT=inet",
+                "-DDEVICE_PROFILE=atom",
+                "-G Ninja"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "atom_obr",
+      "cacheVariables": {
+        "IDF_TARGET": "esp32s3"
+      },
+      "environment": {
+        "DEVICE_PROFILE": "atom",
+        "DEVICE_PROFILE_VARIANT": "obr"
+      },
+      "vendor": {
+        "espressif/vscode-esp-idf": {
+          "schemaVersion": 1,
+          "settings": [
+            {
+              "type": "compileArgs",
+              "value": [
+                "-DDEVICE_PROFILE_VARIANT=obr",
+                "-DDEVICE_PROFILE=atom",
+                "-G Ninja"
+              ]
+            },
+            {
+              "type": "openOCD",
+              "value": {
+                "debugLevel": 2,
+                "configs": [
+                  "board/esp32s3-builtin.cfg"
+                ],
+                "args": []
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "bedroom_ceiling",
+      "cacheVariables": {
+        "IDF_TARGET": "esp32c6"
+      },
+      "environment": {
+        "DEVICE_PROFILE": "bedroom_ceiling",
+        "DEVICE_PROFILE_VARIANT": "inet"
+      },
+      "vendor": {
+        "espressif/vscode-esp-idf": {
+          "schemaVersion": 1,
+          "settings": [
+            {
+              "type": "compileArgs",
+              "value": [
+                "-DDEVICE_PROFILE_VARIANT=inet",
+                "-DDEVICE_PROFILE=bedroom_ceiling",
+                "-G Ninja"
+              ]
+            },
+            {
+              "type": "openOCD",
+              "value": {
+                "debugLevel": 2,
+                "configs": [
+                  "board/esp32c6-builtin.cfg"
+                ],
+                "args": []
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "c6dev_ftd",
+      "cacheVariables": {
+        "IDF_TARGET": "esp32c6"
+      },
+      "environment": {
+        "DEVICE_PROFILE": "c6dev",
+        "DEVICE_PROFILE_VARIANT": "ftd"
+      },
+      "vendor": {
+        "espressif/vscode-esp-idf": {
+          "schemaVersion": 1,
+          "settings": [
+            {
+              "type": "compileArgs",
+              "value": [
+                "-DDEVICE_PROFILE=c6dev",
+                "-DDEVICE_PROFILE_VARIANT=ftd",
+                "-G Ninja"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "h2dev_ftd",
+      "cacheVariables": {
+        "IDF_TARGET": "esp32h2"
+      },
+      "environment": {
+        "DEVICE_PROFILE": "h2dev",
+        "DEVICE_PROFILE_VARIANT": "ftd"
+      },
+      "vendor": {
+        "espressif/vscode-esp-idf": {
+          "schemaVersion": 1,
+          "settings": [
+            {
+              "type": "compileArgs",
+              "value": [
+                "-DDEVICE_PROFILE=h2dev",
+                "-DDEVICE_PROFILE_VARIANT=ftd",
+                "-G Ninja"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "h2dev_sed",
+      "cacheVariables": {
+        "IDF_TARGET": "esp32h2"
+      },
+      "environment": {
+        "DEVICE_PROFILE": "h2dev",
+        "DEVICE_PROFILE_VARIANT": "sed"
+      },
+      "vendor": {
+        "espressif/vscode-esp-idf": {
+          "schemaVersion": 1,
+          "settings": [
+            {
+              "type": "compileArgs",
+              "value": [
+                "-DDEVICE_PROFILE=h2dev",
+                "-DDEVICE_PROFILE_VARIANT=sed",
+                "-G Ninja"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "p4dev_eth",
+      "cacheVariables": {
+        "IDF_TARGET": "esp32p4"
+      },
+      "environment": {
+        "DEVICE_PROFILE": "p4dev",
+        "DEVICE_PROFILE_VARIANT": "eth"
+      },
+      "vendor": {
+        "espressif/vscode-esp-idf": {
+          "schemaVersion": 1,
+          "settings": [
+            {
+              "type": "compileArgs",
+              "value": [
+                "-DDEVICE_PROFILE=p4dev",
+                "-DDEVICE_PROFILE_VARIANT=eth",
+                "-G Ninja"
+              ]
+            }
+          ]
+        }
+      }
+    }
+  ]
+}
