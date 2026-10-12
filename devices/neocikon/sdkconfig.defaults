@@ -4,7 +4,6 @@ CONFIG_ENABLE_SUPERVISOR_LIGHT=y
 
 # CONFIG_LIGHT_ENABLE_EFFECTS=n
 
-
 # LOLIN S2 Mini (ESP32-S2FN4R2) configuration
 
 # 2MB PSRAM in the package.
@@ -12,27 +11,37 @@ CONFIG_SPIRAM=y
 CONFIG_SPIRAM_SPEED_80M=y
 
 # https://docs.espressif.com/projects/esp-idf/en/stable/esp32s2/api-guides/wifi-driver/wifi-performance-and-power-save.html
-# "Using PSRAM" table, "Memory saving" rank. The first line is not a row there - it is what puts
-# the build into that mode, and is what forces TX static as the section intro describes.
+# "Using PSRAM" table, "Minimum/Memory saving" rank
 CONFIG_SPIRAM_TRY_ALLOCATE_WIFI_LWIP=y
+
 CONFIG_ESP_WIFI_STATIC_RX_BUFFER_NUM=6
 CONFIG_ESP_WIFI_DYNAMIC_RX_BUFFER_NUM=64
 CONFIG_ESP_WIFI_STATIC_TX_BUFFER_NUM=6
 CONFIG_ESP_WIFI_RX_BA_WIN=6
 CONFIG_LWIP_TCP_SND_BUF_DEFAULT=32768
 CONFIG_LWIP_TCP_WND_DEFAULT=32768
-CONFIG_ESP_WIFI_IRAM_OPT=y
+CONFIG_ESP_WIFI_IRAM_OPT=n
 CONFIG_ESP_WIFI_RX_IRAM_OPT=n
 CONFIG_LWIP_IRAM_OPTIMIZATION=n
-# 16KB here would cost 8 kB of heap and only buys throughput this device never reaches.
 CONFIG_ESP32S2_INSTRUCTION_CACHE_8KB=y
 CONFIG_ESP32S2_INSTRUCTION_CACHE_LINE_16B=y
 CONFIG_ESP32S2_DATA_CACHE_8KB=y
 CONFIG_ESP32S2_DATA_CACHE_LINE_32B=y
 
-# Due to DRAM limitation put as many things as it is possible into PSRAM
-CONFIG_MBEDTLS_EXTERNAL_MEM_ALLOC=y
-# Helper for selecting both SPIRAM_FETCH_INSTRUCTIONS and SPIRAM_RODATA
-CONFIG_SPIRAM_XIP_FROM_PSRAM=y
 
+# https://docs.espressif.com/projects/esp-idf/en/stable/esp32s2/api-reference/kconfig-reference.html#spi-ram-config
+CONFIG_SPIRAM_XIP_FROM_PSRAM=y
 CONFIG_SPIRAM_ALLOW_BSS_SEG_EXTERNAL_MEMORY=y
+
+# https://docs.espressif.com/projects/esp-idf/en/stable/esp32s2/api-reference/kconfig-reference.html#config-mbedtls-mem-alloc-mode
+CONFIG_MBEDTLS_EXTERNAL_MEM_ALLOC=y
+
+# https://docs.espressif.com/projects/esp-idf/en/stable/esp32s2/api-reference/kconfig-reference.html#esp-driver-spi-configurations
+# Only led_strip uses SPI master and it does not request ESP_INTR_FLAG_IRAM, so the ISR copy in
+# IRAM only saves cache misses. SPI slave is unused, but either option keeps spi_common in IRAM.
+CONFIG_SPI_MASTER_ISR_IN_IRAM=n
+CONFIG_SPI_SLAVE_ISR_IN_IRAM=n
+
+# https://docs.espressif.com/projects/esp-idf/en/stable/esp32s2/api-reference/kconfig-reference.html#esp-ringbuf
+# No IRAM ISR calls the ringbuf FromISR API here: UART ISR is not in IRAM, no I2C/ADC/USB-JTAG.
+CONFIG_RINGBUF_PLACE_ISR_FUNCTIONS_INTO_FLASH=y
