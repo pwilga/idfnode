@@ -9,11 +9,11 @@ views:
         cards:
           - type: markdown
             content: |-
-              {%- set temp = states('sensor.cikonesp_chip_temp') -%}
+              {%- set temp = states('sensor.neocikon_chip_temp') -%}
               {%- if temp not in ['unknown', 'unavailable', none, ''] -%}
               {{ 'Chip temp.: %.2f' | format(temp | float) }}°C
               {%- endif -%}<br>
-              {%- set host = states('sensor.cikonesp_mdns') -%}
+              {%- set host = states('sensor.neocikon_mdns') -%}
               {%- if host not in ['unknown', 'unavailable', none, ''] -%}
               [http://{{ host }}](http://{{ host }})
               {%- endif -%}
@@ -34,14 +34,14 @@ views:
                     text-align: center;
                   }
           - type: custom:mushroom-title-card
-            title: cikonesp
+            title: neocikon
             grid_options:
               rows: 2
               columns: 6
             alignment: end
             subtitle: >-
-              {%- set id = states('sensor.cikonesp_id') -%}
-              {%- set boot = states('sensor.cikonesp_boot_time') -%}
+              {%- set id = states('sensor.neocikon_id') -%}
+              {%- set boot = states('sensor.neocikon_boot_time') -%}
               {%- set id_line = id if id not in ['unknown', 'unavailable', '']
               else '' -%}
               {%- set up_line = ('Uptime: ' ~
@@ -57,8 +57,8 @@ views:
                 'bt':   {'icon': 'mdi:bluetooth', 'color': '#2979ff'},
                 'ble':  {'icon': 'mdi:bluetooth-connect', 'color': '#2979ff'},
                 'ieee802154': {'icon': 'mdi:radio-tower', 'color': '#ffff00'},
-              } -%} {%- if not is_state('sensor.cikonesp_chip', 'unavailable')
-              -%} {%- for f in state_attr('sensor.cikonesp_chip','features')
+              } -%} {%- if not is_state('sensor.neocikon_chip', 'unavailable')
+              -%} {%- for f in state_attr('sensor.neocikon_chip','features')
               -%} {%- set d
               = icons.get(f, {'icon': 'mdi:help-circle-outline', 'color':
               'grey'}) -%} <font
@@ -102,39 +102,39 @@ views:
           - type: custom:mushroom-chips-card
             chips:
               - type: template
-                entity: sensor.cikonesp_chip
+                entity: sensor.neocikon_chip
                 icon: mdi:cpu-32-bit
                 icon_color: blue
                 content: >-
-                  {% set v = states('sensor.cikonesp_chip') %}
+                  {% set v = states('sensor.neocikon_chip') %}
                   {{ '--' if v in ['unknown', 'unavailable'] else v }}
                 tap_action:
                   action: none
               - type: template
-                entity: sensor.cikonesp_chip
+                entity: sensor.neocikon_chip
                 icon: mdi:harddisk
                 icon_color: amber
                 content: >-
-                  {% set fs = state_attr('sensor.cikonesp_chip', 'flash_size') %}
+                  {% set fs = state_attr('sensor.neocikon_chip', 'flash_size') %}
                   Flash: {{ '--' if fs is none else
                   ((fs | int(0) / 1048576) | round(0) ~ ' MB') }}
                 tap_action:
                   action: none
               - type: template
-                entity: sensor.cikonesp_chip
+                entity: sensor.neocikon_chip
                 icon: mdi:speedometer
                 icon_color: orange
                 content: >-
-                  {% set cf = state_attr('sensor.cikonesp_chip', 'cpu_freq') %}
+                  {% set cf = state_attr('sensor.neocikon_chip', 'cpu_freq') %}
                   CPU: {{ '--' if cf is none else (cf ~ ' MHz') }}
                 tap_action:
                   action: none
               - type: template
-                entity: sensor.cikonesp_chip
+                entity: sensor.neocikon_chip
                 icon: mdi:chip
                 icon_color: dark-grey
                 content: >-
-                  {% set c = state_attr('sensor.cikonesp_chip', 'cores') %}
+                  {% set c = state_attr('sensor.neocikon_chip', 'cores') %}
                   {{ 'Cores: --' if c is none else
                   ('Core: 1' if c == 1 else 'Cores: ' ~ c) }}
                 tap_action:
@@ -145,29 +145,29 @@ views:
                   action: perform-action
                   perform_action: button.press
                   target:
-                    entity_id: button.cikonesp_restart
+                    entity_id: button.neocikon_restart
                   data: {}
                   confirmation:
                     text: Restart?
                 icon: mdi:restart
             alignment: center
           - type: custom:mushroom-template-card
-            entity: sensor.cikonesp_ip
+            entity: sensor.neocikon_ip
             layout: horizontal
             multiline_secondary: true
             primary: >
-              {% set link = states('sensor.cikonesp_link') %}
+              {% set link = states('sensor.neocikon_link') %}
 
               Uplink: {{ link if link not in ['unknown', 'unavailable', ''] else
               '--' }}
             secondary: >
-              {%- set ip = states('sensor.cikonesp_ip') -%}
-              {%- set ssid = state_attr('sensor.cikonesp_link', 'ssid') -%}
-              {%- set rssi = state_attr('sensor.cikonesp_link', 'rssi') -%}
+              {%- set ip = states('sensor.neocikon_ip') -%}
+              {%- set ssid = state_attr('sensor.neocikon_link', 'ssid') -%}
+              {%- set rssi = state_attr('sensor.neocikon_link', 'rssi') -%}
               {%- set link_line = (ssid if ssid else '') ~ ((' (' ~ rssi ~ '
               dBm)') if rssi else '') -%}
-              {%- set reset_reason = states('sensor.cikonesp_reset_reason') -%}
-              {%- set ota_state = states('sensor.cikonesp_ota_state') -%}
+              {%- set reset_reason = states('sensor.neocikon_reset_reason') -%}
+              {%- set ota_state = states('sensor.neocikon_ota_state') -%}
               IP: {{ (ip if ip not in ['unknown', 'unavailable', ''] else '--') |
               truncate(22, True, '…') }}
 
@@ -183,35 +183,20 @@ views:
               columns: 6
               rows: 2
           - type: custom:mushroom-template-card
-            entity: sensor.cikonesp_free_heap
+            entity: sensor.neocikon_dram
             primary: >-
-              Free heap: {{ (states('sensor.cikonesp_free_heap')|int(0) / 1024)
-              | round(1) }} KB
+              {{ (state_attr('sensor.neocikon_dram','dram_free') | int(0) /
+              1024) | round(0) | int }} KB free ({{
+              (state_attr('sensor.neocikon_dram','dram_min_free') | int(0) / 1024) |
+              round(0) | int }} KB)
             secondary: >-
-              Min seen: {{
-              (state_attr('sensor.cikonesp_free_heap','min_heap')|int(0) / 1024)
-              | round(1) }} KB
+              DRAM {{ (state_attr('sensor.neocikon_dram','dram_size') | int(0) / 1024) |
+              round(0) | int }} KB · {{ states('sensor.neocikon_dram') | float(0) |
+              round(0) | int }}% used
             icon: mdi:memory
             icon_color: >-
-              {% set v = states('sensor.cikonesp_free_heap')|int(0) %} {{ 'red'
-              if v < 40000 else 'amber' if v < 80000 else 'green' }}
-            grid_options:
-              columns: 6
-              rows: auto
-          - type: custom:mushroom-template-card
-            primary: >-
-              Total: {{ (state_attr('sensor.cikonesp_fs_used','fs_total')|int(0)
-              / 1024) | round(0) }} KB
-            secondary: >-
-              file system usage {% set u =
-              states('sensor.cikonesp_fs_used')|int(0) %} {% set t =
-              state_attr('sensor.cikonesp_fs_used','fs_total')|int(1) %} {{ (u /
-              t * 100) | round(0) }}%
-            icon_color: >-
-              {% set u = states('sensor.cikonesp_fs_used')|int(0) %} {% set t =
-              state_attr('sensor.cikonesp_fs_used','fs_total')|int(1) %} {% set
-              p = u / t * 100 %} {{ 'red' if p > 85 else 'amber' if p > 60 else
-              'blue' }}
+              {% set p = states('sensor.neocikon_dram') | float(0) %} {{ 'red' if p > 85
+              else 'amber' if p > 60 else 'teal' }}
             grid_options:
               columns: 6
               rows: auto
@@ -227,10 +212,96 @@ views:
                   left: 0;
                   top: 0;
                   bottom: 0;
-                  width: {% set u = states('sensor.cikonesp_fs_used')|int(0) %}{% set t = state_attr('sensor.cikonesp_fs_used','fs_total')|int(1) %}{{ (u / t * 100) | round(1) }}%;
-                  background: rgba(33, 150, 243, 0.25);
+                  width: 100%;
+                  clip-path: inset(0 {{ 100 - (states('sensor.neocikon_dram') | float(0)) }}% 0 0);
+                  background: {% set p = states('sensor.neocikon_dram') | float(0) %}{{ 'linear-gradient(90deg, rgba(244, 67, 54, 0.25), rgba(233, 30, 99, 0.25))' if p > 85 else 'linear-gradient(90deg, rgba(255, 152, 0, 0.25), rgba(255, 193, 7, 0.25))' if p > 60 else 'linear-gradient(90deg, rgba(0, 150, 136, 0.25), rgba(76, 175, 80, 0.25))' }};
                   z-index: 0;
-                  transition: width 1s ease;
+                  transition: clip-path 1s ease;
+                }
+                ha-card > * {
+                  position: relative;
+                  z-index: 1;
+                }
+          - type: custom:mushroom-template-card
+            entity: sensor.neocikon_fs
+            primary: >-
+              {{ ((state_attr('sensor.neocikon_fs','fs_size') | int(0) -
+              state_attr('sensor.neocikon_fs','fs_used') | int(0)) / 1024) | round(0) | int }}
+              KB free
+            secondary: >-
+              FS {{ (state_attr('sensor.neocikon_fs','fs_size') | int(0) / 1024) |
+              round(0) | int }} KB · {{ states('sensor.neocikon_fs') | float(0) |
+              round(0) | int }}% used
+            icon: mdi:harddisk
+            icon_color: >-
+              {% set p = states('sensor.neocikon_fs') | float(0) %} {{ 'red' if p > 85
+              else 'amber' if p > 60 else 'deep-purple' }}
+            grid_options:
+              columns: 6
+              rows: auto
+            card_mod:
+              style: |
+                ha-card {
+                  position: relative;
+                  overflow: hidden;
+                }
+                ha-card::before {
+                  content: "";
+                  position: absolute;
+                  left: 0;
+                  top: 0;
+                  bottom: 0;
+                  width: 100%;
+                  clip-path: inset(0 {{ 100 - (states('sensor.neocikon_fs') | float(0)) }}% 0 0);
+                  background: {% set p = states('sensor.neocikon_fs') | float(0) %}{{ 'linear-gradient(90deg, rgba(244, 67, 54, 0.25), rgba(233, 30, 99, 0.25))' if p > 85 else 'linear-gradient(90deg, rgba(255, 152, 0, 0.25), rgba(255, 193, 7, 0.25))' if p > 60 else 'linear-gradient(90deg, rgba(103, 58, 183, 0.25), rgba(233, 30, 99, 0.25))' }};
+                  z-index: 0;
+                  transition: clip-path 1s ease;
+                }
+                ha-card > * {
+                  position: relative;
+                  z-index: 1;
+                }
+          - type: custom:mushroom-template-card
+            entity: sensor.neocikon_psram
+            visibility:
+              - condition: state
+                entity: sensor.neocikon_psram
+                state_not:
+                  - unavailable
+                  - unknown
+            primary: >-
+              {{ (state_attr('sensor.neocikon_psram','psram_free') | int(0) /
+              1048576) | round(1) }} MB free ({{
+              (state_attr('sensor.neocikon_psram','psram_min_free') | int(0) / 1048576) |
+              round(1) }} MB)
+            secondary: >-
+              PSRAM {{ (state_attr('sensor.neocikon_psram','psram_size') | int(0) / 1048576) |
+              round(1) }} MB · {{ states('sensor.neocikon_psram') | float(0) |
+              round(0) | int }}% used
+            icon: mdi:memory
+            icon_color: >-
+              {% set p = states('sensor.neocikon_psram') | float(0) %} {{ 'red' if p > 85
+              else 'amber' if p > 60 else 'indigo' }}
+            grid_options:
+              columns: 12
+              rows: auto
+            card_mod:
+              style: |
+                ha-card {
+                  position: relative;
+                  overflow: hidden;
+                }
+                ha-card::before {
+                  content: "";
+                  position: absolute;
+                  left: 0;
+                  top: 0;
+                  bottom: 0;
+                  width: 100%;
+                  clip-path: inset(0 {{ 100 - (states('sensor.neocikon_psram') | float(0)) }}% 0 0);
+                  background: {% set p = states('sensor.neocikon_psram') | float(0) %}{{ 'linear-gradient(90deg, rgba(244, 67, 54, 0.25), rgba(233, 30, 99, 0.25))' if p > 85 else 'linear-gradient(90deg, rgba(255, 152, 0, 0.25), rgba(255, 193, 7, 0.25))' if p > 60 else 'linear-gradient(90deg, rgba(63, 81, 181, 0.25), rgba(33, 150, 243, 0.25))' }};
+                  z-index: 0;
+                  transition: clip-path 1s ease;
                 }
                 ha-card > * {
                   position: relative;
@@ -240,17 +311,17 @@ views:
             multiline_secondary: true
             primary: Bootlader
             secondary: >-
-              {% if is_state('sensor.cikonesp_bootloader_build_time',
+              {% if is_state('sensor.neocikon_bootloader_build_time',
               'unavailable') %}
               --
               {% else %}
               Build time: {{
-              as_timestamp(states('sensor.cikonesp_bootloader_build_time')) |
+              as_timestamp(states('sensor.neocikon_bootloader_build_time')) |
               timestamp_custom('%d.%m.%Y %H:%M') }}
 
-              v:{{ state_attr('sensor.cikonesp_bootloader_build_time','version')
+              v:{{ state_attr('sensor.neocikon_bootloader_build_time','version')
               }} IDF: {{
-              state_attr('sensor.cikonesp_bootloader_build_time','idf') }}
+              state_attr('sensor.neocikon_bootloader_build_time','idf') }}
               {% endif %}
             grid_options:
               columns: 6
@@ -258,20 +329,20 @@ views:
             color: yellow
             features_position: bottom
             icon: mdi:boom-gate-alert-outline
-            entity: sensor.cikonesp_bootloader_build_time
+            entity: sensor.neocikon_bootloader_build_time
           - type: custom:mushroom-template-card
             multiline_secondary: true
             primary: Application
             secondary: >
-              {% if is_state('sensor.cikonesp_app_build_time', 'unavailable') %}
+              {% if is_state('sensor.neocikon_app_build_time', 'unavailable') %}
               --
               {% else %}
               Build time: {{
-              as_timestamp(states('sensor.cikonesp_app_build_time')) |
+              as_timestamp(states('sensor.neocikon_app_build_time')) |
               timestamp_custom('%d.%m.%Y %H:%M') }}
 
-              {{ state_attr('sensor.cikonesp_app_build_time','version') }} IDF:
-              {{ state_attr('sensor.cikonesp_app_build_time','idf') }}
+              {{ state_attr('sensor.neocikon_app_build_time','version') }} IDF:
+              {{ state_attr('sensor.neocikon_app_build_time','idf') }}
               {% endif %}
             icon: mdi:application-brackets-outline
             grid_options:
@@ -279,7 +350,7 @@ views:
               rows: auto
             features_position: bottom
             color: orange
-            entity: sensor.cikonesp_app_build_time
+            entity: sensor.neocikon_app_build_time
         background:
           opacity: 24
       - type: grid
@@ -461,35 +532,20 @@ views:
               columns: 6
               rows: 2
           - type: custom:mushroom-template-card
-            entity: sensor.p4dev_free_heap
+            entity: sensor.p4dev_dram
             primary: >-
-              Free heap: {{ (states('sensor.p4dev_free_heap')|int(0) / 1024)
-              | round(1) }} KB
+              {{ (state_attr('sensor.p4dev_dram','dram_free') | int(0) /
+              1024) | round(0) | int }} KB free ({{
+              (state_attr('sensor.p4dev_dram','dram_min_free') | int(0) / 1024) |
+              round(0) | int }} KB)
             secondary: >-
-              Min seen: {{
-              (state_attr('sensor.p4dev_free_heap','min_heap')|int(0) / 1024)
-              | round(1) }} KB
+              DRAM {{ (state_attr('sensor.p4dev_dram','dram_size') | int(0) / 1024) |
+              round(0) | int }} KB · {{ states('sensor.p4dev_dram') | float(0) |
+              round(0) | int }}% used
             icon: mdi:memory
             icon_color: >-
-              {% set v = states('sensor.p4dev_free_heap')|int(0) %} {{ 'red'
-              if v < 40000 else 'amber' if v < 80000 else 'green' }}
-            grid_options:
-              columns: 6
-              rows: auto
-          - type: custom:mushroom-template-card
-            primary: >-
-              Total: {{ (state_attr('sensor.p4dev_fs_used','fs_total')|int(0)
-              / 1024) | round(0) }} KB
-            secondary: >-
-              file system usage {% set u =
-              states('sensor.p4dev_fs_used')|int(0) %} {% set t =
-              state_attr('sensor.p4dev_fs_used','fs_total')|int(1) %} {{ (u /
-              t * 100) | round(0) }}%
-            icon_color: >-
-              {% set u = states('sensor.p4dev_fs_used')|int(0) %} {% set t =
-              state_attr('sensor.p4dev_fs_used','fs_total')|int(1) %} {% set
-              p = u / t * 100 %} {{ 'red' if p > 85 else 'amber' if p > 60 else
-              'blue' }}
+              {% set p = states('sensor.p4dev_dram') | float(0) %} {{ 'red' if p > 85
+              else 'amber' if p > 60 else 'teal' }}
             grid_options:
               columns: 6
               rows: auto
@@ -505,10 +561,96 @@ views:
                   left: 0;
                   top: 0;
                   bottom: 0;
-                  width: {% set u = states('sensor.p4dev_fs_used')|int(0) %}{% set t = state_attr('sensor.p4dev_fs_used','fs_total')|int(1) %}{{ (u / t * 100) | round(1) }}%;
-                  background: rgba(33, 150, 243, 0.25);
+                  width: 100%;
+                  clip-path: inset(0 {{ 100 - (states('sensor.p4dev_dram') | float(0)) }}% 0 0);
+                  background: {% set p = states('sensor.p4dev_dram') | float(0) %}{{ 'linear-gradient(90deg, rgba(244, 67, 54, 0.25), rgba(233, 30, 99, 0.25))' if p > 85 else 'linear-gradient(90deg, rgba(255, 152, 0, 0.25), rgba(255, 193, 7, 0.25))' if p > 60 else 'linear-gradient(90deg, rgba(0, 150, 136, 0.25), rgba(76, 175, 80, 0.25))' }};
                   z-index: 0;
-                  transition: width 1s ease;
+                  transition: clip-path 1s ease;
+                }
+                ha-card > * {
+                  position: relative;
+                  z-index: 1;
+                }
+          - type: custom:mushroom-template-card
+            entity: sensor.p4dev_fs
+            primary: >-
+              {{ ((state_attr('sensor.p4dev_fs','fs_size') | int(0) -
+              state_attr('sensor.p4dev_fs','fs_used') | int(0)) / 1024) | round(0) | int }}
+              KB free
+            secondary: >-
+              FS {{ (state_attr('sensor.p4dev_fs','fs_size') | int(0) / 1024) |
+              round(0) | int }} KB · {{ states('sensor.p4dev_fs') | float(0) |
+              round(0) | int }}% used
+            icon: mdi:harddisk
+            icon_color: >-
+              {% set p = states('sensor.p4dev_fs') | float(0) %} {{ 'red' if p > 85
+              else 'amber' if p > 60 else 'deep-purple' }}
+            grid_options:
+              columns: 6
+              rows: auto
+            card_mod:
+              style: |
+                ha-card {
+                  position: relative;
+                  overflow: hidden;
+                }
+                ha-card::before {
+                  content: "";
+                  position: absolute;
+                  left: 0;
+                  top: 0;
+                  bottom: 0;
+                  width: 100%;
+                  clip-path: inset(0 {{ 100 - (states('sensor.p4dev_fs') | float(0)) }}% 0 0);
+                  background: {% set p = states('sensor.p4dev_fs') | float(0) %}{{ 'linear-gradient(90deg, rgba(244, 67, 54, 0.25), rgba(233, 30, 99, 0.25))' if p > 85 else 'linear-gradient(90deg, rgba(255, 152, 0, 0.25), rgba(255, 193, 7, 0.25))' if p > 60 else 'linear-gradient(90deg, rgba(103, 58, 183, 0.25), rgba(233, 30, 99, 0.25))' }};
+                  z-index: 0;
+                  transition: clip-path 1s ease;
+                }
+                ha-card > * {
+                  position: relative;
+                  z-index: 1;
+                }
+          - type: custom:mushroom-template-card
+            entity: sensor.p4dev_psram
+            visibility:
+              - condition: state
+                entity: sensor.p4dev_psram
+                state_not:
+                  - unavailable
+                  - unknown
+            primary: >-
+              {{ (state_attr('sensor.p4dev_psram','psram_free') | int(0) /
+              1048576) | round(1) }} MB free ({{
+              (state_attr('sensor.p4dev_psram','psram_min_free') | int(0) / 1048576) |
+              round(1) }} MB)
+            secondary: >-
+              PSRAM {{ (state_attr('sensor.p4dev_psram','psram_size') | int(0) / 1048576) |
+              round(1) }} MB · {{ states('sensor.p4dev_psram') | float(0) |
+              round(0) | int }}% used
+            icon: mdi:memory
+            icon_color: >-
+              {% set p = states('sensor.p4dev_psram') | float(0) %} {{ 'red' if p > 85
+              else 'amber' if p > 60 else 'indigo' }}
+            grid_options:
+              columns: 12
+              rows: auto
+            card_mod:
+              style: |
+                ha-card {
+                  position: relative;
+                  overflow: hidden;
+                }
+                ha-card::before {
+                  content: "";
+                  position: absolute;
+                  left: 0;
+                  top: 0;
+                  bottom: 0;
+                  width: 100%;
+                  clip-path: inset(0 {{ 100 - (states('sensor.p4dev_psram') | float(0)) }}% 0 0);
+                  background: {% set p = states('sensor.p4dev_psram') | float(0) %}{{ 'linear-gradient(90deg, rgba(244, 67, 54, 0.25), rgba(233, 30, 99, 0.25))' if p > 85 else 'linear-gradient(90deg, rgba(255, 152, 0, 0.25), rgba(255, 193, 7, 0.25))' if p > 60 else 'linear-gradient(90deg, rgba(63, 81, 181, 0.25), rgba(33, 150, 243, 0.25))' }};
+                  z-index: 0;
+                  transition: clip-path 1s ease;
                 }
                 ha-card > * {
                   position: relative;
@@ -739,35 +881,20 @@ views:
               columns: 6
               rows: 2
           - type: custom:mushroom-template-card
-            entity: sensor.h2dev_free_heap
+            entity: sensor.h2dev_dram
             primary: >-
-              Free heap: {{ (states('sensor.h2dev_free_heap')|int(0) / 1024)
-              | round(1) }} KB
+              {{ (state_attr('sensor.h2dev_dram','dram_free') | int(0) /
+              1024) | round(0) | int }} KB free ({{
+              (state_attr('sensor.h2dev_dram','dram_min_free') | int(0) / 1024) |
+              round(0) | int }} KB)
             secondary: >-
-              Min seen: {{
-              (state_attr('sensor.h2dev_free_heap','min_heap')|int(0) / 1024)
-              | round(1) }} KB
+              DRAM {{ (state_attr('sensor.h2dev_dram','dram_size') | int(0) / 1024) |
+              round(0) | int }} KB · {{ states('sensor.h2dev_dram') | float(0) |
+              round(0) | int }}% used
             icon: mdi:memory
             icon_color: >-
-              {% set v = states('sensor.h2dev_free_heap')|int(0) %} {{ 'red'
-              if v < 40000 else 'amber' if v < 80000 else 'green' }}
-            grid_options:
-              columns: 6
-              rows: auto
-          - type: custom:mushroom-template-card
-            primary: >-
-              Total: {{ (state_attr('sensor.h2dev_fs_used','fs_total')|int(0)
-              / 1024) | round(0) }} KB
-            secondary: >-
-              file system usage {% set u =
-              states('sensor.h2dev_fs_used')|int(0) %} {% set t =
-              state_attr('sensor.h2dev_fs_used','fs_total')|int(1) %} {{ (u /
-              t * 100) | round(0) }}%
-            icon_color: >-
-              {% set u = states('sensor.h2dev_fs_used')|int(0) %} {% set t =
-              state_attr('sensor.h2dev_fs_used','fs_total')|int(1) %} {% set
-              p = u / t * 100 %} {{ 'red' if p > 85 else 'amber' if p > 60 else
-              'blue' }}
+              {% set p = states('sensor.h2dev_dram') | float(0) %} {{ 'red' if p > 85
+              else 'amber' if p > 60 else 'teal' }}
             grid_options:
               columns: 6
               rows: auto
@@ -783,10 +910,96 @@ views:
                   left: 0;
                   top: 0;
                   bottom: 0;
-                  width: {% set u = states('sensor.h2dev_fs_used')|int(0) %}{% set t = state_attr('sensor.h2dev_fs_used','fs_total')|int(1) %}{{ (u / t * 100) | round(1) }}%;
-                  background: rgba(33, 150, 243, 0.25);
+                  width: 100%;
+                  clip-path: inset(0 {{ 100 - (states('sensor.h2dev_dram') | float(0)) }}% 0 0);
+                  background: {% set p = states('sensor.h2dev_dram') | float(0) %}{{ 'linear-gradient(90deg, rgba(244, 67, 54, 0.25), rgba(233, 30, 99, 0.25))' if p > 85 else 'linear-gradient(90deg, rgba(255, 152, 0, 0.25), rgba(255, 193, 7, 0.25))' if p > 60 else 'linear-gradient(90deg, rgba(0, 150, 136, 0.25), rgba(76, 175, 80, 0.25))' }};
                   z-index: 0;
-                  transition: width 1s ease;
+                  transition: clip-path 1s ease;
+                }
+                ha-card > * {
+                  position: relative;
+                  z-index: 1;
+                }
+          - type: custom:mushroom-template-card
+            entity: sensor.h2dev_fs
+            primary: >-
+              {{ ((state_attr('sensor.h2dev_fs','fs_size') | int(0) -
+              state_attr('sensor.h2dev_fs','fs_used') | int(0)) / 1024) | round(0) | int }}
+              KB free
+            secondary: >-
+              FS {{ (state_attr('sensor.h2dev_fs','fs_size') | int(0) / 1024) |
+              round(0) | int }} KB · {{ states('sensor.h2dev_fs') | float(0) |
+              round(0) | int }}% used
+            icon: mdi:harddisk
+            icon_color: >-
+              {% set p = states('sensor.h2dev_fs') | float(0) %} {{ 'red' if p > 85
+              else 'amber' if p > 60 else 'deep-purple' }}
+            grid_options:
+              columns: 6
+              rows: auto
+            card_mod:
+              style: |
+                ha-card {
+                  position: relative;
+                  overflow: hidden;
+                }
+                ha-card::before {
+                  content: "";
+                  position: absolute;
+                  left: 0;
+                  top: 0;
+                  bottom: 0;
+                  width: 100%;
+                  clip-path: inset(0 {{ 100 - (states('sensor.h2dev_fs') | float(0)) }}% 0 0);
+                  background: {% set p = states('sensor.h2dev_fs') | float(0) %}{{ 'linear-gradient(90deg, rgba(244, 67, 54, 0.25), rgba(233, 30, 99, 0.25))' if p > 85 else 'linear-gradient(90deg, rgba(255, 152, 0, 0.25), rgba(255, 193, 7, 0.25))' if p > 60 else 'linear-gradient(90deg, rgba(103, 58, 183, 0.25), rgba(233, 30, 99, 0.25))' }};
+                  z-index: 0;
+                  transition: clip-path 1s ease;
+                }
+                ha-card > * {
+                  position: relative;
+                  z-index: 1;
+                }
+          - type: custom:mushroom-template-card
+            entity: sensor.h2dev_psram
+            visibility:
+              - condition: state
+                entity: sensor.h2dev_psram
+                state_not:
+                  - unavailable
+                  - unknown
+            primary: >-
+              {{ (state_attr('sensor.h2dev_psram','psram_free') | int(0) /
+              1048576) | round(1) }} MB free ({{
+              (state_attr('sensor.h2dev_psram','psram_min_free') | int(0) / 1048576) |
+              round(1) }} MB)
+            secondary: >-
+              PSRAM {{ (state_attr('sensor.h2dev_psram','psram_size') | int(0) / 1048576) |
+              round(1) }} MB · {{ states('sensor.h2dev_psram') | float(0) |
+              round(0) | int }}% used
+            icon: mdi:memory
+            icon_color: >-
+              {% set p = states('sensor.h2dev_psram') | float(0) %} {{ 'red' if p > 85
+              else 'amber' if p > 60 else 'indigo' }}
+            grid_options:
+              columns: 12
+              rows: auto
+            card_mod:
+              style: |
+                ha-card {
+                  position: relative;
+                  overflow: hidden;
+                }
+                ha-card::before {
+                  content: "";
+                  position: absolute;
+                  left: 0;
+                  top: 0;
+                  bottom: 0;
+                  width: 100%;
+                  clip-path: inset(0 {{ 100 - (states('sensor.h2dev_psram') | float(0)) }}% 0 0);
+                  background: {% set p = states('sensor.h2dev_psram') | float(0) %}{{ 'linear-gradient(90deg, rgba(244, 67, 54, 0.25), rgba(233, 30, 99, 0.25))' if p > 85 else 'linear-gradient(90deg, rgba(255, 152, 0, 0.25), rgba(255, 193, 7, 0.25))' if p > 60 else 'linear-gradient(90deg, rgba(63, 81, 181, 0.25), rgba(33, 150, 243, 0.25))' }};
+                  z-index: 0;
+                  transition: clip-path 1s ease;
                 }
                 ha-card > * {
                   position: relative;
@@ -1017,35 +1230,20 @@ views:
               columns: 6
               rows: 2
           - type: custom:mushroom-template-card
-            entity: sensor.atom_free_heap
+            entity: sensor.atom_dram
             primary: >-
-              Free heap: {{ (states('sensor.atom_free_heap')|int(0) / 1024)
-              | round(1) }} KB
+              {{ (state_attr('sensor.atom_dram','dram_free') | int(0) /
+              1024) | round(0) | int }} KB free ({{
+              (state_attr('sensor.atom_dram','dram_min_free') | int(0) / 1024) |
+              round(0) | int }} KB)
             secondary: >-
-              Min seen: {{
-              (state_attr('sensor.atom_free_heap','min_heap')|int(0) / 1024)
-              | round(1) }} KB
+              DRAM {{ (state_attr('sensor.atom_dram','dram_size') | int(0) / 1024) |
+              round(0) | int }} KB · {{ states('sensor.atom_dram') | float(0) |
+              round(0) | int }}% used
             icon: mdi:memory
             icon_color: >-
-              {% set v = states('sensor.atom_free_heap')|int(0) %} {{ 'red'
-              if v < 40000 else 'amber' if v < 80000 else 'green' }}
-            grid_options:
-              columns: 6
-              rows: auto
-          - type: custom:mushroom-template-card
-            primary: >-
-              Total: {{ (state_attr('sensor.atom_fs_used','fs_total')|int(0)
-              / 1024) | round(0) }} KB
-            secondary: >-
-              file system usage {% set u =
-              states('sensor.atom_fs_used')|int(0) %} {% set t =
-              state_attr('sensor.atom_fs_used','fs_total')|int(1) %} {{ (u /
-              t * 100) | round(0) }}%
-            icon_color: >-
-              {% set u = states('sensor.atom_fs_used')|int(0) %} {% set t =
-              state_attr('sensor.atom_fs_used','fs_total')|int(1) %} {% set
-              p = u / t * 100 %} {{ 'red' if p > 85 else 'amber' if p > 60 else
-              'blue' }}
+              {% set p = states('sensor.atom_dram') | float(0) %} {{ 'red' if p > 85
+              else 'amber' if p > 60 else 'teal' }}
             grid_options:
               columns: 6
               rows: auto
@@ -1061,10 +1259,96 @@ views:
                   left: 0;
                   top: 0;
                   bottom: 0;
-                  width: {% set u = states('sensor.atom_fs_used')|int(0) %}{% set t = state_attr('sensor.atom_fs_used','fs_total')|int(1) %}{{ (u / t * 100) | round(1) }}%;
-                  background: rgba(33, 150, 243, 0.25);
+                  width: 100%;
+                  clip-path: inset(0 {{ 100 - (states('sensor.atom_dram') | float(0)) }}% 0 0);
+                  background: {% set p = states('sensor.atom_dram') | float(0) %}{{ 'linear-gradient(90deg, rgba(244, 67, 54, 0.25), rgba(233, 30, 99, 0.25))' if p > 85 else 'linear-gradient(90deg, rgba(255, 152, 0, 0.25), rgba(255, 193, 7, 0.25))' if p > 60 else 'linear-gradient(90deg, rgba(0, 150, 136, 0.25), rgba(76, 175, 80, 0.25))' }};
                   z-index: 0;
-                  transition: width 1s ease;
+                  transition: clip-path 1s ease;
+                }
+                ha-card > * {
+                  position: relative;
+                  z-index: 1;
+                }
+          - type: custom:mushroom-template-card
+            entity: sensor.atom_fs
+            primary: >-
+              {{ ((state_attr('sensor.atom_fs','fs_size') | int(0) -
+              state_attr('sensor.atom_fs','fs_used') | int(0)) / 1024) | round(0) | int }}
+              KB free
+            secondary: >-
+              FS {{ (state_attr('sensor.atom_fs','fs_size') | int(0) / 1024) |
+              round(0) | int }} KB · {{ states('sensor.atom_fs') | float(0) |
+              round(0) | int }}% used
+            icon: mdi:harddisk
+            icon_color: >-
+              {% set p = states('sensor.atom_fs') | float(0) %} {{ 'red' if p > 85
+              else 'amber' if p > 60 else 'deep-purple' }}
+            grid_options:
+              columns: 6
+              rows: auto
+            card_mod:
+              style: |
+                ha-card {
+                  position: relative;
+                  overflow: hidden;
+                }
+                ha-card::before {
+                  content: "";
+                  position: absolute;
+                  left: 0;
+                  top: 0;
+                  bottom: 0;
+                  width: 100%;
+                  clip-path: inset(0 {{ 100 - (states('sensor.atom_fs') | float(0)) }}% 0 0);
+                  background: {% set p = states('sensor.atom_fs') | float(0) %}{{ 'linear-gradient(90deg, rgba(244, 67, 54, 0.25), rgba(233, 30, 99, 0.25))' if p > 85 else 'linear-gradient(90deg, rgba(255, 152, 0, 0.25), rgba(255, 193, 7, 0.25))' if p > 60 else 'linear-gradient(90deg, rgba(103, 58, 183, 0.25), rgba(233, 30, 99, 0.25))' }};
+                  z-index: 0;
+                  transition: clip-path 1s ease;
+                }
+                ha-card > * {
+                  position: relative;
+                  z-index: 1;
+                }
+          - type: custom:mushroom-template-card
+            entity: sensor.atom_psram
+            visibility:
+              - condition: state
+                entity: sensor.atom_psram
+                state_not:
+                  - unavailable
+                  - unknown
+            primary: >-
+              {{ (state_attr('sensor.atom_psram','psram_free') | int(0) /
+              1048576) | round(1) }} MB free ({{
+              (state_attr('sensor.atom_psram','psram_min_free') | int(0) / 1048576) |
+              round(1) }} MB)
+            secondary: >-
+              PSRAM {{ (state_attr('sensor.atom_psram','psram_size') | int(0) / 1048576) |
+              round(1) }} MB · {{ states('sensor.atom_psram') | float(0) |
+              round(0) | int }}% used
+            icon: mdi:memory
+            icon_color: >-
+              {% set p = states('sensor.atom_psram') | float(0) %} {{ 'red' if p > 85
+              else 'amber' if p > 60 else 'indigo' }}
+            grid_options:
+              columns: 12
+              rows: auto
+            card_mod:
+              style: |
+                ha-card {
+                  position: relative;
+                  overflow: hidden;
+                }
+                ha-card::before {
+                  content: "";
+                  position: absolute;
+                  left: 0;
+                  top: 0;
+                  bottom: 0;
+                  width: 100%;
+                  clip-path: inset(0 {{ 100 - (states('sensor.atom_psram') | float(0)) }}% 0 0);
+                  background: {% set p = states('sensor.atom_psram') | float(0) %}{{ 'linear-gradient(90deg, rgba(244, 67, 54, 0.25), rgba(233, 30, 99, 0.25))' if p > 85 else 'linear-gradient(90deg, rgba(255, 152, 0, 0.25), rgba(255, 193, 7, 0.25))' if p > 60 else 'linear-gradient(90deg, rgba(63, 81, 181, 0.25), rgba(33, 150, 243, 0.25))' }};
+                  z-index: 0;
+                  transition: clip-path 1s ease;
                 }
                 ha-card > * {
                   position: relative;
@@ -1295,35 +1579,20 @@ views:
               columns: 6
               rows: 2
           - type: custom:mushroom-template-card
-            entity: sensor.c6dev_free_heap
+            entity: sensor.c6dev_dram
             primary: >-
-              Free heap: {{ (states('sensor.c6dev_free_heap')|int(0) / 1024)
-              | round(1) }} KB
+              {{ (state_attr('sensor.c6dev_dram','dram_free') | int(0) /
+              1024) | round(0) | int }} KB free ({{
+              (state_attr('sensor.c6dev_dram','dram_min_free') | int(0) / 1024) |
+              round(0) | int }} KB)
             secondary: >-
-              Min seen: {{
-              (state_attr('sensor.c6dev_free_heap','min_heap')|int(0) / 1024)
-              | round(1) }} KB
+              DRAM {{ (state_attr('sensor.c6dev_dram','dram_size') | int(0) / 1024) |
+              round(0) | int }} KB · {{ states('sensor.c6dev_dram') | float(0) |
+              round(0) | int }}% used
             icon: mdi:memory
             icon_color: >-
-              {% set v = states('sensor.c6dev_free_heap')|int(0) %} {{ 'red'
-              if v < 40000 else 'amber' if v < 80000 else 'green' }}
-            grid_options:
-              columns: 6
-              rows: auto
-          - type: custom:mushroom-template-card
-            primary: >-
-              Total: {{ (state_attr('sensor.c6dev_fs_used','fs_total')|int(0)
-              / 1024) | round(0) }} KB
-            secondary: >-
-              file system usage {% set u =
-              states('sensor.c6dev_fs_used')|int(0) %} {% set t =
-              state_attr('sensor.c6dev_fs_used','fs_total')|int(1) %} {{ (u /
-              t * 100) | round(0) }}%
-            icon_color: >-
-              {% set u = states('sensor.c6dev_fs_used')|int(0) %} {% set t =
-              state_attr('sensor.c6dev_fs_used','fs_total')|int(1) %} {% set
-              p = u / t * 100 %} {{ 'red' if p > 85 else 'amber' if p > 60 else
-              'blue' }}
+              {% set p = states('sensor.c6dev_dram') | float(0) %} {{ 'red' if p > 85
+              else 'amber' if p > 60 else 'teal' }}
             grid_options:
               columns: 6
               rows: auto
@@ -1339,10 +1608,96 @@ views:
                   left: 0;
                   top: 0;
                   bottom: 0;
-                  width: {% set u = states('sensor.c6dev_fs_used')|int(0) %}{% set t = state_attr('sensor.c6dev_fs_used','fs_total')|int(1) %}{{ (u / t * 100) | round(1) }}%;
-                  background: rgba(33, 150, 243, 0.25);
+                  width: 100%;
+                  clip-path: inset(0 {{ 100 - (states('sensor.c6dev_dram') | float(0)) }}% 0 0);
+                  background: {% set p = states('sensor.c6dev_dram') | float(0) %}{{ 'linear-gradient(90deg, rgba(244, 67, 54, 0.25), rgba(233, 30, 99, 0.25))' if p > 85 else 'linear-gradient(90deg, rgba(255, 152, 0, 0.25), rgba(255, 193, 7, 0.25))' if p > 60 else 'linear-gradient(90deg, rgba(0, 150, 136, 0.25), rgba(76, 175, 80, 0.25))' }};
                   z-index: 0;
-                  transition: width 1s ease;
+                  transition: clip-path 1s ease;
+                }
+                ha-card > * {
+                  position: relative;
+                  z-index: 1;
+                }
+          - type: custom:mushroom-template-card
+            entity: sensor.c6dev_fs
+            primary: >-
+              {{ ((state_attr('sensor.c6dev_fs','fs_size') | int(0) -
+              state_attr('sensor.c6dev_fs','fs_used') | int(0)) / 1024) | round(0) | int }}
+              KB free
+            secondary: >-
+              FS {{ (state_attr('sensor.c6dev_fs','fs_size') | int(0) / 1024) |
+              round(0) | int }} KB · {{ states('sensor.c6dev_fs') | float(0) |
+              round(0) | int }}% used
+            icon: mdi:harddisk
+            icon_color: >-
+              {% set p = states('sensor.c6dev_fs') | float(0) %} {{ 'red' if p > 85
+              else 'amber' if p > 60 else 'deep-purple' }}
+            grid_options:
+              columns: 6
+              rows: auto
+            card_mod:
+              style: |
+                ha-card {
+                  position: relative;
+                  overflow: hidden;
+                }
+                ha-card::before {
+                  content: "";
+                  position: absolute;
+                  left: 0;
+                  top: 0;
+                  bottom: 0;
+                  width: 100%;
+                  clip-path: inset(0 {{ 100 - (states('sensor.c6dev_fs') | float(0)) }}% 0 0);
+                  background: {% set p = states('sensor.c6dev_fs') | float(0) %}{{ 'linear-gradient(90deg, rgba(244, 67, 54, 0.25), rgba(233, 30, 99, 0.25))' if p > 85 else 'linear-gradient(90deg, rgba(255, 152, 0, 0.25), rgba(255, 193, 7, 0.25))' if p > 60 else 'linear-gradient(90deg, rgba(103, 58, 183, 0.25), rgba(233, 30, 99, 0.25))' }};
+                  z-index: 0;
+                  transition: clip-path 1s ease;
+                }
+                ha-card > * {
+                  position: relative;
+                  z-index: 1;
+                }
+          - type: custom:mushroom-template-card
+            entity: sensor.c6dev_psram
+            visibility:
+              - condition: state
+                entity: sensor.c6dev_psram
+                state_not:
+                  - unavailable
+                  - unknown
+            primary: >-
+              {{ (state_attr('sensor.c6dev_psram','psram_free') | int(0) /
+              1048576) | round(1) }} MB free ({{
+              (state_attr('sensor.c6dev_psram','psram_min_free') | int(0) / 1048576) |
+              round(1) }} MB)
+            secondary: >-
+              PSRAM {{ (state_attr('sensor.c6dev_psram','psram_size') | int(0) / 1048576) |
+              round(1) }} MB · {{ states('sensor.c6dev_psram') | float(0) |
+              round(0) | int }}% used
+            icon: mdi:memory
+            icon_color: >-
+              {% set p = states('sensor.c6dev_psram') | float(0) %} {{ 'red' if p > 85
+              else 'amber' if p > 60 else 'indigo' }}
+            grid_options:
+              columns: 12
+              rows: auto
+            card_mod:
+              style: |
+                ha-card {
+                  position: relative;
+                  overflow: hidden;
+                }
+                ha-card::before {
+                  content: "";
+                  position: absolute;
+                  left: 0;
+                  top: 0;
+                  bottom: 0;
+                  width: 100%;
+                  clip-path: inset(0 {{ 100 - (states('sensor.c6dev_psram') | float(0)) }}% 0 0);
+                  background: {% set p = states('sensor.c6dev_psram') | float(0) %}{{ 'linear-gradient(90deg, rgba(244, 67, 54, 0.25), rgba(233, 30, 99, 0.25))' if p > 85 else 'linear-gradient(90deg, rgba(255, 152, 0, 0.25), rgba(255, 193, 7, 0.25))' if p > 60 else 'linear-gradient(90deg, rgba(63, 81, 181, 0.25), rgba(33, 150, 243, 0.25))' }};
+                  z-index: 0;
+                  transition: clip-path 1s ease;
                 }
                 ha-card > * {
                   position: relative;
