@@ -9,7 +9,7 @@ set +e  # Don't exit on error, handle errors manually
 DEVICES=(
     "atom:esp32s3:obr:/dev/ttyAtom"
     "h2dev:esp32h2:ftd:/dev/ttyH2"
-    "c6dev:esp32c6:ftd:/dev/ttyC6"
+    "c6dev:esp32c6::/dev/ttyC6"
     "p4dev:esp32p4:eth:/dev/ttyP4"
     # "c3_cikonesp:esp32c3:mesh:/dev/ttyESP32c3"
     # "cikonesp:esp32:mesh:/dev/ttyESP32"
@@ -18,7 +18,11 @@ DEVICES=(
 # Main build loop
 for device_entry in "${DEVICES[@]}"; do
     IFS=':' read -r device target variant port <<< "$device_entry"
-    
+
+    # Profiles without variants (only sdkconfig.defaults) leave the variant field empty
+    variant_arg=()
+    [ -n "${variant}" ] && variant_arg=(-DDEVICE_PROFILE_VARIANT="${variant}")
+
     echo ""
     echo "========================================"
     echo "Building: ${device} (${target}, variant: ${variant}) -> ${port}"
@@ -30,11 +34,11 @@ for device_entry in "${DEVICES[@]}"; do
     
     # 2. Set target
     echo "Step 2/4: Set target to ${target}"
-    idf.py -DDEVICE_PROFILE="${device}" -DDEVICE_PROFILE_VARIANT="${variant}" set-target "${target}" || { echo "✗ Set target failed for ${device}"; continue; }
+    idf.py -DDEVICE_PROFILE="${device}" "${variant_arg[@]}" set-target "${target}" || { echo "✗ Set target failed for ${device}"; continue; }
     
     # 3. Build
     echo "Step 3/4: Build"
-    idf.py -DDEVICE_PROFILE="${device}" -DDEVICE_PROFILE_VARIANT="${variant}" build || { echo "✗ Build failed for ${device}"; continue; }
+    idf.py -DDEVICE_PROFILE="${device}" "${variant_arg[@]}" build || { echo "✗ Build failed for ${device}"; continue; }
     
     # 4. Flash (optional - uncomment to enable)
     echo "Step 4/4: Flash to ${port}"

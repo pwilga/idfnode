@@ -30,6 +30,10 @@ extern void device_handlers_init(void);
 #include "inet_adapter.h"
 #endif
 
+#if CONFIG_ENABLE_SUPERVISOR_NETWORK
+#include "network_adapter.h"
+#endif
+
 #if CONFIG_ENABLE_SUPERVISOR_INET_MESH
 #include "inet_mesh_adapter.h"
 #endif
@@ -78,6 +82,10 @@ void app_main(void) {
 
 #if CONFIG_ENABLE_SUPERVISOR_INET
     supervisor_register_adapter(&inet_adapter);
+#endif
+
+#if CONFIG_ENABLE_SUPERVISOR_NETWORK
+    supervisor_register_adapter(&network_adapter);
 #endif
 
 #if CONFIG_ENABLE_SUPERVISOR_INET_MESH

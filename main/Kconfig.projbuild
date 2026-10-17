@@ -14,6 +14,13 @@ menu "Cikon App Configuration"
         help
             Enable network adapter (WiFi, MQTT, Home Assistant).
 
+    config ENABLE_SUPERVISOR_NETWORK
+        bool "Enable network adapter"
+        default n
+        depends on !ENABLE_SUPERVISOR_INET
+        help
+            Enable network adapter (uplink + MQTT, HTTP, SNTP, mDNS, OTA). Replaces INET.
+
     config ENABLE_SUPERVISOR_INET_MESH
         bool "Enable INET Mesh adapter"
         default n

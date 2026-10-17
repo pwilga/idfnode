@@ -214,11 +214,10 @@
       "postFlash": ""
     }
   },
-  "c6dev_ftd": {
+  "c6dev": {
     "build": {
       "compileArgs": [
         "-DDEVICE_PROFILE=c6dev",
-        "-DDEVICE_PROFILE_VARIANT=ftd",
         "-G Ninja"
       ],
       "ninjaArgs": [],
@@ -227,8 +226,7 @@
       "sdkconfigFilePath": ""
     },
     "env": {
-      "DEVICE_PROFILE": "c6dev",
-      "DEVICE_PROFILE_VARIANT": "ftd"
+      "DEVICE_PROFILE": "c6dev"
     },
     "idfTarget": "esp32c6",
     "flashBaudRate": "",
