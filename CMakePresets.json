@@ -220,13 +220,12 @@
       }
     },
     {
-      "name": "c6dev_ftd",
+      "name": "c6dev",
       "cacheVariables": {
         "IDF_TARGET": "esp32c6"
       },
       "environment": {
-        "DEVICE_PROFILE": "c6dev",
-        "DEVICE_PROFILE_VARIANT": "ftd"
+        "DEVICE_PROFILE": "c6dev"
       },
       "vendor": {
         "espressif/vscode-esp-idf": {
@@ -236,9 +235,18 @@
               "type": "compileArgs",
               "value": [
                 "-DDEVICE_PROFILE=c6dev",
-                "-DDEVICE_PROFILE_VARIANT=ftd",
                 "-G Ninja"
               ]
+            },
+            {
+              "type": "openOCD",
+              "value": {
+                "debugLevel": 2,
+                "configs": [
+                  "board/esp32c6-builtin.cfg"
+                ],
+                "args": []
+              }
             }
           ]
         }
