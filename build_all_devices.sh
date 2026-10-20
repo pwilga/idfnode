@@ -4,15 +4,13 @@
 set +e  # Don't exit on error, handle errors manually
 
 # Device profiles array: "device_name:target:variant:port"
-# variant can be: inet, mesh, espnow, etc.
+# variant can be: inet, obr, ftd, eth, etc.
 # Usage: -DDEVICE_PROFILE=cikonesp -DDEVICE_PROFILE_VARIANT=inet
 DEVICES=(
     "atom:esp32s3:obr:/dev/ttyAtom"
     "h2dev:esp32h2:ftd:/dev/ttyH2"
     "c6dev:esp32c6::/dev/ttyC6"
     "p4dev:esp32p4:eth:/dev/ttyP4"
-    # "c3_cikonesp:esp32c3:mesh:/dev/ttyESP32c3"
-    # "cikonesp:esp32:mesh:/dev/ttyESP32"
 )
 
 # Main build loop

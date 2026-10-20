@@ -75,56 +75,6 @@
       }
     },
     {
-      "name": "cikonesp_mesh",
-      "cacheVariables": {
-        "IDF_TARGET": "esp32"
-      },
-      "environment": {
-        "DEVICE_PROFILE": "cikonesp",
-        "DEVICE_PROFILE_VARIANT": "mesh"
-      },
-      "vendor": {
-        "espressif/vscode-esp-idf": {
-          "schemaVersion": 1,
-          "settings": [
-            {
-              "type": "compileArgs",
-              "value": [
-                "-DDEVICE_PROFILE_VARIANT=mesh",
-                "-DDEVICE_PROFILE=cikonesp",
-                "-G Ninja"
-              ]
-            }
-          ]
-        }
-      }
-    },
-    {
-      "name": "atom_mesh",
-      "cacheVariables": {
-        "IDF_TARGET": "esp32s3"
-      },
-      "environment": {
-        "DEVICE_PROFILE": "atom",
-        "DEVICE_PROFILE_VARIANT": "mesh"
-      },
-      "vendor": {
-        "espressif/vscode-esp-idf": {
-          "schemaVersion": 1,
-          "settings": [
-            {
-              "type": "compileArgs",
-              "value": [
-                "-DDEVICE_PROFILE=atom",
-                "-G Ninja",
-                "-DDEVICE_PROFILE_VARIANT=mesh"
-              ]
-            }
-          ]
-        }
-      }
-    },
-    {
       "name": "atom",
       "cacheVariables": {
         "IDF_TARGET": "esp32s3"

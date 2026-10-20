@@ -59,68 +59,6 @@
       "postFlash": ""
     }
   },
-  "cikonesp_mesh": {
-    "build": {
-      "compileArgs": [
-        "-DDEVICE_PROFILE_VARIANT=mesh",
-        "-DDEVICE_PROFILE=cikonesp",
-        "-G Ninja"
-      ],
-      "ninjaArgs": [],
-      "buildDirectoryPath": "",
-      "sdkconfigDefaults": [],
-      "sdkconfigFilePath": ""
-    },
-    "env": {
-      "DEVICE_PROFILE": "cikonesp",
-      "DEVICE_PROFILE_VARIANT": "mesh"
-    },
-    "idfTarget": "esp32",
-    "flashBaudRate": "",
-    "monitorBaudRate": "",
-    "openOCD": {
-      "debugLevel": -1,
-      "configs": [],
-      "args": []
-    },
-    "tasks": {
-      "preBuild": "",
-      "preFlash": "",
-      "postBuild": "",
-      "postFlash": ""
-    }
-  },
-  "atom_mesh": {
-    "build": {
-      "compileArgs": [
-        "-DDEVICE_PROFILE=atom",
-        "-G Ninja",
-        "-DDEVICE_PROFILE_VARIANT=mesh"
-      ],
-      "ninjaArgs": [],
-      "buildDirectoryPath": "",
-      "sdkconfigDefaults": [],
-      "sdkconfigFilePath": ""
-    },
-    "env": {
-      "DEVICE_PROFILE": "atom",
-      "DEVICE_PROFILE_VARIANT": "mesh"
-    },
-    "idfTarget": "esp32s3",
-    "flashBaudRate": "",
-    "monitorBaudRate": "",
-    "openOCD": {
-      "debugLevel": -1,
-      "configs": [],
-      "args": []
-    },
-    "tasks": {
-      "preBuild": "",
-      "preFlash": "",
-      "postBuild": "",
-      "postFlash": ""
-    }
-  },
   "atom": {
     "build": {
       "compileArgs": [

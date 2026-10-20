@@ -8,24 +8,11 @@ menu "Cikon App Configuration"
         bool "Enable debug adapter"
         default n
 
-    config ENABLE_SUPERVISOR_INET
-        bool "Enable INET adapter"
-        default n
-        help
-            Enable network adapter (WiFi, MQTT, Home Assistant).
-
     config ENABLE_SUPERVISOR_NETWORK
         bool "Enable network adapter"
         default n
-        depends on !ENABLE_SUPERVISOR_INET
         help
-            Enable network adapter (uplink + MQTT, HTTP, SNTP, mDNS, OTA). Replaces INET.
-
-    config ENABLE_SUPERVISOR_INET_MESH
-        bool "Enable INET Mesh adapter"
-        default n
-        help
-            Enable network mesh adapter (Mesh IF, MQTT, ...).
+            Enable network adapter (uplink + MQTT, HTTP, SNTP, mDNS, OTA).
 
     config ENABLE_SUPERVISOR_INET_ETHERNET
         bool "Enable INET Ethernet adapter"

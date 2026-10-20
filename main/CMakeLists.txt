@@ -1,7 +1,7 @@
 set(SRCS "main.c")
 
 # Auto-include device-specific handlers based on DEVICE_PROFILE
-# Usage: idf.py -DDEVICE_PROFILE=cikonesp_mesh build
+# Usage: idf.py -DDEVICE_PROFILE=cikonesp build
 if(DEFINED DEVICE_PROFILE)
     set(DEVICE_HANDLERS "${CMAKE_CURRENT_SOURCE_DIR}/../devices/${DEVICE_PROFILE}/device_handlers.c")
 
