@@ -1,8 +1,11 @@
 CONFIG_ENABLE_SUPERVISOR_DEBUG=y
 CONFIG_ENABLE_SUPERVISOR_NETWORK=y
 CONFIG_ENABLE_SUPERVISOR_SWITCH=y
+CONFIG_ENABLE_SUPERVISOR_BUTTON=y
 
 CONFIG_SWITCH_GPIO_LIST="10:1:Fake Switch"
+# GPIO20 shorted to GND simulates the button (internal pull-up, active low)
+CONFIG_BUTTON_GPIO_LIST="20:0:AP"
 
 # Flash savings — WiFi + OpenThread in one image overflows the 1792K OTA slot at -Og
 CONFIG_COMPILER_OPTIMIZATION_SIZE=y

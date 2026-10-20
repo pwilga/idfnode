@@ -26,10 +26,6 @@ extern void device_handlers_init(void);
 #if CONFIG_ENABLE_SUPERVISOR_THREAD_DEVICE
 #include "thread_device_adapter.h"
 #endif
-#if CONFIG_ENABLE_SUPERVISOR_INET
-#include "inet_adapter.h"
-#endif
-
 #if CONFIG_ENABLE_SUPERVISOR_NETWORK
 #include "network_adapter.h"
 #endif
@@ -78,10 +74,6 @@ void app_main(void) {
 
 #if CONFIG_ENABLE_SUPERVISOR_DEBUG
     supervisor_register_adapter(&debug_adapter);
-#endif
-
-#if CONFIG_ENABLE_SUPERVISOR_INET
-    supervisor_register_adapter(&inet_adapter);
 #endif
 
 #if CONFIG_ENABLE_SUPERVISOR_NETWORK

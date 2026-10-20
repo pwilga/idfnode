@@ -20,12 +20,6 @@ dependencies:
     matches:
       - if: "$CONFIG{ENABLE_SUPERVISOR_DEBUG} == True"
 
-  cikon_supervisor_adapters_inet:
-    git: "https://github.com/pwilga/cikon-iot-solution.git"
-    path: components/cikon_supervisor_adapters/cikon_supervisor_adapters_inet
-    matches:
-      - if: "$CONFIG{ENABLE_SUPERVISOR_INET} == True"
-
   cikon_supervisor_adapters_network:
     git: "https://github.com/pwilga/cikon-iot-solution.git"
     path: components/cikon_supervisor_adapters/cikon_supervisor_adapters_network
