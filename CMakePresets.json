@@ -272,6 +272,16 @@
                 "-DDEVICE_PROFILE_VARIANT=eth",
                 "-G Ninja"
               ]
+            },
+            {
+              "type": "openOCD",
+              "value": {
+                "debugLevel": 2,
+                "configs": [
+                  "board/esp32p4-builtin.cfg"
+                ],
+                "args": []
+              }
             }
           ]
         }

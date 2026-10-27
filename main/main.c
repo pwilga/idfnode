@@ -30,10 +30,6 @@ extern void device_handlers_init(void);
 #include "network_adapter.h"
 #endif
 
-#if CONFIG_ENABLE_SUPERVISOR_INET_ETHERNET
-#include "inet_ethernet_adapter.h"
-#endif
-
 #if CONFIG_ENABLE_SUPERVISOR_LED
 #include "led_adapter.h"
 #endif
@@ -74,10 +70,6 @@ void app_main(void) {
 
 #if CONFIG_ENABLE_SUPERVISOR_NETWORK
     supervisor_register_adapter(&network_adapter);
-#endif
-
-#if CONFIG_ENABLE_SUPERVISOR_INET_ETHERNET
-    supervisor_register_adapter(&inet_ethernet_adapter);
 #endif
 
 #if CONFIG_ENABLE_SUPERVISOR_THREAD_BORDER_ROUTER
