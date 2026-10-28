@@ -27,6 +27,8 @@ CONFIG_OPENTHREAD_RADIO_SPINEL_UART=y
 CONFIG_OPENTHREAD_TASK_SIZE=8192
 CONFIG_OPENTHREAD_CLI=y
 CONFIG_OPENTHREAD_RCP_COMMAND=y
+# BR runs the SRP server; its own name goes out over mDNS
+# CONFIG_OPENTHREAD_SRP_CLIENT is not set
 
 # Uncomment for TCP OTA (push-based) — required to buffer large in-flight data over Thread
 # CONFIG_OPENTHREAD_NUM_MESSAGE_BUFFERS=256

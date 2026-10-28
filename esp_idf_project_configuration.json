@@ -212,37 +212,6 @@
       "postFlash": ""
     }
   },
-  "h2dev_sed": {
-    "build": {
-      "compileArgs": [
-        "-DDEVICE_PROFILE=h2dev",
-        "-DDEVICE_PROFILE_VARIANT=sed",
-        "-G Ninja"
-      ],
-      "ninjaArgs": [],
-      "buildDirectoryPath": "",
-      "sdkconfigDefaults": [],
-      "sdkconfigFilePath": ""
-    },
-    "env": {
-      "DEVICE_PROFILE": "h2dev",
-      "DEVICE_PROFILE_VARIANT": "sed"
-    },
-    "idfTarget": "esp32h2",
-    "flashBaudRate": "",
-    "monitorBaudRate": "",
-    "openOCD": {
-      "debugLevel": -1,
-      "configs": [],
-      "args": []
-    },
-    "tasks": {
-      "preBuild": "",
-      "preFlash": "",
-      "postBuild": "",
-      "postFlash": ""
-    }
-  },
   "p4dev_eth": {
     "build": {
       "compileArgs": [

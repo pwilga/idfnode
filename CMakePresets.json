@@ -222,31 +222,16 @@
                 "-DDEVICE_PROFILE_VARIANT=ftd",
                 "-G Ninja"
               ]
-            }
-          ]
-        }
-      }
-    },
-    {
-      "name": "h2dev_sed",
-      "cacheVariables": {
-        "IDF_TARGET": "esp32h2"
-      },
-      "environment": {
-        "DEVICE_PROFILE": "h2dev",
-        "DEVICE_PROFILE_VARIANT": "sed"
-      },
-      "vendor": {
-        "espressif/vscode-esp-idf": {
-          "schemaVersion": 1,
-          "settings": [
+            },
             {
-              "type": "compileArgs",
-              "value": [
-                "-DDEVICE_PROFILE=h2dev",
-                "-DDEVICE_PROFILE_VARIANT=sed",
-                "-G Ninja"
-              ]
+              "type": "openOCD",
+              "value": {
+                "debugLevel": 2,
+                "configs": [
+                  "board/esp32h2-builtin.cfg"
+                ],
+                "args": []
+              }
             }
           ]
         }

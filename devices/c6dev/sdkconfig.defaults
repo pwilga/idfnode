@@ -11,7 +11,7 @@ CONFIG_BUTTON_GPIO_LIST="20:0:AP"
 # Flash savings — WiFi + OpenThread in one image overflows the 1792K OTA slot at -Og
 CONFIG_COMPILER_OPTIMIZATION_SIZE=y
 
-# CONFIG_ENABLE_SUPERVISOR_THREAD_DEVICE=y
+# CONFIG_NETWORK_UPLINK_THREAD=y
 
 # # eventfd required by OpenThread
 # CONFIG_VFS_EVENTFD_MAX_FDS=5
