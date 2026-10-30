@@ -23,9 +23,6 @@ extern void device_handlers_init(void);
 #if CONFIG_ENABLE_SUPERVISOR_THREAD_BORDER_ROUTER
 #include "thread_border_router_adapter.h"
 #endif
-#if CONFIG_ENABLE_SUPERVISOR_THREAD_DEVICE
-#include "thread_device_adapter.h"
-#endif
 #if CONFIG_ENABLE_SUPERVISOR_NETWORK
 #include "network_adapter.h"
 #endif
@@ -74,10 +71,6 @@ void app_main(void) {
 
 #if CONFIG_ENABLE_SUPERVISOR_THREAD_BORDER_ROUTER
     supervisor_register_adapter(&thread_border_router_adapter);
-#endif
-
-#if CONFIG_ENABLE_SUPERVISOR_THREAD_DEVICE
-    supervisor_register_adapter(&thread_device_adapter);
 #endif
 
 #if CONFIG_ENABLE_SUPERVISOR_RF433

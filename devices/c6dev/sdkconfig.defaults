@@ -11,32 +11,6 @@ CONFIG_BUTTON_GPIO_LIST="20:0:AP"
 # Flash savings — WiFi + OpenThread in one image overflows the 1792K OTA slot at -Og
 CONFIG_COMPILER_OPTIMIZATION_SIZE=y
 
+# Thread instead of WiFi: swap the uplink line above for these two
 # CONFIG_NETWORK_UPLINK_THREAD=y
-
-# # eventfd required by OpenThread
-# CONFIG_VFS_EVENTFD_MAX_FDS=5
-
-# # OpenThread common
-# CONFIG_OPENTHREAD_ENABLED=y
-# CONFIG_OPENTHREAD_CLI=y
-# CONFIG_OPENTHREAD_RADIO_NATIVE=y
-# CONFIG_IEEE802154_ENABLED=y
-# # Full Thread Device — router-capable, radio always ON (mains-powered)
-# CONFIG_OPENTHREAD_FTD=y
-# CONFIG_OPENTHREAD_DNS64_CLIENT=y
-# # Needed for HTTP — large files cause NoBufs over 6LoWPAN (default 65).
-# # Comment out if not using HTTP to save ~8KB RAM.
-# CONFIG_OPENTHREAD_NUM_MESSAGE_BUFFERS=128
-
-# # mbedTLS for OpenThread
-# CONFIG_MBEDTLS_ECJPAKE_C=y
-# CONFIG_MBEDTLS_KEY_EXCHANGE_ECJPAKE=y
-# CONFIG_MBEDTLS_SSL_PROTO_DTLS=y
-# CONFIG_MBEDTLS_CMAC_C=y
-
-# # LWIP for Thread netif
-# CONFIG_LWIP_IPV6_NUM_ADDRESSES=8
 # CONFIG_LWIP_HOOK_IP6_SELECT_SRC_ADDR_CUSTOM=y
-# CONFIG_LWIP_MULTICAST_PING=y
-# # NAT64 for lwIP sockets (MQTT/SNTP/esp-tls) — lets lwip_hook_dns_external_resolve synthesize NAT64
-# CONFIG_LWIP_HOOK_DNS_EXT_RESOLVE_CUSTOM=y

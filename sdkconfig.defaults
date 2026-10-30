@@ -27,3 +27,7 @@ CONFIG_MBEDTLS_SSL_OUT_CONTENT_LEN=4096
 
 # System event task stack size (default 2304 too small for MQTT/HA init in event handlers)
 CONFIG_ESP_SYSTEM_EVENT_TASK_STACK_SIZE=3072
+
+# OpenThread console (`ot ...`) only in dev builds - sdkconfig.defaults.dev turns it on.
+# In release it would hand out the Thread network key to anyone with a USB cable
+# CONFIG_OPENTHREAD_CLI is not set
