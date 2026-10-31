@@ -31,7 +31,6 @@
   "cikonesp": {
     "build": {
       "compileArgs": [
-        "-DDEVICE_PROFILE_VARIANT=inet",
         "-DDEVICE_PROFILE=cikonesp",
         "-G Ninja"
       ],
@@ -41,9 +40,7 @@
       "sdkconfigFilePath": ""
     },
     "env": {
-      "DEVICE_PROFILE": "cikonesp",
-      "DEVICE_PROFILE_VARIANT": "inet"
-    },
+      "DEVICE_PROFILE": "cikonesp"    },
     "idfTarget": "esp32",
     "flashBaudRate": "",
     "monitorBaudRate": "",
@@ -62,7 +59,6 @@
   "atom": {
     "build": {
       "compileArgs": [
-        "-DDEVICE_PROFILE_VARIANT=inet",
         "-DDEVICE_PROFILE=atom",
         "-G Ninja"
       ],
@@ -72,39 +68,7 @@
       "sdkconfigFilePath": ""
     },
     "env": {
-      "DEVICE_PROFILE": "atom",
-      "DEVICE_PROFILE_VARIANT": "inet"
-    },
-    "idfTarget": "esp32s3",
-    "flashBaudRate": "",
-    "monitorBaudRate": "",
-    "openOCD": {
-      "debugLevel": -1,
-      "configs": [],
-      "args": []
-    },
-    "tasks": {
-      "preBuild": "",
-      "preFlash": "",
-      "postBuild": "",
-      "postFlash": ""
-    }
-  },
-  "atom_obr": {
-    "build": {
-      "compileArgs": [
-        "-DDEVICE_PROFILE_VARIANT=obr",
-        "-DDEVICE_PROFILE=atom",
-        "-G Ninja"
-      ],
-      "ninjaArgs": [],
-      "buildDirectoryPath": "",
-      "sdkconfigDefaults": [],
-      "sdkconfigFilePath": ""
-    },
-    "env": {
-      "DEVICE_PROFILE": "atom",
-      "DEVICE_PROFILE_VARIANT": "obr"
+      "DEVICE_PROFILE": "atom"
     },
     "idfTarget": "esp32s3",
     "flashBaudRate": "",
@@ -124,7 +88,6 @@
   "bedroom_ceiling": {
     "build": {
       "compileArgs": [
-        "-DDEVICE_PROFILE_VARIANT=inet",
         "-DDEVICE_PROFILE=bedroom_ceiling",
         "-G Ninja"
       ],
@@ -134,9 +97,7 @@
       "sdkconfigFilePath": ""
     },
     "env": {
-      "DEVICE_PROFILE": "bedroom_ceiling",
-      "DEVICE_PROFILE_VARIANT": "inet"
-    },
+      "DEVICE_PROFILE": "bedroom_ceiling"    },
     "idfTarget": "esp32c6",
     "flashBaudRate": "",
     "monitorBaudRate": "",
@@ -181,11 +142,10 @@
       "postFlash": ""
     }
   },
-  "h2dev_ftd": {
+  "h2dev": {
     "build": {
       "compileArgs": [
         "-DDEVICE_PROFILE=h2dev",
-        "-DDEVICE_PROFILE_VARIANT=ftd",
         "-G Ninja"
       ],
       "ninjaArgs": [],
@@ -194,8 +154,7 @@
       "sdkconfigFilePath": ""
     },
     "env": {
-      "DEVICE_PROFILE": "h2dev",
-      "DEVICE_PROFILE_VARIANT": "ftd"
+      "DEVICE_PROFILE": "h2dev"
     },
     "idfTarget": "esp32h2",
     "flashBaudRate": "",
@@ -212,11 +171,10 @@
       "postFlash": ""
     }
   },
-  "p4dev_eth": {
+  "p4dev": {
     "build": {
       "compileArgs": [
         "-DDEVICE_PROFILE=p4dev",
-        "-DDEVICE_PROFILE_VARIANT=eth",
         "-G Ninja"
       ],
       "ninjaArgs": [],
@@ -225,8 +183,7 @@
       "sdkconfigFilePath": ""
     },
     "env": {
-      "DEVICE_PROFILE": "p4dev",
-      "DEVICE_PROFILE_VARIANT": "eth"
+      "DEVICE_PROFILE": "p4dev"
     },
     "idfTarget": "esp32p4",
     "flashBaudRate": "",

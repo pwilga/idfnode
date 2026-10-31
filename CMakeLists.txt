@@ -29,11 +29,6 @@ if(NOT DEFINED DEVICE_PROFILE)
     endif()
 endif()
 
-if(NOT DEFINED DEVICE_PROFILE_VARIANT AND DEFINED ENV{DEVICE_PROFILE_VARIANT})
-    set(DEVICE_PROFILE_VARIANT "$ENV{DEVICE_PROFILE_VARIANT}")
-    message(STATUS "DEVICE_PROFILE_VARIANT from environment: ${DEVICE_PROFILE_VARIANT}")
-endif()
-
 set(DEVICE_DIR "${CMAKE_CURRENT_LIST_DIR}/devices/${DEVICE_PROFILE}")
 if(NOT EXISTS "${DEVICE_DIR}")
     message(FATAL_ERROR "Device profile not found: ${DEVICE_DIR}")
@@ -70,17 +65,6 @@ if(EXISTS "${DEVICE_DIR}/partition_table.csv")
     file(WRITE "${GENERATED_PT_CONFIG}" "CONFIG_PARTITION_TABLE_CUSTOM_FILENAME=\"devices/${DEVICE_PROFILE}/partition_table.csv\"\n")
     list(APPEND SDKCONFIG_DEFAULTS "${GENERATED_PT_CONFIG}")
     message(STATUS "Using device-specific partition table: devices/${DEVICE_PROFILE}/partition_table.csv")
-endif()
-
-# Add variant-specific config if DEVICE_PROFILE_VARIANT is specified
-if(DEFINED DEVICE_PROFILE_VARIANT)
-    set(VARIANT_CONFIG "${DEVICE_DIR}/sdkconfig.defaults.${DEVICE_PROFILE_VARIANT}")
-    if(EXISTS "${VARIANT_CONFIG}")
-        list(APPEND SDKCONFIG_DEFAULTS "${VARIANT_CONFIG}")
-        message(STATUS "Using profile variant: ${DEVICE_PROFILE_VARIANT}")
-    else()
-        message(WARNING "DEVICE_PROFILE_VARIANT='${DEVICE_PROFILE_VARIANT}' specified but config not found: ${VARIANT_CONFIG}")
-    endif()
 endif()
 
 # Dev overlay — loaded by default, skipped only for release builds

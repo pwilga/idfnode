@@ -11,6 +11,5 @@ CONFIG_BUTTON_GPIO_LIST="20:0:AP"
 # Flash savings — WiFi + OpenThread in one image overflows the 1792K OTA slot at -Og
 CONFIG_COMPILER_OPTIMIZATION_SIZE=y
 
-# Thread instead of WiFi: swap the uplink line above for these two
+# Thread instead of WiFi: swap the uplink line above for this one
 # CONFIG_NETWORK_UPLINK_THREAD=y
-# CONFIG_LWIP_HOOK_IP6_SELECT_SRC_ADDR_CUSTOM=y

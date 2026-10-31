@@ -45,8 +45,7 @@
         "IDF_TARGET": "esp32"
       },
       "environment": {
-        "DEVICE_PROFILE": "cikonesp",
-        "DEVICE_PROFILE_VARIANT": "inet"
+        "DEVICE_PROFILE": "cikonesp"
       },
       "vendor": {
         "espressif/vscode-esp-idf": {
@@ -55,7 +54,6 @@
             {
               "type": "compileArgs",
               "value": [
-                "-DDEVICE_PROFILE_VARIANT=inet",
                 "-DDEVICE_PROFILE=cikonesp",
                 "-G Ninja"
               ]
@@ -80,8 +78,7 @@
         "IDF_TARGET": "esp32s3"
       },
       "environment": {
-        "DEVICE_PROFILE": "atom",
-        "DEVICE_PROFILE_VARIANT": "inet"
+        "DEVICE_PROFILE": "atom"
       },
       "vendor": {
         "espressif/vscode-esp-idf": {
@@ -90,32 +87,6 @@
             {
               "type": "compileArgs",
               "value": [
-                "-DDEVICE_PROFILE_VARIANT=inet",
-                "-DDEVICE_PROFILE=atom",
-                "-G Ninja"
-              ]
-            }
-          ]
-        }
-      }
-    },
-    {
-      "name": "atom_obr",
-      "cacheVariables": {
-        "IDF_TARGET": "esp32s3"
-      },
-      "environment": {
-        "DEVICE_PROFILE": "atom",
-        "DEVICE_PROFILE_VARIANT": "obr"
-      },
-      "vendor": {
-        "espressif/vscode-esp-idf": {
-          "schemaVersion": 1,
-          "settings": [
-            {
-              "type": "compileArgs",
-              "value": [
-                "-DDEVICE_PROFILE_VARIANT=obr",
                 "-DDEVICE_PROFILE=atom",
                 "-G Ninja"
               ]
@@ -140,8 +111,7 @@
         "IDF_TARGET": "esp32c6"
       },
       "environment": {
-        "DEVICE_PROFILE": "bedroom_ceiling",
-        "DEVICE_PROFILE_VARIANT": "inet"
+        "DEVICE_PROFILE": "bedroom_ceiling"
       },
       "vendor": {
         "espressif/vscode-esp-idf": {
@@ -150,7 +120,6 @@
             {
               "type": "compileArgs",
               "value": [
-                "-DDEVICE_PROFILE_VARIANT=inet",
                 "-DDEVICE_PROFILE=bedroom_ceiling",
                 "-G Ninja"
               ]
@@ -203,13 +172,12 @@
       }
     },
     {
-      "name": "h2dev_ftd",
+      "name": "h2dev",
       "cacheVariables": {
         "IDF_TARGET": "esp32h2"
       },
       "environment": {
-        "DEVICE_PROFILE": "h2dev",
-        "DEVICE_PROFILE_VARIANT": "ftd"
+        "DEVICE_PROFILE": "h2dev"
       },
       "vendor": {
         "espressif/vscode-esp-idf": {
@@ -219,7 +187,6 @@
               "type": "compileArgs",
               "value": [
                 "-DDEVICE_PROFILE=h2dev",
-                "-DDEVICE_PROFILE_VARIANT=ftd",
                 "-G Ninja"
               ]
             },
@@ -238,13 +205,12 @@
       }
     },
     {
-      "name": "p4dev_eth",
+      "name": "p4dev",
       "cacheVariables": {
         "IDF_TARGET": "esp32p4"
       },
       "environment": {
-        "DEVICE_PROFILE": "p4dev",
-        "DEVICE_PROFILE_VARIANT": "eth"
+        "DEVICE_PROFILE": "p4dev"
       },
       "vendor": {
         "espressif/vscode-esp-idf": {
@@ -254,7 +220,6 @@
               "type": "compileArgs",
               "value": [
                 "-DDEVICE_PROFILE=p4dev",
-                "-DDEVICE_PROFILE_VARIANT=eth",
                 "-G Ninja"
               ]
             },

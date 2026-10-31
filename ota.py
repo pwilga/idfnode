@@ -19,8 +19,6 @@ parser.add_argument('--idf-path', type=str,
                     help='Path to ESP-IDF (default: auto-detect from .vscode/settings.json)')
 parser.add_argument('--device-profile', type=str,
                     help='DEVICE_PROFILE (default: read from .vscode/settings.json idf.customExtraVars)')
-parser.add_argument('--device-profile-variant', type=str,
-                    help='DEVICE_PROFILE_VARIANT (default: read from .vscode/settings.json idf.customExtraVars)')
 args = parser.parse_args()
 
 def get_activation_script(idf_path):
@@ -39,10 +37,10 @@ def get_activation_script(idf_path):
             pass
     return f"{idf_path}/export.sh"
 
-def find_cmake_preset(project_dir, device_profile, device_variant):
+def find_cmake_preset(project_dir, device_profile):
     """If CMakePresets.json exists, idf.py auto-picks the *first* preset unless one
     is named explicitly (and then forces its IDF_TARGET, breaking cross-target builds).
-    Return the preset whose environment matches the requested profile/variant so we
+    Return the preset whose environment matches the requested profile so we
     can pass it via --preset, or None to fall back to plain -DDEVICE_PROFILE."""
     presets_file = Path(project_dir) / 'CMakePresets.json'
     if not presets_file.exists():
@@ -54,34 +52,29 @@ def find_cmake_preset(project_dir, device_profile, device_variant):
         print(f"Warning: Failed to read CMakePresets.json: {e}")
         return None
 
-    want_variant = device_variant or None
     for preset in presets.get('configurePresets', []):
-        env = preset.get('environment', {})
-        if env.get('DEVICE_PROFILE') != device_profile:
-            continue
-        if (env.get('DEVICE_PROFILE_VARIANT') or None) != want_variant:
-            continue
-        return preset.get('name')
+        if preset.get('environment', {}).get('DEVICE_PROFILE') == device_profile:
+            return preset.get('name')
     return None
 
 
 def get_vscode_settings():
-    """Read idf.currentSetup, DEVICE_PROFILE and DEVICE_PROFILE_VARIANT from .vscode/settings.json"""
+    """Read idf.currentSetup and DEVICE_PROFILE from .vscode/settings.json"""
     settings_file = Path(__file__).parent / '.vscode' / 'settings.json'
     if not settings_file.exists():
-        return None, None, None
+        return None, None
     try:
         with open(settings_file, 'r') as f:
             settings = json.load(f)
         idf_path = settings.get('idf.espIdfPath') or settings.get('idf.currentSetup')
         extra_vars = settings.get('idf.customExtraVars', {})
-        return idf_path, extra_vars.get('DEVICE_PROFILE'), extra_vars.get('DEVICE_PROFILE_VARIANT')
+        return idf_path, extra_vars.get('DEVICE_PROFILE')
     except Exception as e:
         print(f"Warning: Failed to read .vscode/settings.json: {e}")
-        return None, None, None
+        return None, None
 
 if not args.skip_build:
-    vscode_idf, vscode_profile, vscode_variant = get_vscode_settings()
+    vscode_idf, vscode_profile = get_vscode_settings()
 
     idf_path = args.idf_path or vscode_idf or os.environ.get('IDF_PATH')
     if not idf_path:
@@ -93,26 +86,21 @@ if not args.skip_build:
         print("❌ Cannot determine DEVICE_PROFILE. Set idf.customExtraVars.DEVICE_PROFILE in .vscode/settings.json or use --device-profile.")
         sys.exit(1)
 
-    device_variant = args.device_profile_variant or vscode_variant
-
     project_dir = Path(__file__).parent
-    preset = find_cmake_preset(project_dir, device_profile, device_variant)
+    preset = find_cmake_preset(project_dir, device_profile)
 
     if preset is None and (project_dir / 'CMakePresets.json').exists():
-        print(f"❌ CMakePresets.json exists but has no preset for DEVICE_PROFILE={device_profile} "
-              f"DEVICE_PROFILE_VARIANT={device_variant or '(none)'}. idf.py would fall back to the "
-              f"first preset and force its IDF_TARGET. Add a matching preset or remove CMakePresets.json.")
+        print(f"❌ CMakePresets.json exists but has no preset for DEVICE_PROFILE={device_profile}. "
+              f"idf.py would fall back to the first preset and force its IDF_TARGET. "
+              f"Add a matching preset or remove CMakePresets.json.")
         sys.exit(1)
 
     if preset:
         idf_profile_args = f"--preset {preset}"
-        print(f"Building: preset={preset} (DEVICE_PROFILE={device_profile} "
-              f"DEVICE_PROFILE_VARIANT={device_variant or '(none)'}, IDF: {idf_path})")
+        print(f"Building: preset={preset} (DEVICE_PROFILE={device_profile}, IDF: {idf_path})")
     else:
-        variant_define = f" -DDEVICE_PROFILE_VARIANT={device_variant}" if device_variant else ""
-        idf_profile_args = f"-DDEVICE_PROFILE={device_profile}{variant_define}"
-        print(f"Building: DEVICE_PROFILE={device_profile} "
-              f"DEVICE_PROFILE_VARIANT={device_variant or '(none)'} (IDF: {idf_path})")
+        idf_profile_args = f"-DDEVICE_PROFILE={device_profile}"
+        print(f"Building: DEVICE_PROFILE={device_profile} (IDF: {idf_path})")
 
     app_desc_obj = project_dir / "build" / "esp-idf" / "esp_app_format" / "CMakeFiles" / "__idf_esp_app_format.dir" / "esp_app_desc.c.obj"
     app_desc_obj.unlink(missing_ok=True)
@@ -192,27 +180,3 @@ with socket.socket(af, socktype, proto) as s:
         s.sendall(file_content)
         s.shutdown(socket.SHUT_WR)
         check_ack(s)
-
-    # with open(firmware_file, "rb") as firmware_fh:
-    # index = 0
-    # while True:
-    #     index = index + 1
-    #     chunk = firmware_fh.read(256)
-    #     if not chunk:
-    #         break
-    #     s.sendall(chunk)
-
-    # 2. Wyślij plik binarny w paczkach
-
-    # for i in range(0, firmware_file_size, 1024):
-    #     chunk = file_content[i : i + 1024]
-    #     s.sendall(chunk)
-    #     print(i)
-    # sleep(5)
-
-    # s.close()
-
-    # print(f"INDEX {i}")
-    # check_ack(s)
-
-    # s.sendall(file_content)
