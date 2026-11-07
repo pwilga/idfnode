@@ -1,0 +1,7 @@
+mdns:
+  host: bedroom-ceiling
+mqtt:
+http:
+sntp:
+ota:
+monitor:

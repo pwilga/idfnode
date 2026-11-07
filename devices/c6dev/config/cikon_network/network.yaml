@@ -1,0 +1,7 @@
+mdns:
+  instance: Cikon Systems thread/wifi device
+mqtt:
+http:
+sntp:
+ota:
+monitor:
