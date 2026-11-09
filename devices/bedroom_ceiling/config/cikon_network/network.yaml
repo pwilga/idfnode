@@ -1,3 +1,4 @@
+uplink: wifi
 mdns:
   host: bedroom-ceiling
 mqtt:

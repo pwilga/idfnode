@@ -67,6 +67,24 @@ if(EXISTS "${DEVICE_DIR}/partition_table.csv")
     message(STATUS "Using device-specific partition table: devices/${DEVICE_PROFILE}/partition_table.csv")
 endif()
 
+# The uplink is chosen in the profile's network.yaml (uplink: wifi, ethernet or thread), not in
+# sdkconfig.defaults. It has to become the CONFIG_NETWORK_UPLINK_* option before sdkconfig is made,
+# so it is read here and handed over as one more defaults file. The network adapter's generator
+# checks the word itself later. Written only when it changes, so a configure run stays quiet
+set(NETWORK_PROFILE_YAML "${DEVICE_CONFIG_DIR}/cikon_network/network.yaml")
+if(EXISTS "${NETWORK_PROFILE_YAML}")
+    file(STRINGS "${NETWORK_PROFILE_YAML}" NETWORK_UPLINK_LINE REGEX "^uplink:")
+    if(NETWORK_UPLINK_LINE MATCHES "^uplink:[ \t]*\"?([a-z]+)\"?[ \t]*(#.*)?$")
+        set(NETWORK_UPLINK_WORD "${CMAKE_MATCH_1}")
+        string(TOUPPER "${NETWORK_UPLINK_WORD}" NETWORK_UPLINK)
+        set(GENERATED_UPLINK_CONFIG "${CMAKE_BINARY_DIR}/network_uplink.defaults")
+        file(CONFIGURE OUTPUT "${GENERATED_UPLINK_CONFIG}" CONTENT "CONFIG_NETWORK_UPLINK_${NETWORK_UPLINK}=y\n")
+        list(APPEND SDKCONFIG_DEFAULTS "${GENERATED_UPLINK_CONFIG}")
+        set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${NETWORK_PROFILE_YAML}")
+        message(STATUS "Uplink from network.yaml: ${NETWORK_UPLINK_WORD}")
+    endif()
+endif()
+
 # Dev overlay — loaded by default, skipped only for release builds
 # Usage: BUILD_TYPE=release idf.py build
 if(NOT DEFINED BUILD_TYPE)

@@ -1,3 +1,4 @@
+uplink: ethernet
 mdns:
 mqtt:
 http:

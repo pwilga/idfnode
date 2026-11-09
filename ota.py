@@ -58,6 +58,38 @@ def find_cmake_preset(project_dir, device_profile):
     return None
 
 
+def strip_jsonc_comments(text):
+    """VS Code reads settings.json as JSONC: drop // and /* */ comments, keep strings as they are
+    (a URL like rfc2217://kropka holds //)"""
+    out = []
+    i = 0
+    in_string = False
+    while i < len(text):
+        c = text[i]
+        if in_string:
+            out.append(c)
+            if c == '\\' and i + 1 < len(text):
+                out.append(text[i + 1])
+                i += 1
+            elif c == '"':
+                in_string = False
+        elif c == '"':
+            in_string = True
+            out.append(c)
+        elif text.startswith('//', i):
+            while i < len(text) and text[i] != '\n':
+                i += 1
+            continue
+        elif text.startswith('/*', i):
+            end = text.find('*/', i + 2)
+            i = len(text) if end == -1 else end + 2
+            continue
+        else:
+            out.append(c)
+        i += 1
+    return ''.join(out)
+
+
 def get_vscode_settings():
     """Read idf.currentSetup and DEVICE_PROFILE from .vscode/settings.json"""
     settings_file = Path(__file__).parent / '.vscode' / 'settings.json'
@@ -65,7 +97,7 @@ def get_vscode_settings():
         return None, None
     try:
         with open(settings_file, 'r') as f:
-            settings = json.load(f)
+            settings = json.loads(strip_jsonc_comments(f.read()))
         idf_path = settings.get('idf.espIdfPath') or settings.get('idf.currentSetup')
         extra_vars = settings.get('idf.customExtraVars', {})
         return idf_path, extra_vars.get('DEVICE_PROFILE')

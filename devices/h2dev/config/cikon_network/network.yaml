@@ -1,3 +1,4 @@
+uplink: thread
 mdns:
 mqtt:
 http:
