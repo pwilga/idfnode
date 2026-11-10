@@ -3,5 +3,5 @@ mdns:
 mqtt:
 http:
 sntp:
-# ota:
+ota:
 monitor:

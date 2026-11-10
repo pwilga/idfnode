@@ -5,6 +5,7 @@ import subprocess
 import argparse
 import os
 import json
+import time
 from pathlib import Path
 
 # Parse command line arguments
@@ -174,6 +175,61 @@ def check_ack(s):
         sys.exit(1)
 
 
+SEND_CHUNK_SIZE = 16 * 1024
+# Small on purpose: whatever sits in the OS send buffer is already "sent" for the bar, but still
+# on its way to the device. The default buffer (up to MBs on macOS) would swallow the whole image
+# in seconds and show 100% while the device has barely started.
+SEND_BUFFER_SIZE = 16 * 1024
+BAR_WIDTH = 30
+
+
+def format_duration(seconds):
+    seconds = int(round(seconds))
+    return f"{seconds // 60}:{seconds % 60:02d}"
+
+
+def send_image(s, data):
+    """Send the image in chunks and draw a progress bar. The bar follows what the socket accepted;
+    with the small send buffer that is within SEND_BUFFER_SIZE of what the device has received.
+    The summary after the final ACK is the real time."""
+    total = len(data)
+    sent = 0
+    transfer_start = time.monotonic()
+    window_start, window_sent = transfer_start, 0
+    speed = 0.0
+
+    while sent < total:
+        chunk = data[sent:sent + SEND_CHUNK_SIZE]
+        s.sendall(chunk)
+        sent += len(chunk)
+
+        now = time.monotonic()
+        if now - window_start >= 1.0 or sent == total:
+            # Speed over the last second, so a stall shows up instead of being averaged away
+            speed = (sent - window_sent) / (now - window_start) / 1024
+            window_start, window_sent = now, sent
+
+        elapsed = now - transfer_start
+        average = sent / elapsed / 1024 if elapsed else 0
+        # The first second is only the OS buffers filling up, so speed and ETA would be nonsense
+        measured = elapsed >= 1.0 and speed > 0
+        eta = (total - sent) / (average * 1024) if measured and average else 0
+        speed_text = f"{speed:5.1f}" if measured else "  ---"
+        eta_text = format_duration(eta) if measured else "--:--"
+        filled = BAR_WIDTH * sent // total
+        bar = "█" * filled + "░" * (BAR_WIDTH - filled)
+        print(f"\r  {bar} {100 * sent // total:3d}%  {sent // 1024}/{total // 1024} KB  "
+              f"{speed_text} KB/s  ETA {eta_text}   ", end="", flush=True)
+
+    print()
+    return transfer_start
+
+
+def print_summary(elapsed, size):
+    print(f"✅ Image delivered: {size / 1024:.0f} KB in {format_duration(elapsed)} "
+          f"({elapsed:.1f} s), average {size / elapsed / 1024:.1f} KB/s")
+
+
 firmware_file = Path("build/idfnode.bin")
 firmware_file_size = firmware_file.stat().st_size
 
@@ -189,6 +245,7 @@ if not addrinfos:
 af, socktype, proto, _, sockaddr = addrinfos[0]
 
 with socket.socket(af, socktype, proto) as s:
+    s.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, SEND_BUFFER_SIZE)
     s.connect(sockaddr)
 
     s.sendall(magic_bytes)
@@ -209,6 +266,8 @@ with socket.socket(af, socktype, proto) as s:
         s.sendall(m5_hash)
         check_ack(s)
 
-        s.sendall(file_content)
+        transfer_start = send_image(s, file_content)
         s.shutdown(socket.SHUT_WR)
+        print("  Waiting for the device to confirm it received everything - do not close this window")
         check_ack(s)
+        print_summary(time.monotonic() - transfer_start, len(file_content))
