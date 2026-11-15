@@ -70,18 +70,41 @@ endif()
 # The uplink is chosen in the profile's network.yaml (uplink: wifi, ethernet or thread), not in
 # sdkconfig.defaults. It has to become the CONFIG_NETWORK_UPLINK_* option before sdkconfig is made,
 # so it is read here and handed over as one more defaults file. The network adapter's generator
-# checks the word itself later. Written only when it changes, so a configure run stays quiet
+# checks the word itself later. Written only when it changes, so a configure run stays quiet.
+# Two forms: "uplink: wifi", or "uplink:" with "type: wifi" and options under it. The option
+# ipv6: true adds the IPv6 options of a device that talks to Thread through a border router
+# (address from the router's prefix, routes from its advertisements). It is for the devices on
+# the router's WiFi or Ethernet side, not for the border router itself, which sends those
+# advertisements and needs no such option. It only adds: false turns nothing off.
 set(NETWORK_PROFILE_YAML "${DEVICE_CONFIG_DIR}/cikon_network/network.yaml")
 if(EXISTS "${NETWORK_PROFILE_YAML}")
-    file(STRINGS "${NETWORK_PROFILE_YAML}" NETWORK_UPLINK_LINE REGEX "^uplink:")
-    if(NETWORK_UPLINK_LINE MATCHES "^uplink:[ \t]*\"?([a-z]+)\"?[ \t]*(#.*)?$")
-        set(NETWORK_UPLINK_WORD "${CMAKE_MATCH_1}")
+    file(READ "${NETWORK_PROFILE_YAML}" NETWORK_YAML_TEXT)
+    set(NETWORK_UPLINK_WORD "")
+    set(NETWORK_UPLINK_IPV6 FALSE)
+    if(NETWORK_YAML_TEXT MATCHES "(^|\n)uplink:[ \t]*\"?([a-z]+)\"?[ \t]*(#[^\n]*)?(\n|$)")
+        set(NETWORK_UPLINK_WORD "${CMAKE_MATCH_2}")
+    elseif(NETWORK_YAML_TEXT MATCHES "(^|\n)uplink:[ \t]*(#[^\n]*)?\n(([ \t]+[^\n]*(\n|$))+)")
+        set(NETWORK_UPLINK_OPTIONS "${CMAKE_MATCH_3}")
+        if(NETWORK_UPLINK_OPTIONS MATCHES "(^|\n)[ \t]+type:[ \t]*\"?([a-z]+)\"?")
+            set(NETWORK_UPLINK_WORD "${CMAKE_MATCH_2}")
+        endif()
+        if(NETWORK_UPLINK_OPTIONS MATCHES "(^|\n)[ \t]+ipv6:[ \t]*true")
+            set(NETWORK_UPLINK_IPV6 TRUE)
+        endif()
+    endif()
+    if(NETWORK_UPLINK_WORD)
         string(TOUPPER "${NETWORK_UPLINK_WORD}" NETWORK_UPLINK)
+        set(NETWORK_UPLINK_DEFAULTS "CONFIG_NETWORK_UPLINK_${NETWORK_UPLINK}=y\n")
+        if(NETWORK_UPLINK_IPV6)
+            string(APPEND NETWORK_UPLINK_DEFAULTS
+                "CONFIG_LWIP_IPV6_AUTOCONFIG=y\n"
+                "CONFIG_LWIP_IPV6_ND6_ROUTE_INFO_OPTION_SUPPORT=y\n")
+        endif()
         set(GENERATED_UPLINK_CONFIG "${CMAKE_BINARY_DIR}/network_uplink.defaults")
-        file(CONFIGURE OUTPUT "${GENERATED_UPLINK_CONFIG}" CONTENT "CONFIG_NETWORK_UPLINK_${NETWORK_UPLINK}=y\n")
+        file(CONFIGURE OUTPUT "${GENERATED_UPLINK_CONFIG}" CONTENT "${NETWORK_UPLINK_DEFAULTS}" @ONLY)
         list(APPEND SDKCONFIG_DEFAULTS "${GENERATED_UPLINK_CONFIG}")
         set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${NETWORK_PROFILE_YAML}")
-        message(STATUS "Uplink from network.yaml: ${NETWORK_UPLINK_WORD}")
+        message(STATUS "Uplink from network.yaml: ${NETWORK_UPLINK_WORD}, IPv6 options: ${NETWORK_UPLINK_IPV6}")
     endif()
 endif()
 
