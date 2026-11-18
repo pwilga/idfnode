@@ -1,0 +1,6 @@
+- type: addressable
+  name: Onboard Led
+  gpio: 8
+  leds: 1
+  model: WS2812
+  format: GRB

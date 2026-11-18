@@ -35,3 +35,8 @@ config_fields_private.h
 
 .DS_Store
 dependencies.lock
+
+# Claude Code
+.claude/
+notes.txt
+

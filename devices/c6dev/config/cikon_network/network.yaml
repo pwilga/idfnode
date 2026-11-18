@@ -1,4 +1,4 @@
-uplink: wifi
+uplink: thread
 mdns:
   instance: Cikon Systems thread/wifi device
 mqtt:

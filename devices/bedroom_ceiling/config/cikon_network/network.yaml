@@ -1,4 +1,6 @@
-uplink: wifi
+uplink:
+  type: wifi
+  ipv6: true
 mdns:
   host: bedroom-ceiling
 mqtt:
