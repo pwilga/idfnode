@@ -20,10 +20,6 @@ menu "Cikon App Configuration"
         help
             Enable 433MHz RF receiver adapter.
 
-    config ENABLE_SUPERVISOR_LED
-        bool "Enable LED adapter"
-        default n
-
     config ENABLE_SUPERVISOR_LIGHT
         bool "Enable light adapter"
         default n

@@ -27,10 +27,6 @@ extern void device_handlers_init(void);
 #include "network_adapter.h"
 #endif
 
-#if CONFIG_ENABLE_SUPERVISOR_LED
-#include "led_adapter.h"
-#endif
-
 #if CONFIG_ENABLE_SUPERVISOR_LIGHT
 #include "light_adapter.h"
 #endif
@@ -75,10 +71,6 @@ void app_main(void) {
 
 #if CONFIG_ENABLE_SUPERVISOR_RF433
     supervisor_register_adapter(&rf433_adapter);
-#endif
-
-#if CONFIG_ENABLE_SUPERVISOR_LED
-    supervisor_register_adapter(&led_adapter);
 #endif
 
 #if CONFIG_ENABLE_SUPERVISOR_LIGHT
